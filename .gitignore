@@ -3,3 +3,4 @@ packages/
 output/
 obj/
 All*Files.lst
+*.csproj.user

@@ -1,4 +1,6 @@
-﻿using System.Reflection;
+﻿// Copyright (c) 2020 SIL International
+// This software is licensed under the MIT License (http://opensource.org/licenses/MIT)
+using System.Reflection;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 

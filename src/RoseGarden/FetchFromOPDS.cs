@@ -1,13 +1,10 @@
-﻿using System;
+﻿// Copyright (c) 2020 SIL International
+// This software is licensed under the MIT License (http://opensource.org/licenses/MIT)
+using System;
 using System.IO;
-using System.Net;
 using System.Net.Http;
 using System.Xml;
-using System.Collections.Generic;
 using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using System.Diagnostics;
 
 namespace RoseGarden
 {
@@ -305,7 +302,15 @@ namespace RoseGarden
 		{
 			var apptype = (type == "epub") ? "epub+zip" : type;
 			// TODO: sanitize filename if based on title.
-			var path = (String.IsNullOrWhiteSpace(_options.OutputFile)) ? Path.Combine(Path.GetTempPath(), _options.BookTitle + "." + type) : _options.OutputFile;
+			string path;
+			if (String.IsNullOrEmpty(_options.OutputFile))
+			{
+				path = Path.Combine(Path.GetTempPath(), Program.SanitizeNameForFileSystem(_options.BookTitle) + "." + type);
+			}
+			else
+			{
+				path = _options.OutputFile;
+			}
 			if (_options.UseStoryWeaver)
 			{
 				if (!path.EndsWith(".zip", StringComparison.InvariantCulture))
