@@ -12,16 +12,13 @@ namespace RoseGarden
 		[Option('u', "url", Required = false, HelpText = "Url of the OPDS catalog file (or its root)")]
 		public string Url { get; set; }
 
-		[Option('d', "digitallibrary", Required = false, HelpText = "Fetch from Global Digital Library")]
-		public bool UseDigitalLibrary { get; set; }
-
-		[Option('s', "storyweaver", Required = false, HelpText = "Fetch from Story Weaver")]
-		public bool UseStoryWeaver { get; set; }
+		[Option('s', "source", Required = false, HelpText = "Fetch from a known OPDS source (for example, gdl or sw)")]
+		public string Source { get; set; }
 
 		[Option('l', "language", Required = false, HelpText = "Name of desired language: limits catalog output and book title searches")]
 		public string LanguageName { get; set; }
 
-		[Option('c', "catalog", Required = false, HelpText = "Download a catalog file to the given location.")]
+		[Option('c', "catalog", Required = false, HelpText = "Catalog file: output if either -u or -s is provided, input if neither is given.")]
 		public string CatalogFile { get; set; }
 
 		[Option('t', "title", Required = false, HelpText = "Title of desired book to download")]
@@ -44,6 +41,9 @@ namespace RoseGarden
 
 		[Option('V', "veryverbose", Required = false, HelpText = "Write very verbose progress messages to the console.")]
 		public bool VeryVerbose { get; set; }
+
+		[Option('d', "dryrun", Required = false, HelpText = "Do not actually fetch a book or catalog file. Only report as directed by -v (verbose) or -V (veryverbose).")]
+		public bool DryRun { get; set; }
 	}
 
 	[Verb("convert", HelpText = "Convert a book from epub to Bloom source.")]
@@ -64,7 +64,7 @@ namespace RoseGarden
 		[Option('b', "bloomfolder", Required = true, HelpText = "Folder where Bloom is installed locally.  (This is used to find various css and other files.)")]
 		public string BloomFolder { get; set; }
 
-		[Option('l', "language", Required = false, HelpText = "Name of the main language of the book.")]
+		[Option('l', "language", Required = true, HelpText = "Name of the main language of the book (from the catalog entry).")]
 		public string LanguageName { get; set; }
 
 		[Option('o', "output", Required = false, HelpText = "Output file name to use instead of the title (name without .htm used for both directory and file names)")]

@@ -26,6 +26,7 @@ namespace RoseGarden
 		List<XmlElement> _templatePages;
 		XmlDocument _xmatterBook;   // provides template for the front cover page and other xmatter pages.
 		List<XmlElement> _xmatterPages;
+		private readonly Language _language = new Language();
 
 		// Files that are copied into a new Basic Book.
 		readonly private string[] _copiedFiles = new string[]
@@ -165,6 +166,29 @@ namespace RoseGarden
 			Directory.CreateDirectory(_epubFolder);
 			ExtractZippedFiles(_options.EpubFile, _epubFolder);
 			_metadata = new EpubMetadata(_epubFolder, _options.VeryVerbose);
+			var langCode = _language.GetCodeForName(_options.LanguageName);
+			if (_metadata.LanguageCode != langCode)
+			{
+				if (_metadata.LanguageCode == "en")
+				{
+					Console.WriteLine("WARNING: using '{0}' for {1} instead of 'en'", langCode, _options.LanguageName);
+					_metadata.LanguageCode = langCode;
+				}
+				else if (_metadata.LanguageCode.ToLowerInvariant() == langCode.ToLowerInvariant())
+				{
+					Console.WriteLine("INFO: replacing language code '{0}' with '{1}'", _metadata.LanguageCode, langCode);
+					_metadata.LanguageCode = langCode;
+				}
+				else if (_metadata.LanguageCode == "bxk" && langCode == "luy")
+				{
+					Console.WriteLine("INFO: replacing obsolete language code '{0}' with '{1}'", _metadata.LanguageCode, langCode);
+					_metadata.LanguageCode = langCode;
+				}
+				else
+				{
+					Console.WriteLine("WARNING: language code '{0}' for {1} does not match expected '{2}'.", _metadata.LanguageCode, _options.LanguageName, langCode);
+				}
+			}
 			if (String.IsNullOrWhiteSpace(_options.FileName))
 				_htmFileName = Program.SanitizeNameForFileSystem(_metadata.Title) + ".htm";
 			else
@@ -197,6 +221,22 @@ namespace RoseGarden
 
 			SetDataDivTextValue("contentLanguage1", _metadata.LanguageCode);
 			SetDataDivTextValue("smallCoverCredits", "");
+
+			if (!String.IsNullOrWhiteSpace(_options.AttributionFile) && File.Exists(_options.AttributionFile))
+			{
+				const string AttributionTextHeader = "Attribution Text:";
+				var attributionText = File.ReadAllText(_options.AttributionFile);
+				var idxStart = attributionText.IndexOf(AttributionTextHeader, StringComparison.InvariantCulture);
+				if (idxStart >= 0)
+				{
+					idxStart = idxStart + AttributionTextHeader.Length;
+					var idxEnd = attributionText.IndexOf('\n', idxStart);
+					if (idxEnd < 0)
+						idxEnd = attributionText.Length;
+					attributionText = attributionText.Substring(idxStart, idxEnd - idxStart).Trim();
+				}
+				SetDataDivParaValue("originalAcknowledgments", _metadata.LanguageCode, attributionText);
+			}
 
 			for (int pageNumber = 0; pageNumber < _metadata.PageFiles.Count; ++pageNumber)
 			{
@@ -345,13 +385,14 @@ namespace RoseGarden
 			return null;
 		}
 
-		private XmlElement GetOrCreateDataDivElement(string key)
+		private XmlElement GetOrCreateDataDivElement(string key, string lang)
 		{
-			var dataDiv = _bloomDoc.SelectSingleNode("/html/body/div[@id='bloomDataDiv']/div[@data-book='" + key + "']") as XmlElement;
+			var dataDiv = _bloomDoc.SelectSingleNode($"/html/body/div[@id='bloomDataDiv']/div[@data-book='{key}' and @lang='{lang}']") as XmlElement;
 			if (dataDiv == null)
 			{
 				dataDiv = _bloomDoc.CreateElement("div");
 				dataDiv.SetAttribute("data-book", key);
+				dataDiv.SetAttribute("lang", lang);
 				var dataBook = _bloomDoc.SelectSingleNode("/html/body/div[@id='bloomDataDiv']");
 				Debug.Assert(dataBook != null);
 				dataBook.AppendChild(dataDiv);
@@ -359,15 +400,15 @@ namespace RoseGarden
 			return dataDiv;
 		}
 
-		private void SetDataDivTextValue(string key, string value)
+		private void SetDataDivTextValue(string key, string value, string lang="*")
 		{
-			var dataDiv = GetOrCreateDataDivElement(key);
+			var dataDiv = GetOrCreateDataDivElement(key, lang);
 			dataDiv.InnerText = value;
 		}
 
-		private void SetDataDivParaValue(string key, string value)
+		private void SetDataDivParaValue(string key, string lang, string value)
 		{
-			var dataDiv = GetOrCreateDataDivElement(key);
+			var dataDiv = GetOrCreateDataDivElement(key, lang);
 			dataDiv.InnerXml = "<p>" + value + "</p>";
 		}
 
@@ -376,7 +417,7 @@ namespace RoseGarden
 			// This should be called only once.
 			var titleNode = _bloomDoc.SelectSingleNode("/html/head/title");
 			titleNode.InnerText = title;
-			SetDataDivParaValue("bookTitle", title);
+			SetDataDivParaValue("bookTitle", _metadata.LanguageCode, title);
 			var zTitle = _bloomDoc.SelectSingleNode("//div[contains(@class, 'bloom-editable') and @data-book='bookTitle' and @lang='z']") as XmlElement;
 			AddNewLanguageDiv(zTitle, "<p>" + title + "</p>");
 		}
@@ -384,7 +425,7 @@ namespace RoseGarden
 		private void AddCoverContributor(string paraXml)
 		{
 			// This may be called multiple times.
-			var dataDiv = GetOrCreateDataDivElement("smallCoverCredits");
+			var dataDiv = GetOrCreateDataDivElement("smallCoverCredits", _metadata.LanguageCode);
 			var newXml = Regex.Replace(paraXml, " xmlns=[\"'][^\"']*[\"']", "", RegexOptions.CultureInvariant, Regex.InfiniteMatchTimeout);
 			var credits = dataDiv.InnerXml + newXml;
 			dataDiv.InnerXml = credits;
@@ -432,10 +473,10 @@ namespace RoseGarden
 			var nsmgr = new XmlNamespaceManager(pageDoc.NameTable);
 			nsmgr.AddNamespace("x", "http://www.w3.org/1999/xhtml");
 			var navElement = pageDoc.SelectSingleNode("/x:html/x:body/x:nav", nsmgr);
-			var body = pageDoc.SelectSingleNode("/x:html/x:body", nsmgr) as XmlElement;
-			var elements = body.SelectNodes("//x:img[normalize-space(@src)!='']|//x:p[normalize-space()!='']", nsmgr).Cast<XmlElement>().ToList();
-			if (navElement != null || elements.Count == 0)
+			if (navElement != null)
 				return false;
+			var body = pageDoc.SelectSingleNode("/x:html/x:body", nsmgr) as XmlElement;
+			var elements = body.SelectNodes(".//x:img[normalize-space(@src)!='']|//x:p[normalize-space()!='']", nsmgr).Cast<XmlElement>().ToList();
 			var imageCount = 0;
 			var textCount = 0;
 			var firstChild = "";
@@ -458,6 +499,12 @@ namespace RoseGarden
 						++textCount;
 				}
 				prevChild = child.Name;
+			}
+			if (elements.Count == 0 && body.ChildNodes.Count == 1 && !body.FirstChild.HasChildNodes && !String.IsNullOrWhiteSpace(body.FirstChild.InnerText))
+			{
+				// Some Global Digital Library epubs have pages with only text in the body: no divs, paragraphs, or images, just text.
+				textCount = 1;
+				firstChild = lastChild = "p";
 			}
 			var templatePage = SelectTemplatePage(imageCount, textCount, firstChild, lastChild);
 			if (templatePage == null)
@@ -517,6 +564,12 @@ namespace RoseGarden
 					}
 				}
 				prevChild = child.Name;
+			}
+			if (elements.Count == 0)
+			{
+				innerXmlBldr.Append("<p>");
+				innerXmlBldr.Append(body.InnerText.Trim());
+				innerXmlBldr.Append("</p>");
 			}
 			if (innerXmlBldr.Length > 0)
 				StoreAccumulatedParagraphs(textIdx, innerXmlBldr, textGroupDivs);

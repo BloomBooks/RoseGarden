@@ -10,14 +10,22 @@ namespace RoseGarden
 {
 	public class FetchFromOPDS
 	{
-		private const string DigitalLibraryUrl = "https://api.digitallibrary.io/book-api/opds/v1/root.xml";
-		private const string StoryWeaverUrl = "https://storage.googleapis.com/story-weaver-e2e-production/catalog/catalog.xml";
+		public struct Source
+		{
+			public string Code;
+			public string Url;
+		}
+		public readonly Source[] Sources= new Source[] {
+			new Source { Code="gdl", Url="https://api.digitallibrary.io/book-api/opds/v1/root.xml" },
+			new Source { Code="sw", Url="https://storage.googleapis.com/story-weaver-e2e-production/catalog/catalog.xml" }
+		};
 
 		private HttpClient _client = new HttpClient();
 		private XmlDocument _rootCatalog = new XmlDocument();
 		private XmlDocument _langCatalog = new XmlDocument();
 		private XmlNamespaceManager _nsmgr;
 		private FetchOptions _options;
+		private string _feedTitle;
 
 		public FetchFromOPDS(FetchOptions opts)
 		{
@@ -32,20 +40,26 @@ namespace RoseGarden
 		{
 			if (!VerifyOptions())
 				return 1;
-	
+
+			if (_options.DryRun)
+				Console.WriteLine("DRY RUN MESSAGES");
 			GetRootPage();
 			// Fill in the language specific catalog if the language name is given.
 			if (!String.IsNullOrWhiteSpace(_options.LanguageName))
 				GetCatalogForLanguage();
-			// Write the catalog file if the catalog filename is given.  If the langauge name is given,
-			// write out the language specific catalog.  Otherwise write out whatever catalog was loaded
-			// from the original root url.
-			if (!String.IsNullOrEmpty(_options.CatalogFile))
+			// Don't overwrite an input catalog file.
+			if (!String.IsNullOrWhiteSpace(_options.Url) || !String.IsNullOrWhiteSpace(_options.Source))
 			{
-				if (String.IsNullOrEmpty(_options.LanguageName))
-					File.WriteAllText(_options.CatalogFile, _rootCatalog.OuterXml);
-				else
-					File.WriteAllText(_options.CatalogFile, _langCatalog.OuterXml);
+				// Write the catalog file if the catalog filename is given.  If the language name is given,
+				// write out the language specific catalog.  Otherwise write out whatever catalog was loaded
+				// from the original root url.
+				if (!String.IsNullOrEmpty(_options.CatalogFile))
+				{
+					if (String.IsNullOrEmpty(_options.LanguageName))
+						File.WriteAllText(_options.CatalogFile, _rootCatalog.OuterXml);
+					else
+						File.WriteAllText(_options.CatalogFile, _langCatalog.OuterXml);
+				}
 			}
 			// Retrieve and save a book if the title is provided.  The author and output filepath may optionally
 			// be provided as well.  If the language name is given, search the language specific catalog.  Otherwise,
@@ -62,16 +76,35 @@ namespace RoseGarden
 			bool allValid = true;
 
 			var urlCount = 0;
-			if (_options.UseStoryWeaver)
-				++urlCount;
-			if (_options.UseDigitalLibrary)
-				++urlCount;
 			if (!String.IsNullOrWhiteSpace(_options.Url))
 				++urlCount;
+			if (!String.IsNullOrWhiteSpace(_options.Source))
+			{
+				if (!Sources.Any(s => s.Code == _options.Source.ToLowerInvariant()))
+				{
+					Console.Write("The -s (--source) option recognizes only these codes:");
+					foreach (var src in Sources)
+						Console.Write(" {0}", src.Code);
+					Console.WriteLine();
+					allValid = false;
+				}
+				++urlCount;
+			}
 			if (urlCount != 1)
 			{
-				Console.WriteLine("Exactly one of -u (--url), -d (--digitallibrary), and -s (--storyweaver) must be used.");
-				allValid = false;
+				if (urlCount == 0)
+				{
+					if (String.IsNullOrWhiteSpace(_options.CatalogFile) || !File.Exists(_options.CatalogFile))
+					{
+						Console.WriteLine("If neither -u (--url) nor -s (--source) is given, -c (--catalog) must provide an existing file");
+						allValid = false;
+					}
+				}
+				else
+				{
+					Console.WriteLine("Exactly one of -u (--url) or -s (--source) must be used unless -c (--catalog) is given as an input file.");
+					allValid = false;
+				}
 			}
 
 			var outputCount = 0;
@@ -82,6 +115,11 @@ namespace RoseGarden
 			if (outputCount == 0)
 			{
 				Console.WriteLine("At least one of -c (--catalog) and -t (--title) must be used.");
+				allValid = false;
+			}
+			if (urlCount == 0 && !String.IsNullOrWhiteSpace(_options.CatalogFile) && String.IsNullOrEmpty(_options.BookTitle))
+			{
+				Console.WriteLine("If -c (--catalog) is an input file, then -t (--title) must be used.");
 				allValid = false;
 			}
 
@@ -113,13 +151,21 @@ namespace RoseGarden
 
 		private int GetCatalogForLanguage()
 		{
+			if (_options.Verbose)
+				Console.WriteLine("Extracting a catalog specifically for {0}", _options.LanguageName);
 			_langCatalog.LoadXml("<feed xmlns='http://www.w3.org/2005/Atom' xmlns:lrmi='http://purl.org/dcx/lrmi-terms/'" +
 				" xmlns:dc='http://purl.org/dc/terms/' xmlns:dcterms='http://purl.org/dc/terms/'" +
 				" xmlns:opds='http://opds-spec.org/2010/catalog'>" + Environment.NewLine + "</feed>");
+			if (!String.IsNullOrWhiteSpace(_feedTitle))
+			{
+				var title = _langCatalog.CreateElement("title", "http://www.w3.org/2005/Atom");
+				title.InnerText = $"{_feedTitle} (extract for {_options.LanguageName})";
+				_langCatalog.DocumentElement.AppendChild(title);
+			}
 			XmlElement selfLink;
 			XmlElement nextLink;
 			XmlElement lastLink;
-			var xpath = $"//a:entry/dcterms:language[contains(text(),'{_options.LanguageName}')]";  // actually gets child of entry...
+			var xpath = $"//a:entry/dcterms:language[text()='{_options.LanguageName}']";  // actually gets child of entry...
 			var entries = _rootCatalog.DocumentElement.SelectNodes(xpath, _nsmgr);
 			int entryCount = 0;
 			XmlDocument pageOfCatalog;
@@ -131,6 +177,8 @@ namespace RoseGarden
 				var link = _rootCatalog.DocumentElement.SelectSingleNode($"/a:feed/a:link[@rel='http://opds-spec.org/facet' and @opds:facetGroup='Languages' and contains(@title,'{_options.LanguageName}')]", _nsmgr) as XmlElement;
 				if (link == null)
 				{
+					if (_options.DryRun)
+						return 0;
 					Console.WriteLine("WARNING: Could not find any entries or a link for {0}", _options.LanguageName);
 					return 2;
 				}
@@ -156,6 +204,8 @@ namespace RoseGarden
 			}
 			while (true)
 			{
+				if (_options.DryRun)
+					break;
 				selfLink = pageOfCatalog.DocumentElement.SelectSingleNode("/a:feed/a:link[@rel='self']", _nsmgr) as XmlElement;
 				nextLink = pageOfCatalog.DocumentElement.SelectSingleNode("/a:feed/a:link[@rel='next']", _nsmgr) as XmlElement;
 				lastLink = pageOfCatalog.DocumentElement.SelectSingleNode("/a:feed/a:link[@rel='last']", _nsmgr) as XmlElement;
@@ -181,6 +231,8 @@ namespace RoseGarden
 			}
 			if (entryCount == 0)
 			{
+				if (_options.DryRun)
+					return 0;
 				Console.WriteLine("WARNING: Could not find any entries for {0} (href={1})", _options.LanguageName, hrefLink);
 				return 2;
 			}
@@ -236,28 +288,51 @@ namespace RoseGarden
 		{
 			string catalogUrl;
 
-			if (_options.UseStoryWeaver)
-				catalogUrl = StoryWeaverUrl;
-			else if (_options.UseDigitalLibrary)
-				catalogUrl = DigitalLibraryUrl;
+			if (_options.Source != null)
+				catalogUrl = (Sources.First(src => src.Code == _options.Source.ToLowerInvariant())).Url;
 			else
 				catalogUrl = _options.Url;
+			if (!String.IsNullOrWhiteSpace(catalogUrl))
+			{
+				var data = GetOpdsPage(catalogUrl);
+				_rootCatalog.LoadXml(data);
+			}
+			else
+			{
+				_rootCatalog.Load(_options.CatalogFile);
+			}
 
-			var data = GetOpdsPage(catalogUrl);
-			_rootCatalog.LoadXml(data);
 			_nsmgr = new XmlNamespaceManager(_rootCatalog.NameTable);
 			_nsmgr.AddNamespace("lrmi", "http://purl.org/dcx/lrmi-terms/");
 			_nsmgr.AddNamespace("opds", "http://opds-spec.org/2010/catalog");
 			_nsmgr.AddNamespace("dc", "http://purl.org/dc/terms/");
 			_nsmgr.AddNamespace("dcterms", "http://purl.org/dc/terms/");
 			_nsmgr.AddNamespace("a", "http://www.w3.org/2005/Atom");
+
+			var title = _rootCatalog.SelectSingleNode("/a:feed/a:title", _nsmgr);
+			if (title != null)
+				_feedTitle = title.InnerText;
+			if (_options.VeryVerbose)
+				Console.WriteLine("INFO: catalog title = {0}", _feedTitle);
 		}
 
 		public string GetOpdsPage(string urlPath)
 		{
 			if (_options.VeryVerbose)
 				Console.WriteLine($"Retrieving OPDS page at {urlPath}");
-			return _client.GetStringAsync(urlPath).Result;
+			if (_options.DryRun)
+				return "<feed xmlns='http://www.w3.org/2005/Atom' xmlns:lrmi='http://purl.org/dcx/lrmi-terms/'" +
+					" xmlns:dc='http://purl.org/dc/terms/' xmlns:dcterms='http://purl.org/dc/terms/'" +
+					" xmlns:opds='http://opds-spec.org/2010/catalog'><title>Dry Run</title></feed>";
+			try
+			{
+				return _client.GetStringAsync(urlPath).Result;
+			}
+			catch (Exception ex)
+			{
+				Console.WriteLine("WARNING: could not download OPDS page from {0} ({1})", urlPath, ex.Message);
+				return "<feed></feed>";
+			}
 		}
 
 		private int FetchAndSaveBook()
@@ -301,7 +376,6 @@ namespace RoseGarden
 		private int DownloadBook(XmlElement bookEntry, string type)
 		{
 			var apptype = (type == "epub") ? "epub+zip" : type;
-			// TODO: sanitize filename if based on title.
 			string path;
 			if (String.IsNullOrEmpty(_options.OutputFile))
 			{
@@ -311,8 +385,10 @@ namespace RoseGarden
 			{
 				path = _options.OutputFile;
 			}
-			if (_options.UseStoryWeaver)
+			if (_feedTitle != null && _feedTitle.ToLowerInvariant().Contains("storyweaver"))
 			{
+				if (_options.VeryVerbose)
+					Console.WriteLine("INFO: adding .zip file extension for downloading from StoryWeaver");
 				if (!path.EndsWith(".zip", StringComparison.InvariantCulture))
 					path = path + ".zip";
 				if (type == "pdf")
@@ -335,6 +411,8 @@ namespace RoseGarden
 			}
 			else
 			{
+				// TODO: obtain token from a file in the user's AppData directory.  This would allow
+				// storing tokens to multiple sources if that should become useful.
 				var accessToken = _options.AccessToken;
 				if (String.IsNullOrWhiteSpace(accessToken))
 					accessToken = Environment.GetEnvironmentVariable("OPDSTOKEN");
@@ -347,11 +425,23 @@ namespace RoseGarden
 				}
 				url = href + "?token=" + accessToken;
 			}
-			var bytes = _client.GetByteArrayAsync(url).Result;
-
+			byte[] bytes = null;
+			if (!_options.DryRun)
+			{
+				try
+				{
+					bytes = _client.GetByteArrayAsync(url).Result;
+				}
+				catch (Exception ex)
+				{
+					Console.WriteLine("WARNING: could not download book from {0} ({1})", url, ex.Message);
+					return 2;
+				}
+			}
 			if (_options.Verbose)
 				Console.WriteLine("INFO: downloading {0} into {1}", url, path);
-			File.WriteAllBytes(path, bytes);
+			if (!_options.DryRun)
+				File.WriteAllBytes(path, bytes);
 			return 0;
 		}
 	}
