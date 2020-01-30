@@ -5,6 +5,8 @@ using System.IO;
 using System.Net.Http;
 using System.Xml;
 using System.Linq;
+using System.Text;
+using System.Text.RegularExpressions;
 
 namespace RoseGarden
 {
@@ -36,7 +38,7 @@ namespace RoseGarden
 			_langCatalog.PreserveWhitespace = true;
 		}
 
-		public int Run()
+		public int RunFetch()
 		{
 			if (!VerifyOptions())
 				return 1;
@@ -367,10 +369,103 @@ namespace RoseGarden
 			{
 				bookEntry = entries[0].ParentNode as XmlElement;
 			}
+			var ret = DownloadBook(bookEntry, "epub");
+			if (ret != 0)
+				return ret;
 			if (_options.DownloadPDF)
-				return DownloadBook(bookEntry, "pdf");
+			{
+				ret = DownloadBook(bookEntry, "pdf");
+				if (ret != 0)
+					return ret;
+			}
+			if (_options.DownloadThumbnail)
+			{
+				ret = DownloadThumbnail(bookEntry);
+				if (ret != 0)
+					return ret;
+			}
+			WriteCatalogEntryFile(bookEntry);
+			return ret;
+		}
+
+		private void WriteCatalogEntryFile(XmlElement bookEntry)
+		{
+			string path;
+			if (String.IsNullOrEmpty(_options.OutputFile))
+			{
+				path = Path.Combine(Path.GetTempPath(), Program.SanitizeNameForFileSystem(_options.BookTitle) + ".opds");
+			}
 			else
-				return DownloadBook(bookEntry, "epub");
+			{
+				path = Path.ChangeExtension(_options.OutputFile, "opds");
+			}
+			if (_options.Verbose)
+				Console.WriteLine("INFO: writing catalog entry file {0}", path);
+			var bldr = new StringBuilder();
+			bldr.AppendLine("<feed xmlns='http://www.w3.org/2005/Atom' xmlns:lrmi='http://purl.org/dcx/lrmi-terms/'" +
+				" xmlns:dc='http://purl.org/dc/terms/' xmlns:dcterms='http://purl.org/dc/terms/'" +
+				" xmlns:opds='http://opds-spec.org/2010/catalog'>");
+			var titleNode = _rootCatalog.SelectSingleNode("/a:feed/a:title", _nsmgr) as XmlElement;
+			if (titleNode != null)
+			{
+				var title = Regex.Replace(titleNode.InnerText, " \\(extract for .*\\)$", "");
+				bldr.AppendLine($"<title>{title} [extract]</title>");
+			}
+			var entry = Regex.Replace(bookEntry.OuterXml, " xmlns[:a-zA-Z]*=[\"'][^\"']+[\"']", "");
+			bldr.AppendLine(entry);
+			bldr.AppendLine("</feed>");
+			File.WriteAllText(path, bldr.ToString());
+		}
+
+		private int DownloadThumbnail(XmlElement bookEntry)
+		{
+			var link = bookEntry.SelectSingleNode("./a:link[@rel='http://opds-spec.org/image/thumbnail']", _nsmgr) as XmlElement;
+			if (link == null)
+			{
+				Console.WriteLine("WARNING: selected book does not have a link for a thumbnail image!?");
+				if (_options.Verbose)
+					Console.WriteLine(bookEntry.OuterXml);
+				return 2;
+			}
+			var href = link.GetAttribute("href");
+			var type = link.GetAttribute("type");
+			if (type != "image/jpeg" && type != "image/png")
+			{
+				Console.WriteLine("WARNING: thumbnail link has unknown type: {0}", type);
+				return 2;
+			}
+			// The actual returned file may well be jpeg even if advertised as image/png, so assume jpeg until we
+			// see the data.
+			string path;
+			if (String.IsNullOrEmpty(_options.OutputFile))
+			{
+				path = Path.Combine(Path.GetTempPath(), Program.SanitizeNameForFileSystem(_options.BookTitle) + ".jpg");
+			}
+			else
+			{
+				path = Path.ChangeExtension(_options.OutputFile, "jpg");
+			}
+			byte[] bytes = null;
+			if (!_options.DryRun)
+			{
+				try
+				{
+					bytes = _client.GetByteArrayAsync(href).Result;
+					// check for PNG file data.
+					if (bytes[0] == 0x89 && bytes[1] == 'P' && bytes[2] == 'N' && bytes[3] == 'G')
+						path = Path.ChangeExtension(path, "png");
+				}
+				catch (Exception ex)
+				{
+					Console.WriteLine("WARNING: could not download book from {0} ({1})", href, ex.Message);
+					return 2;
+				}
+			}
+			if (_options.Verbose)
+				Console.WriteLine("INFO: downloading {0} into {1}", href, path);
+			if (!_options.DryRun)
+				File.WriteAllBytes(path, bytes);
+			return 0;
 		}
 
 		private int DownloadBook(XmlElement bookEntry, string type)
@@ -384,6 +479,8 @@ namespace RoseGarden
 			else
 			{
 				path = _options.OutputFile;
+				if (type == "pdf")
+					path = Path.ChangeExtension(path, type);
 			}
 			if (_feedTitle != null && _feedTitle.ToLowerInvariant().Contains("storyweaver"))
 			{
@@ -399,7 +496,8 @@ namespace RoseGarden
 			if (link == null)
 			{
 				Console.WriteLine($"WARNING: selected book does not have a proper link for {type} download!?");
-				Console.WriteLine(bookEntry.OuterXml);
+				if (_options.Verbose)
+					Console.WriteLine(bookEntry.OuterXml);
 				return 2;
 			}
 			var href = link.GetAttribute("href");

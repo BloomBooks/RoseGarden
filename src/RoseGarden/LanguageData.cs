@@ -4,12 +4,12 @@ using SIL.WritingSystems;
 
 namespace RoseGarden
 {
-	public class Language
+	public class LanguageData
 	{
 		Dictionary<string, string> _nameToCode = new Dictionary<string, string>();
 		LanguageLookup _languageLookup;	// throws FileNotFound / invalid image exception
 
-		public Language()
+		public LanguageData()
 		{
 			Sldr.Initialize();
 			_languageLookup = new LanguageLookup();
@@ -233,6 +233,17 @@ namespace RoseGarden
 				return "qaa";
 			}
 			return code;
+		}
+
+		public string GetNameForCode(string code)
+		{
+			var info = _languageLookup.GetLanguageFromCode(code);
+			if (info != null)
+				return info.DesiredName;
+			// GDL has one code that probably isn't in LanguageLookup since it's obsolete.
+			if (code == "bxk")
+				return "Bukusu";
+			return "Unknown";
 		}
 	}
 }

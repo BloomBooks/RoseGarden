@@ -90,12 +90,15 @@
     <Compile Include="FetchFromOPDS.cs" />
     <Compile Include="ConvertFromEpub.cs" />
     <Compile Include="EpubMetadata.cs" />
-    <Compile Include="Language.cs" />
+    <Compile Include="LanguageData.cs" />
+    <Compile Include="UploadToBloomLibrary.cs" />
+    <Compile Include="BookMetaData.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="App.config" />
     <None Include="packages.config" />
     <None Include="Resources\Book.htm" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="Resources\Pages.xml" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
 </Project>

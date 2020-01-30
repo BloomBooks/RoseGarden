@@ -76,7 +76,7 @@ namespace RoseGarden
 				else
 					OtherContributors.Add(contributor.InnerText);
 			}
-			var chapterItems = _opfDocument.SelectNodes("/o:package/o:manifest/o:item[@media-type='application/xhtml+xml' and @id!='toc']", _opfNsmgr);
+			var chapterItems = _opfDocument.SelectNodes("/o:package/o:manifest/o:item[@media-type='application/xhtml+xml' and @id!='toc' and @id!='nav']", _opfNsmgr);
 			foreach (var node in chapterItems)
 			{
 				var chapter = node as XmlElement;

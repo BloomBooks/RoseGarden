@@ -1,7 +1,5 @@
 ﻿// Copyright (c) 2020 SIL International
 // This software is licensed under the MIT License (http://opensource.org/licenses/MIT)
-using System;
-using System.Collections.Generic;
 using CommandLine;
 
 namespace RoseGarden
@@ -9,51 +7,57 @@ namespace RoseGarden
 	[Verb("fetch", HelpText = "Fetch a book or catalog from the OPDS source.")]
 	public class FetchOptions
 	{
-		[Option('u', "url", Required = false, HelpText = "Url of the OPDS catalog file (or its root)")]
-		public string Url { get; set; }
-
-		[Option('s', "source", Required = false, HelpText = "Fetch from a known OPDS source (for example, gdl or sw)")]
-		public string Source { get; set; }
-
-		[Option('l', "language", Required = false, HelpText = "Name of desired language: limits catalog output and book title searches")]
-		public string LanguageName { get; set; }
+		[Option('a', "author", Required = false, HelpText = "Author of desired book to download")]
+		public string Author { get; set; }
 
 		[Option('c', "catalog", Required = false, HelpText = "Catalog file: output if either -u or -s is provided, input if neither is given.")]
 		public string CatalogFile { get; set; }
 
-		[Option('t', "title", Required = false, HelpText = "Title of desired book to download")]
-		public string BookTitle { get; set; }
-
-		[Option('a', "author", Required = false, HelpText = "Author of desired book to download")]
-		public string Author { get; set; }
-
-		[Option('o', "output", Required = false, HelpText = "Output file path for downloaded book")]
-		public string OutputFile { get; set; }
+		[Option('d', "dryrun", Required = false, HelpText = "Do not actually fetch a book or catalog file. Only report as directed by -v (verbose) or -V (veryverbose).")]
+		public bool DryRun { get; set; }
 
 		[Option('k', "key", Required = false, HelpText = "Key (token) for book download access if needed (may be in OPDSTOKEN environment variable")]
 		public string AccessToken { get; set; }
 
-		[Option('p', "pdf", Required = false, HelpText = "Download a PDF file instead of the ePUB file.")]
+		[Option('l', "language", Required = false, HelpText = "Name of desired language: limits catalog output and book title searches")]
+		public string LanguageName { get; set; }
+
+		[Option('o', "output", Required = false, HelpText = "Output file path for downloaded book")]
+		public string OutputFile { get; set; }
+
+		[Option('p', "pdf", Required = false, HelpText = "Download the PDF file as well as the ePUB file.")]
 		public bool DownloadPDF { get; set; }
+
+		[Option('s', "source", Required = false, HelpText = "Fetch from a known OPDS source (for example, gdl or sw)")]
+		public string Source { get; set; }
+
+		[Option('t', "title", Required = false, HelpText = "Title of desired book to download")]
+		public string BookTitle { get; set; }
+
+		[Option('T', "thumbnail", Required = false, HelpText = "Download the thumbnail image file as well as the ePUB file.")]
+		public bool DownloadThumbnail { get; set; }
+
+		[Option('u', "url", Required = false, HelpText = "Url of the OPDS catalog file (or its root)")]
+		public string Url { get; set; }
 
 		[Option('v', "verbose", Required = false, HelpText = "Write verbose progress messages to the console.")]
 		public bool Verbose { get; set; }
 
 		[Option('V', "veryverbose", Required = false, HelpText = "Write very verbose progress messages to the console.")]
 		public bool VeryVerbose { get; set; }
-
-		[Option('d', "dryrun", Required = false, HelpText = "Do not actually fetch a book or catalog file. Only report as directed by -v (verbose) or -V (veryverbose).")]
-		public bool DryRun { get; set; }
 	}
 
 	[Verb("convert", HelpText = "Convert a book from epub to Bloom source.")]
 	public class ConvertOptions
 	{
-		[Option('e', "epub", Required = true, HelpText = "Path to the input epub file (required)")]
-		public string EpubFile { get; set; }
-
-		[Option('a', "attribution", Required = false, HelpText = "Input attribution text file as provided by Story Weaver (optional)")]
+		[Option('a', "attribution", Required = false, HelpText = "Input attribution text file as provided by Story Weaver")]
 		public string AttributionFile { get; set; }
+
+		[Option('b', "bloomfolder", Required = true, HelpText = "Folder where Bloom is installed locally.  (required)")]
+		public string BloomFolder { get; set; }
+
+		[Option('e', "epub", Required = true, HelpText = "Path to the input epub file (required).  If available, the pdf file and jpg/png thumbnail file of the same name will also be used as well as the opds entry file.")]
+		public string EpubFile { get; set; }
 
 		[Option('f', "folder", Required = false, HelpText = "Folder for storing the Bloom book source.  (This may be an existing collection folder.)")]
 		public string CollectionFolder { get; set; }
@@ -61,14 +65,24 @@ namespace RoseGarden
 		[Option('F', "force", Required = false, HelpText = "Force overwriting the Bloom book source even if it already exists.")]
 		public bool ForceOverwrite { get; set; }
 
-		[Option('b', "bloomfolder", Required = true, HelpText = "Folder where Bloom is installed locally.  (This is used to find various css and other files.)")]
-		public string BloomFolder { get; set; }
-
-		[Option('l', "language", Required = true, HelpText = "Name of the main language of the book (from the catalog entry).")]
+		[Option('l', "language", Required = true, HelpText = "Name of the main language of the book from the catalog entry (required)")]
 		public string LanguageName { get; set; }
 
 		[Option('o', "output", Required = false, HelpText = "Output file name to use instead of the title (name without .htm used for both directory and file names)")]
 		public string FileName { get; set; }
+
+		[Option('v', "verbose", Required = false, HelpText = "Write verbose progress messages to the console.")]
+		public bool Verbose { get; set; }
+
+		[Option('V', "veryverbose", Required = false, HelpText = "Write very verbose progress messages to the console.")]
+		public bool VeryVerbose { get; set; }
+	}
+
+	[Verb("upload", HelpText = "Upload one or more converted books to bloomlibrary.org")]
+	public class UploadOptions
+	{
+		[Option('b', "bloomfolder", Required = false, HelpText = "Folder where Bloom is installed locally.  (required)")]
+		public string BloomFolder { get; set; }
 
 		[Option('v', "verbose", Required = false, HelpText = "Write verbose progress messages to the console.")]
 		public bool Verbose { get; set; }
@@ -91,21 +105,26 @@ namespace RoseGarden
 	{
 		static int Main(string[] args)
 		{
-			return Parser.Default.ParseArguments<FetchOptions, ConvertOptions, CheckOptions>(args)
+			return Parser.Default.ParseArguments<FetchOptions, ConvertOptions, UploadOptions, CheckOptions>(args)
 				.MapResult(
 					(FetchOptions opts) => FetchAndReturnExitCode(opts),
 					(ConvertOptions opts) => ConvertAndReturnExitCode(opts),
+					(UploadOptions opts) => UploadAndReturnExitCode(opts),
 					(CheckOptions opts) => CheckAndReturnExitCode(opts),
 					errs => 1);
 		}
 
 		private static int FetchAndReturnExitCode(FetchOptions opts)
 		{
-			return new FetchFromOPDS(opts).Run();
+			return new FetchFromOPDS(opts).RunFetch();
 		}
 		private static int ConvertAndReturnExitCode(ConvertOptions opts)
 		{
-			return new ConvertFromEpub(opts).Run();
+			return new ConvertFromEpub(opts).RunConvert();
+		}
+		private static int UploadAndReturnExitCode(UploadOptions opts)
+		{
+			return new UploadToBloomLibrary(opts).RunUpload();
 		}
 		private static int CheckAndReturnExitCode(CheckOptions opts)
 		{
