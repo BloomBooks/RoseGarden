@@ -19,6 +19,7 @@ namespace RoseGarden
 
 		EpubMetadata _epubMetaData;
 		string _epubFolder;
+		string _epubFile;
 		string _bookFolder;
 		string _htmFileName;
 		XmlDocument _bloomDoc;
@@ -132,6 +133,7 @@ namespace RoseGarden
 				Directory.Delete(newBookFolder, true);
 			}
 			CopyDirectory(_bookFolder, newBookFolder);
+			EnsureBloomCollectionFile();
 		}
 
 		private void CopyDirectory(string sourceDir, string destDir)
@@ -150,6 +152,23 @@ namespace RoseGarden
 			}
 		}
 
+		private void EnsureBloomCollectionFile()
+		{
+			var collectionFile = Path.Combine(_options.CollectionFolder, Path.GetFileName(_options.CollectionFolder) + ".bloomCollection");
+			if (File.Exists(collectionFile))
+				return;
+			var location = Assembly.GetExecutingAssembly().Location;
+			var templateFile = Path.Combine(Path.GetDirectoryName(location), "Resources", "Blank.bloomCollection");
+			var collectionText = File.ReadAllText(templateFile);
+			collectionText = collectionText.Replace("<Language1Name>English</Language1Name>", $"<Language1Name>{_options.LanguageName}</Language1Name>");
+			collectionText = collectionText.Replace("<Language1Iso639Code>en</Language1Iso639Code>", $"<Language1Iso639Code>{_epubMetaData.LanguageCode}</Language1Iso639Code>");
+			//TODO default Font: collectionText.Replace("<DefaultLanguage1FontName>Andika New Basic</DefaultLanguage1FontName>", $"<DefaultLanguage1FontName>{font-name}</DefaultLanguage1FontName>");
+			//TODO RTL flag: collectionText.Replace("<IsLanguage1Rtl>false</IsLanguage1Rtl>", $"<IsLanguage1Rtl>{is-rtl}</IsLanguage1Rtl>");
+			File.WriteAllText(collectionFile, collectionText);
+			if (_options.Verbose)
+				Console.WriteLine("INFO: created new {0}", Path.GetFileName(collectionFile));
+		}
+
 		private void InitializeData()
 		{
 			var workBase = Path.Combine(Path.GetTempPath(), "SIL", "RoseGarden");
@@ -158,7 +177,11 @@ namespace RoseGarden
 			Directory.CreateDirectory(workBase);
 			_epubFolder = Path.Combine(workBase, "EPUB");
 			Directory.CreateDirectory(_epubFolder);
-			ExtractZippedFiles(_options.EpubFile, _epubFolder);
+			if (_options.EpubFile.EndsWith(".epub.zip", StringComparison.InvariantCulture))
+				_epubFile = UnzipZippedEpubFile();
+			else
+				_epubFile = _options.EpubFile;
+			ExtractZippedFiles(_epubFile, _epubFolder);
 			_epubMetaData = new EpubMetadata(_epubFolder, _options.VeryVerbose);
 			var langCode = _languageData.GetCodeForName(_options.LanguageName);
 			if (_epubMetaData.LanguageCode != langCode)
@@ -206,6 +229,44 @@ namespace RoseGarden
 			_bookMetaData = BookMetaData.FromFolder(_bookFolder);
 		}
 
+		private string UnzipZippedEpubFile()
+		{
+			if (_options.Verbose)
+				Console.WriteLine("INFO: unzipping {0} to obtain actual epub file", _options.EpubFile);
+			var unzipFolder = Path.Combine(Path.GetTempPath(), "RoseGarden", "EpubZip");
+			if (Directory.Exists(unzipFolder))
+				Directory.Delete(unzipFolder, true);
+			ExtractZippedFiles(_options.EpubFile, unzipFolder);
+			string epubName = null;
+			foreach (var filepath in Directory.EnumerateFiles(unzipFolder))
+			{
+				if (filepath.EndsWith(".epub", StringComparison.InvariantCulture))
+					epubName = filepath;
+				else if (filepath.EndsWith(".txt", StringComparison.InvariantCulture) && filepath.Contains("StoryWeaverAttribution") && String.IsNullOrWhiteSpace(_options.AttributionFile))
+					_options.AttributionFile = filepath;
+			}
+			if (String.IsNullOrWhiteSpace(epubName))
+				Console.Write("WARNING: could not find unzipped epub file from {0}!", _options.EpubFile);
+			return epubName;
+		}
+
+		private string UnzipZippedPdfFile(string pdfZipFile)
+		{
+			if (_options.Verbose)
+				Console.WriteLine("INFO: unzipping {0} to obtain actual pdf file", pdfZipFile);
+			var unzipFolder = Path.Combine(Path.GetTempPath(), "RoseGarden", "PdfZip");
+			if (Directory.Exists(unzipFolder))
+				Directory.Delete(unzipFolder, true);
+			ExtractZippedFiles(pdfZipFile, unzipFolder);
+			foreach (var filepath in Directory.EnumerateFiles(unzipFolder))
+			{
+				if (filepath.EndsWith(".pdf", StringComparison.InvariantCulture))
+					return filepath;
+			}
+			Console.Write("WARNING: could not find unzipped pdf file from {0}!", pdfZipFile);
+			return null;
+		}
+
 		private void ConvertBook()
 		{
 			// Copy all the files needed for the book.
@@ -214,30 +275,38 @@ namespace RoseGarden
 				var destPath = Path.Combine(_bookFolder, Path.GetFileName(imageFile));
 				File.Copy(imageFile, destPath);
 			}
+			// Find related files that may have been downloaded or created for this book.
 			var pathPDF = Path.ChangeExtension(_options.EpubFile, "pdf");
-			if (File.Exists(pathPDF))
-			{
-				File.Copy(pathPDF, Path.Combine(_bookFolder, Path.GetFileName(pathPDF)));
-			}
 			var pathThumb = Path.ChangeExtension(_options.EpubFile, "jpg");
+			var pathOPDS = Path.ChangeExtension(_options.EpubFile, "opds");
+			if (_options.EpubFile.EndsWith(".epub.zip", StringComparison.InvariantCulture))
+			{
+				var pathPDFZip = _options.EpubFile.Replace(".epub.zip", ".pdf.zip");
+				if (File.Exists(pathPDFZip))
+					pathPDF = UnzipZippedPdfFile(pathPDFZip);
+				pathThumb = _options.EpubFile.Replace(".epub.zip", "jpg");
+				pathOPDS = _options.EpubFile.Replace(".epub.zip", "opds");
+			}
+			if (File.Exists(pathPDF))
+				File.Copy(pathPDF, Path.Combine(_bookFolder, Path.ChangeExtension(_htmFileName, "pdf")));
 			if (File.Exists(pathThumb))
 			{
-				File.Delete(Path.Combine(_bookFolder, "thumbnail.png"));	// blank image copied from Basic Book
+				File.Delete(Path.Combine(_bookFolder, "thumbnail.png"));    // blank image copied from Basic Book
 				File.Copy(pathThumb, Path.Combine(_bookFolder, "thumbnail.jpg"));
 			}
 			else
 			{
-				pathThumb = Path.ChangeExtension(_options.EpubFile, "png");
+				pathThumb = Path.ChangeExtension(pathThumb, "png");
 				if (File.Exists(pathThumb))
 				{
+					File.Delete(Path.Combine(_bookFolder, "thumbnail.png"));    // blank image copied from Basic Book
 					File.Copy(pathThumb, Path.Combine(_bookFolder, "thumbnail.png"));
 				}
 			}
-			var pathOPDS = Path.ChangeExtension(_options.EpubFile, "opds");
 			if (File.Exists(pathOPDS))
 			{
 				File.Copy(pathOPDS, Path.Combine(_bookFolder, Path.GetFileName(pathOPDS)));
-				// Final stage of initialization: getting the OPDS catalog information loaded.
+				// load the OPDS catalog information
 				_opdsEntry = new XmlDocument();
 				_opdsEntry.PreserveWhitespace = true;
 				_opdsEntry.Load(pathOPDS);
@@ -1224,11 +1293,11 @@ namespace RoseGarden
 			return -1;
 		}
 
-		public static void ExtractZippedFiles(string epubFile, string folder)
+		public static void ExtractZippedFiles(string zipFile, string unzipFolder)
 		{
-			Directory.CreateDirectory(folder);
-			var extractPath = folder + Path.DirectorySeparatorChar;     // safer for unknown zip sources
-			using (var zipToOpen = new FileStream(epubFile, FileMode.Open))
+			Directory.CreateDirectory(unzipFolder);
+			var extractPath = unzipFolder + Path.DirectorySeparatorChar;     // safer for unknown zip sources
+			using (var zipToOpen = new FileStream(zipFile, FileMode.Open))
 			{
 				using (var archive = new ZipArchive(zipToOpen, ZipArchiveMode.Read))
 				{

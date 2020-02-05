@@ -53,10 +53,10 @@ namespace RoseGarden
 		[Option('a', "attribution", Required = false, HelpText = "Input attribution text file as provided by Story Weaver")]
 		public string AttributionFile { get; set; }
 
-		[Option('b', "bloomfolder", Required = true, HelpText = "Folder where Bloom is installed locally.  (required)")]
+		[Option('b', "bloomfolder", Required = true, HelpText = "Folder where Bloom is installed locally.")]
 		public string BloomFolder { get; set; }
 
-		[Option('e', "epub", Required = true, HelpText = "Path to the input epub file (required).  If available, the pdf file and jpg/png thumbnail file of the same name will also be used as well as the opds entry file.")]
+		[Option('e', "epub", Required = true, HelpText = "Path to the input epub file.  If available, the pdf file and jpg/png thumbnail file of the same name will also be used as well as the opds entry file.  If the filename ends in .epub.zip (as from StoryWeaver), then that file is unzipped to obtain the actual epub (and attribution) files.")]
 		public string EpubFile { get; set; }
 
 		[Option('f', "folder", Required = false, HelpText = "Folder for storing the Bloom book source.  (This may be an existing collection folder.)")]
@@ -65,10 +65,10 @@ namespace RoseGarden
 		[Option('F', "force", Required = false, HelpText = "Force overwriting the Bloom book source even if it already exists.")]
 		public bool ForceOverwrite { get; set; }
 
-		[Option('l', "language", Required = true, HelpText = "Name of the main language of the book from the catalog entry (required)")]
+		[Option('l', "language", Required = true, HelpText = "Name of the main language of the book from the catalog entry")]
 		public string LanguageName { get; set; }
 
-		[Option('o', "output", Required = false, HelpText = "Output file name to use instead of the title (name without .htm used for both directory and file names)")]
+		[Option('o', "output", Required = false, HelpText = "Output file name to use instead of the book's title (name without .htm used for both directory and file names)")]
 		public string FileName { get; set; }
 
 		[Option('v', "verbose", Required = false, HelpText = "Write verbose progress messages to the console.")]
@@ -81,14 +81,17 @@ namespace RoseGarden
 	[Verb("upload", HelpText = "Upload one or more converted books to bloomlibrary.org")]
 	public class UploadOptions
 	{
-		[Option('b', "bloomfolder", Required = false, HelpText = "Folder where Bloom is installed locally.  (required)")]
-		public string BloomFolder { get; set; }
+		[Option('b', "bloomexe", Required = true, HelpText = "Path of the Bloom executable.  This is probably a shell script on Linux but the actual Bloom.exe file on Windows.")]
+		public string BloomExe { get; set; }
 
 		[Option('v', "verbose", Required = false, HelpText = "Write verbose progress messages to the console.")]
 		public bool Verbose { get; set; }
 
 		[Option('V', "veryverbose", Required = false, HelpText = "Write very verbose progress messages to the console.")]
 		public bool VeryVerbose { get; set; }
+
+		[Value(0, Required = true, HelpText = "Folder containing a bookshelf folder structure.  Collection folders are 2 or 3 levels beneath the given folder.")]
+		public string BookShelfContainer { get; set; }
 	}
 
 	[Verb("check", HelpText = "Check whether the given book from the given source needs to be updated.")]
@@ -108,7 +111,7 @@ namespace RoseGarden
 			return Parser.Default.ParseArguments<FetchOptions, ConvertOptions, UploadOptions, CheckOptions>(args)
 				.MapResult(
 					(FetchOptions opts) => FetchAndReturnExitCode(opts),
-					(ConvertOptions opts) => ConvertAndReturnExitCode(opts),
+					(ConvertOptions opts) => ConvertAndReturnExitCode(opts), 
 					(UploadOptions opts) => UploadAndReturnExitCode(opts),
 					(CheckOptions opts) => CheckAndReturnExitCode(opts),
 					errs => 1);

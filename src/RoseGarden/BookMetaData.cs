@@ -1,4 +1,6 @@
-﻿using System;
+﻿// Copyright (c) 2020 SIL International
+// This software is licensed under the MIT License (http://opensource.org/licenses/MIT)
+using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.IO;
@@ -8,9 +10,12 @@ using Newtonsoft.Json;
 namespace RoseGarden
 {
 	/// <summary>
+	/// Store the information in a Bloom book's meta.json file.
+	/// </summary>
+	/// <remarks>
 	/// This class is essentially lifted from Bloom with some simplifications.
 	/// At this point, copying the code is much simpler than trying to work up a shared library.
-	/// </summary>
+	/// </remarks>
 	public class BookMetaData
 	{
 		public BookMetaData()
@@ -21,6 +26,7 @@ namespace RoseGarden
 			IsSuitableForVernacularLibrary = true;
 			Id = Guid.NewGuid().ToString();
 		}
+
 		public static BookMetaData FromString(string input)
 		{
 			var result = JsonConvert.DeserializeObject<BookMetaData>(input);

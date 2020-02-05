@@ -99,6 +99,7 @@
     <None Include="packages.config" />
     <None Include="Resources\Book.htm" CopyToOutputDirectory="PreserveNewest" />
     <None Include="Resources\Pages.xml" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="Resources\Blank.bloomCollection" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
 </Project>

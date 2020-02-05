@@ -1,4 +1,6 @@
-﻿using System;
+﻿// Copyright (c) 2020 SIL International
+// This software is licensed under the MIT License (http://opensource.org/licenses/MIT)
+using System;
 using System.Collections.Generic;
 using SIL.WritingSystems;
 
