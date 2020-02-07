@@ -364,6 +364,13 @@ namespace RoseGarden
 		/// </summary>
 		[JsonProperty("use-original-copyright")]
 		public bool UseOriginalCopyright { get; set; }
+
+		/// <summary>
+		/// The URL the source of this book was downloaded from before conversion to Bloom source format.
+		/// This is set by RoseGarden, but expected to be empty for books that originate in Bloom.
+		/// </summary>
+		[JsonProperty("original-book-source-url")]
+		public string OriginalBookSourceUrl { get; set; }
 	}
 
 	/// <summary>

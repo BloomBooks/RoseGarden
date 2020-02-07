@@ -122,16 +122,25 @@ namespace RoseGarden
 			var newBookFolder = Path.Combine(_options.CollectionFolder, Path.GetFileNameWithoutExtension(_htmFileName));
 			if (Directory.Exists(newBookFolder))
 			{
-				if (!_options.ForceOverwrite)
+				if (!_options.ReplaceExistingBook)
 				{
 					Console.WriteLine("WARNING: {0} already exists.", newBookFolder);
 					Console.WriteLine("Use -F (--force) if you want to overwrite it.");
 					return;
 				}
+				// Maintain the book id that was set before.
+				var oldmeta = BookMetaData.FromFolder(newBookFolder);
+				if (!String.IsNullOrWhiteSpace(oldmeta.Id) && oldmeta.Id != _bookMetaData.BookLineage)
+				{
+					if (_options.Verbose)
+						Console.WriteLine("INFO: preserving book id {0} for {1}", oldmeta.Id, _bookMetaData.Title);
+					_bookMetaData.Id = oldmeta.Id;
+				}
 				if (_options.VeryVerbose)
 					Console.WriteLine("DEBUG: deleting directory {0}", newBookFolder);
 				Directory.Delete(newBookFolder, true);
 			}
+			_bookMetaData.WriteToFolder(_bookFolder);
 			CopyDirectory(_bookFolder, newBookFolder);
 			EnsureBloomCollectionFile();
 		}
@@ -163,7 +172,7 @@ namespace RoseGarden
 			collectionText = collectionText.Replace("<Language1Name>English</Language1Name>", $"<Language1Name>{_options.LanguageName}</Language1Name>");
 			collectionText = collectionText.Replace("<Language1Iso639Code>en</Language1Iso639Code>", $"<Language1Iso639Code>{_epubMetaData.LanguageCode}</Language1Iso639Code>");
 			//TODO default Font: collectionText.Replace("<DefaultLanguage1FontName>Andika New Basic</DefaultLanguage1FontName>", $"<DefaultLanguage1FontName>{font-name}</DefaultLanguage1FontName>");
-			//TODO RTL flag: collectionText.Replace("<IsLanguage1Rtl>false</IsLanguage1Rtl>", $"<IsLanguage1Rtl>{is-rtl}</IsLanguage1Rtl>");
+			collectionText = collectionText.Replace("<IsLanguage1Rtl>false</IsLanguage1Rtl>", $"<IsLanguage1Rtl>{_options.IsRtl.ToString().ToLowerInvariant()}</IsLanguage1Rtl>");
 			File.WriteAllText(collectionFile, collectionText);
 			if (_options.Verbose)
 				Console.WriteLine("INFO: created new {0}", Path.GetFileName(collectionFile));
@@ -227,6 +236,8 @@ namespace RoseGarden
 			File.Copy(blankHtmPath, Path.Combine(_bookFolder, _htmFileName));
 			// defaultLangStyles.css and customCollectionStyles.css remain to be created
 			_bookMetaData = BookMetaData.FromFolder(_bookFolder);
+			_bookMetaData.BookLineage = _bookMetaData.Id;
+			_bookMetaData.Id = Guid.NewGuid().ToString();	// This may be replaced if we're updating an existing book.
 		}
 
 		private string UnzipZippedEpubFile()
@@ -305,7 +316,7 @@ namespace RoseGarden
 			}
 			if (File.Exists(pathOPDS))
 			{
-				File.Copy(pathOPDS, Path.Combine(_bookFolder, Path.GetFileName(pathOPDS)));
+				File.Copy(pathOPDS, Path.Combine(_bookFolder, Path.GetFileName(pathOPDS).Replace(".opds",".original.opds")));
 				// load the OPDS catalog information
 				_opdsEntry = new XmlDocument();
 				_opdsEntry.PreserveWhitespace = true;
@@ -414,7 +425,7 @@ namespace RoseGarden
 			if (!String.IsNullOrEmpty(url))
 			{
 				SetDataDivTextValue("copyrightUrl", url);
-				_bookMetaData.License = licenseAbbreviation;
+				_bookMetaData.License = licenseAbbreviation.ToLowerInvariant().Replace("cc by", "cc-by");
 			}
 		}
 
@@ -431,7 +442,20 @@ namespace RoseGarden
 				_bookMetaData.Author = String.Join(", ", _epubMetaData.Authors);
 			if (String.IsNullOrEmpty(_bookMetaData.Title))
 				_bookMetaData.Title = _epubMetaData.Title;
-			
+
+			_bookMetaData.BrandingProjectName = "Default";
+			_bookMetaData.AllTitles = $"{{\"{_epubMetaData.LanguageCode}\":\"{_bookMetaData.Title}\"}}";
+			_bookMetaData.FormatVersion = "2.1";
+			_bookMetaData.Summary = _epubMetaData.Description;
+			if (_bookMetaData.DisplayNames == null)
+				_bookMetaData.DisplayNames = new Dictionary<string, string>();
+			_bookMetaData.DisplayNames.Add(_epubMetaData.LanguageCode, _options.LanguageName);
+			if (_opdsEntry != null)
+			{
+				var link0 = _opdsEntry.SelectSingleNode("/a:feed/a:entry/a:link[@type='application/epub+zip' and contains(@rel, 'http://opds-spec.org/acquisition')]", _opdsNsmgr) as XmlElement;
+				if (link0 != null)
+					_bookMetaData.OriginalBookSourceUrl = link0.GetAttribute("href");
+			}
 		}
 
 		private void SetHeadMetaValue(string name, string value)
@@ -1140,8 +1164,9 @@ namespace RoseGarden
 			{
 				var url = match.Groups[1].Value;
 				SetDataDivTextValue("copyrightUrl", url);
-				_bookMetaData.License = "CC " + match.Groups[2].Value.ToUpperInvariant().Replace("/", " ");
-				return _bookMetaData.License;
+				var license = "CC " + match.Groups[2].Value.ToUpperInvariant().Replace("/", " ").Trim();
+				_bookMetaData.License = license.ToLowerInvariant().Replace("cc by", "cc-by");
+				return license;
 			}
 			match = Regex.Match(bodyText, "(Creative Commons: Attribution.*)\n", RegexOptions.CultureInvariant);
 			if (match.Success)
@@ -1185,6 +1210,13 @@ namespace RoseGarden
 				SetBookLicense(abbrev);
 				return abbrev;
 			}
+			match = Regex.Match(bodyText, "(CC BY(-[A-Z][A-Z])*( 4.0)?)");
+			if (match.Success)
+			{
+				var abbrev = match.Groups[1].Value.Trim();
+				SetBookLicense(abbrev);
+				return abbrev;
+			}
 			return "";
 		}
 
@@ -1212,9 +1244,12 @@ namespace RoseGarden
 				else if (beginDisclaimer > beginStoryAttrib)
 					endStoryAttrib = beginDisclaimer;
 				var storyAttrib = bodyText.Substring(beginStoryAttrib, endStoryAttrib - beginStoryAttrib);
-				var match = Regex.Match(storyAttrib, "(©[^0-9]*, [12][09][0-9][0-9])", RegexOptions.CultureInvariant);
+				var match = Regex.Match(storyAttrib, "(©[^0-9]*, [12][09][0-9][0-9]).* (CC BY[A-Z0-9-. ]*) license", RegexOptions.CultureInvariant);
 				if (match.Success)
+				{
 					SetBookCopyright(match.Groups[1].Value);
+					SetBookLicense(match.Groups[2].Value.Trim());
+				}
 			}
 			if (beginOtherCredits > 0)
 			{

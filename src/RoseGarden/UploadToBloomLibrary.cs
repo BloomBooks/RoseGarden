@@ -23,13 +23,15 @@ namespace RoseGarden
 				StartInfo = new ProcessStartInfo()
 				{
 					FileName = _options.BloomExe,
-					Arguments = $"upload \"{_options.BookShelfContainer}\"",
+					Arguments = $"upload {(_options.SingleBookshelfLevel?"-s":"")} -u \"{_options.UploadUser}\" -p \"{_options.UploadPassword}\" \"{_options.BookShelfContainer}\"",
 					UseShellExecute = false,
 					CreateNoWindow = false,
 					RedirectStandardOutput = true,
 					RedirectStandardError = true,
 				},
 			};
+			if (_options.VeryVerbose)
+				Console.WriteLine("DEBUG: upload arguments={0}", process.StartInfo.Arguments);
 			process.Start();
 			process.WaitForExit();
 

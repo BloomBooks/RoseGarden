@@ -62,14 +62,17 @@ namespace RoseGarden
 		[Option('f', "folder", Required = false, HelpText = "Folder for storing the Bloom book source.  (This may be an existing collection folder.)")]
 		public string CollectionFolder { get; set; }
 
-		[Option('F', "force", Required = false, HelpText = "Force overwriting the Bloom book source even if it already exists.")]
-		public bool ForceOverwrite { get; set; }
+		[Option('R', "replace", Required = false, HelpText = "Force replacing the Bloom book source if it already exists.")]
+		public bool ReplaceExistingBook { get; set; }
 
 		[Option('l', "language", Required = true, HelpText = "Name of the main language of the book from the catalog entry")]
 		public string LanguageName { get; set; }
 
 		[Option('o', "output", Required = false, HelpText = "Output file name to use instead of the book's title (name without .htm used for both directory and file names)")]
 		public string FileName { get; set; }
+
+		[Option( "rtl", Required = false, HelpText = "Flag that the language is written right-to-left.")]
+		public bool IsRtl { get; set; }
 
 		[Option('v', "verbose", Required = false, HelpText = "Write verbose progress messages to the console.")]
 		public bool Verbose { get; set; }
@@ -83,6 +86,15 @@ namespace RoseGarden
 	{
 		[Option('b', "bloomexe", Required = true, HelpText = "Path of the Bloom executable.  This is probably a shell script on Linux but the actual Bloom.exe file on Windows.")]
 		public string BloomExe { get; set; }
+
+		[Option('u', "user", Required = true, HelpText = "Bloomlibrary user for the upload")]
+		public string UploadUser { get; set; }
+
+		[Option('p', "password", Required = true, HelpText = "Password for the given upload user")]
+		public string UploadPassword { get; set; }
+
+		[Option('s', "singlelevel", HelpText = "Restrict bookshelf name to only the top level under the path.  (default limit is 2 levels)", Required = false)]
+		public bool SingleBookshelfLevel { get; set; }
 
 		[Option('v', "verbose", Required = false, HelpText = "Write verbose progress messages to the console.")]
 		public bool Verbose { get; set; }
@@ -156,27 +168,21 @@ namespace RoseGarden
 		}
 
 		/// <summary>
-		/// Replace invalid characters with hyphens and trim off characters that shouldn't
-		/// start or finish a file or directory name.
+		/// Replace invalid characters with spaces and trim off characters that shouldn't
+		/// start or finish a file or directory name (space or period).
 		/// </summary>
+		/// <remarks>
+		/// I don't particularly like the details of replacement here, but we need to match Bloom.
+		/// </remarks>
 		private static string RemoveDangerousCharacters(string name)
 		{
 			foreach (char c in GetInvalidOSIndependentFileNameChars())
 			{
-				name = name.Replace(c, '-');
+				name = name.Replace(c, ' ');
 			}
-			int length;
-			do
-			{
-				length = name.Length;
-				name = name.Replace("--", "-");
-				name = name.Replace("  ", " ");
-				// Windows does not allow directory names ending in period.
-				// If we give it a chance, it will make a directory without the dots,
-				// but all our code that thinks the folder name has the dots will break.
-				name = name.Trim('.', '-', ' ');
-			}
-			while (name.Length < length);
+			name = name.Trim('.', ' ');
+			if (name.Length == 0)
+				return "Book";
 			return name;
 		}
 
