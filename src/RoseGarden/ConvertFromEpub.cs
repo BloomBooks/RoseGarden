@@ -237,7 +237,39 @@ namespace RoseGarden
 			// defaultLangStyles.css and customCollectionStyles.css remain to be created
 			_bookMetaData = BookMetaData.FromFolder(_bookFolder);
 			_bookMetaData.BookLineage = _bookMetaData.Id;
-			_bookMetaData.Id = Guid.NewGuid().ToString();	// This may be replaced if we're updating an existing book.
+			_bookMetaData.Id = Guid.NewGuid().ToString();   // This may be replaced if we're updating an existing book.
+
+			// If collection settings file exists, ensure that our language information matches with it.
+			var collectionFile = Path.Combine(_options.CollectionFolder, Path.GetFileName(_options.CollectionFolder) + ".bloomCollection");
+			if (File.Exists(collectionFile))
+			{
+				// Check that the existing collection settings file matches with our data.
+				var collectionSettings = new XmlDocument();
+				collectionSettings.PreserveWhitespace = true;
+				collectionSettings.Load(collectionFile);
+				var langCodeCollection = collectionSettings.SelectSingleNode("/Collection/Language1Iso639Code")?.InnerText;
+				if (langCodeCollection != langCode)
+				{
+					Console.WriteLine("ERROR: language code '{0}' does not match target collection language code '{1}'!", langCode, langCodeCollection);
+					Environment.Exit(1);
+				}
+				var langNameCollection = collectionSettings.SelectSingleNode("/Collection/Language1Name")?.InnerText;
+				if (langNameCollection != _options.LanguageName)
+					Console.WriteLine("WARNING: language name '{0}' does not match target collection language name '{1}'", _options.LanguageName, langNameCollection);
+				var rtlCollection = collectionSettings.SelectSingleNode("/Collection/IsLanguage1Rtl")?.InnerText;
+				if (_options.IsRtl && rtlCollection.ToLowerInvariant() == "false")
+				{
+					Console.WriteLine("ERROR: collection settings indicate that '{0}' ('{1}') is not Right-to-Left.  Adjust collection settings (or command line) and try again.",
+						langNameCollection, langCodeCollection);
+					Environment.Exit(1);
+				}
+				else if (!_options.IsRtl && rtlCollection.ToLowerInvariant() == "true")
+				{
+					Console.WriteLine("WARNING: collection settings indicate that '{0}' ('{1}') is Right-to-Left.  RoseGarden is using the collection setting.",
+						langNameCollection, langCodeCollection);
+					_options.IsRtl = true;
+				}
+			}
 		}
 
 		private string UnzipZippedEpubFile()
@@ -531,8 +563,19 @@ namespace RoseGarden
 					if (!titleSet)
 					{
 						var title = child.InnerText.Trim();
-						SetTitle(title);
-						titleSet = true;
+						if (title != _epubMetaData.Title)
+						{
+							Console.WriteLine("WARNING: using title from ePUB metadata ({0}) instead of data from title page({1})", _epubMetaData.Title, title);
+							SetTitle(_epubMetaData.Title);
+							titleSet = true;
+							AddCoverContributor(child.OuterXml);
+							// Don't claim to have set the author etc.  We don't know what we have here!
+						}
+						else
+						{
+							SetTitle(title);
+							titleSet = true;
+						}
 					}
 					else
 					{
@@ -620,6 +663,8 @@ namespace RoseGarden
 				dataDiv = _bloomDoc.CreateElement("div");
 				dataDiv.SetAttribute("data-book", key);
 				dataDiv.SetAttribute("lang", lang);
+				if (lang == _epubMetaData.LanguageCode && _options.IsRtl)
+					dataDiv.SetAttribute("dir", "rtl");
 				var dataBook = _bloomDoc.SelectSingleNode("/html/body/div[@id='bloomDataDiv']");
 				Debug.Assert(dataBook != null);
 				var indent = _bloomDoc.CreateWhitespace("  ");
@@ -690,6 +735,8 @@ namespace RoseGarden
 			newDiv.SetAttribute("aria-label", "false");
 			newDiv.SetAttribute("tabindex", "0");
 			newDiv.SetAttribute("lang", _epubMetaData.LanguageCode);
+			if (_options.IsRtl)
+				newDiv.SetAttribute("dir", "rtl");
 			newDiv.SetAttribute("data-languagetipcontent", _options.LanguageName);
 			newDiv.InnerXml = content;
 			var indent = zTemplateDiv.PreviousSibling;
@@ -796,6 +843,8 @@ namespace RoseGarden
 			newPageDiv.SetAttribute("id", Guid.NewGuid().ToString());
 			newPageDiv.SetAttribute("data-page-number", pageNumber.ToString());
 			newPageDiv.SetAttribute("lang", _epubMetaData.LanguageCode);
+			if (_options.IsRtl)
+				newPageDiv.SetAttribute("dir", "rtl");
 			newPageDiv.InnerXml = templatePage.InnerXml;
 			// Find the first endmatter page and insert the new page before it.
 			var endMatter = _bloomDoc.SelectSingleNode("/html/body/div[@data-xmatter-page='insideBackCover']");
