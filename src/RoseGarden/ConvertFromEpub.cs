@@ -84,6 +84,8 @@ namespace RoseGarden
 				_bloomDoc.Save(Path.Combine(_bookFolder, _htmFileName));
 				if (!String.IsNullOrWhiteSpace(_options.CollectionFolder) && _options.CollectionFolder != _bookFolder)
 					CopyBloomBookToOutputFolder();
+				if (NeedCopyrightInformation())
+					Console.WriteLine("WARNING: could not find copyright information for {0}", _bookMetaData.Title);
 			}
 			catch (Exception e)
 			{
@@ -1041,9 +1043,12 @@ namespace RoseGarden
 				var divs = body.SelectNodes(".//div[@class='back-cover-top' or @class='back-cover-bottom']").Cast<XmlElement>().ToList();
 				if (divs.Count == 0)
 				{
-					var outsideBackCoverDiv = GetOrCreateDataDivElement("outsideBackCover", "en");
+					// The inside back cover is better because it usually allows more space than the outside back cover, which
+					// may have some branding taking up space.  It also isn't enforcing centering of lines, which distorts the
+					// original appearance.
+					var insideBackCoverDiv = GetOrCreateDataDivElement("insideBackCover", "en");
 					var backCoverXml = RemoveXmlnsAttribsFromXmlString(body.InnerXml);
-					outsideBackCoverDiv.InnerXml = backCoverXml;
+					insideBackCoverDiv.InnerXml = backCoverXml;
 					if (NeedCopyrightInformation())
 					{
 						ProcessRawCreditsPageForCopyrights(body, pageNumber);
