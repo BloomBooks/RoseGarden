@@ -488,6 +488,10 @@ namespace RoseGarden
 				if (link0 != null)
 					_bookMetaData.OriginalBookSourceUrl = link0.GetAttribute("href");
 			}
+			// Something that the Basic Books meta.json doesn't get right for our purposes.
+			// We're aren't making "shells" from this book, but rather more vernacular books.
+			// (I think the concept of IsSuitableForMakingShells is really unclear and confusing.)
+			_bookMetaData.IsSuitableForMakingShells = false;
 		}
 
 		private void SetHeadMetaValue(string name, string value)
