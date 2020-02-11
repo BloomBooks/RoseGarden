@@ -37,6 +37,9 @@ namespace RoseGarden
 		[Option('T', "thumbnail", Required = false, HelpText = "Download the thumbnail image file as well as the ePUB file.")]
 		public bool DownloadThumbnail { get; set; }
 
+		[Option('I', "image", Required = false, HelpText = "Download the fullsize image file as well as the ePUB file.")]
+		public bool DownloadImage { get; set; }
+
 		[Option('u', "url", Required = false, HelpText = "Url of the OPDS catalog file (or its root)")]
 		public string Url { get; set; }
 

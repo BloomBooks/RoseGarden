@@ -28,6 +28,7 @@ namespace RoseGarden
 		private XmlNamespaceManager _nsmgr;
 		private FetchOptions _options;
 		private string _feedTitle;
+		private string _downloadPath;
 
 		public FetchFromOPDS(FetchOptions opts)
 		{
@@ -36,6 +37,8 @@ namespace RoseGarden
 				_options.Verbose = true;
 			_rootCatalog.PreserveWhitespace = true;
 			_langCatalog.PreserveWhitespace = true;
+			_downloadPath = Path.Combine(Path.GetTempPath(), "RoseGarden", "Downloads");
+			Directory.CreateDirectory(_downloadPath);
 		}
 
 		public int RunFetch()
@@ -384,6 +387,12 @@ namespace RoseGarden
 				if (ret != 0)
 					return ret;
 			}
+			if (_options.DownloadImage)
+			{
+				ret = DownloadImage(bookEntry);
+				if (ret != 0)
+					return ret;
+			}
 			WriteCatalogEntryFile(bookEntry);
 			return ret;
 		}
@@ -393,7 +402,7 @@ namespace RoseGarden
 			string path;
 			if (String.IsNullOrEmpty(_options.OutputFile))
 			{
-				path = Path.Combine(Path.GetTempPath(), Program.SanitizeNameForFileSystem(_options.BookTitle) + ".opds");
+				path = Path.Combine(_downloadPath, Program.SanitizeNameForFileSystem(_options.BookTitle) + ".opds");
 			}
 			else
 			{
@@ -439,12 +448,48 @@ namespace RoseGarden
 			string path;
 			if (String.IsNullOrEmpty(_options.OutputFile))
 			{
-				path = Path.Combine(Path.GetTempPath(), Program.SanitizeNameForFileSystem(_options.BookTitle) + ".jpg");
+				path = Path.Combine(_downloadPath, Program.SanitizeNameForFileSystem(_options.BookTitle) + ".thumb.jpg");
+			}
+			else
+			{
+				path = Path.ChangeExtension(_options.OutputFile, "thumb.jpg");
+			}
+			return DownloadImageFile(href, path);
+		}
+
+		private int DownloadImage(XmlElement bookEntry)
+		{
+			var link = bookEntry.SelectSingleNode("./a:link[@rel='http://opds-spec.org/image']", _nsmgr) as XmlElement;
+			if (link == null)
+			{
+				Console.WriteLine("WARNING: selected book does not have a link for an image!?");
+				if (_options.Verbose)
+					Console.WriteLine(bookEntry.OuterXml);
+				return 2;
+			}
+			var href = link.GetAttribute("href");
+			var type = link.GetAttribute("type");
+			if (type != "image/jpeg" && type != "image/png")
+			{
+				Console.WriteLine("WARNING: image link has unknown type: {0}", type);
+				return 2;
+			}
+			// The actual returned file may well be jpeg even if advertised as image/png, so assume jpeg until we
+			// see the data.
+			string path;
+			if (String.IsNullOrEmpty(_options.OutputFile))
+			{
+				path = Path.Combine(_downloadPath, Program.SanitizeNameForFileSystem(_options.BookTitle) + ".jpg");
 			}
 			else
 			{
 				path = Path.ChangeExtension(_options.OutputFile, "jpg");
 			}
+			return DownloadImageFile(href, path);
+		}
+
+		private int DownloadImageFile(string href, string path)
+		{
 			byte[] bytes = null;
 			if (!_options.DryRun)
 			{
@@ -457,7 +502,7 @@ namespace RoseGarden
 				}
 				catch (Exception ex)
 				{
-					Console.WriteLine("WARNING: could not download book from {0} ({1})", href, ex.Message);
+					Console.WriteLine("WARNING: could not download file from {0} ({1})", href, ex.Message);
 					return 2;
 				}
 			}
@@ -474,7 +519,7 @@ namespace RoseGarden
 			string path;
 			if (String.IsNullOrEmpty(_options.OutputFile))
 			{
-				path = Path.Combine(Path.GetTempPath(), Program.SanitizeNameForFileSystem(_options.BookTitle) + "." + type);
+				path = Path.Combine(_downloadPath, Program.SanitizeNameForFileSystem(_options.BookTitle) + "." + type);
 			}
 			else
 			{
