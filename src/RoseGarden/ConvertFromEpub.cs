@@ -29,6 +29,7 @@ namespace RoseGarden
 		XmlNamespaceManager _opdsNsmgr;
 		private readonly LanguageData _languageData = new LanguageData();
 		private BookMetaData _bookMetaData;
+		string _publisher;
 
 		private int _endCreditsStart = Int32.MaxValue;  // Assume no end credits pages to begin with.
 		private int _endCreditsPageCount = 0;
@@ -386,6 +387,12 @@ namespace RoseGarden
 				_opdsNsmgr.AddNamespace("dc", "http://purl.org/dc/terms/");
 				_opdsNsmgr.AddNamespace("dcterms", "http://purl.org/dc/terms/");
 				_opdsNsmgr.AddNamespace("a", "http://www.w3.org/2005/Atom");
+
+				var divPublisher = _opdsEntry.SelectSingleNode("/a:feed/a:entry/dc:publisher", _opdsNsmgr) as XmlElement;
+				if (divPublisher == null)
+					divPublisher = _opdsEntry.SelectSingleNode("/a:feed/a:entry/dcterms:publisher", _opdsNsmgr) as XmlElement;
+				if (divPublisher != null)
+					_publisher = divPublisher.InnerText.Trim();
 			}
 
 			SetHeadMetaValue("ConvertedBy", String.Format("RoseGarden {0} ({1})", GetVersion(), GetTimeStamp()));
@@ -437,13 +444,7 @@ namespace RoseGarden
 			if (_options.UsePortrait || _options.UseLandscape)
 				return;     // user specifically demanded a particular layout
 			// Africa Storybook Project books should be landscape by default instead of portrait.
-			var divPublisher = _opdsEntry.SelectSingleNode("/a:feed/a:entry/dc:publisher", _opdsNsmgr) as XmlElement;
-			if (divPublisher == null)
-				divPublisher = _opdsEntry.SelectSingleNode("/a:feed/a:entry/dcterms:publisher", _opdsNsmgr) as XmlElement;
-			if (divPublisher == null)
-				return;
-			var publisher = divPublisher.InnerText.Trim();
-			if (publisher.ToLowerInvariant().StartsWith("african storybook", StringComparison.InvariantCulture))
+			if (_publisher != null && _publisher.ToLowerInvariant().StartsWith("african storybook", StringComparison.InvariantCulture))
 			{
 				if (_options.Verbose)
 					Console.WriteLine("INFO: setting book layout to landscape for {0}", _epubMetaData.Title);
@@ -1240,6 +1241,41 @@ namespace RoseGarden
 						SetBookCopyright(copyrightMatch);
 					}
 				}
+				else
+				{
+					// Book Dash books are shy about admitting it, but they're effectively copyright by Book Dash
+					// since they're all released under the CC BY 4.0 license.
+					if (_publisher != null && _publisher.ToLowerInvariant() == "book dash")
+					{
+						string year = null;
+						var dateDiv = _opdsEntry.SelectSingleNode("/a:feed/a:entry/a:published", _opdsNsmgr) as XmlElement;
+						if (dateDiv != null)
+						{
+							var year0 = dateDiv.InnerText.Trim().Substring(0, 4);
+							if (Regex.IsMatch(year0, "[12][90][0-9][0-9]"))
+								year = year0;
+						}
+						if (year == null)
+						{
+							var updateDiv = _opdsEntry.SelectSingleNode("/a:feed/a:entry/a:updated", _opdsNsmgr) as XmlElement;
+							if (updateDiv != null)
+							{
+								var year0 = updateDiv.InnerText.Trim().Substring(0, 4);
+								if (Regex.IsMatch(year0, "[12][90][0-9][0-9]"))
+									year = year0;
+							}
+						}
+						if (year == null)
+						{
+							var year0 = _epubMetaData.Modified.Year.ToString();
+							if (Regex.IsMatch(year0, "[12][90][0-9][0-9]"))
+								year = year0;
+						}
+						if (year == null)
+							year = DateTime.Now.Year.ToString();
+						SetBookCopyright(String.Format("Copyright © by Book Dash, {0}", year));
+					}
+				}
 			}
 			var copyrightUrl = GetOrCreateDataDivElement("copyrightUrl", "*");
 			var licenseAbbrev = "";
@@ -1280,45 +1316,15 @@ namespace RoseGarden
 				_bookMetaData.License = license.ToLowerInvariant().Replace("cc by", "cc-by");
 				return license;
 			}
-			match = Regex.Match(bodyText, "(Creative Commons: Attribution.*)\n", RegexOptions.CultureInvariant);
+			// regular expressions don't handle non-breaking space very well
+			bodyText = bodyText.Replace("\u00a0", " ");
+			match = Regex.Match(bodyText, "(Creative\\s+Commons:?\\s+Attribution.*)\n", RegexOptions.CultureInvariant);
+			if (!match.Success)
+				match = Regex.Match(bodyText, "(Creative\\s+Commons:?\\s+Attribution.*4\\.0)", RegexOptions.CultureInvariant);
 			if (match.Success)
 			{
-				const int CCBY = 0;
-				const int CCNC = 1;
-				const int CCND = 2;
-				const int CCSA = 4;
-				string abbrev = "";
-				int license = CCBY;
 				var licenseText = match.Groups[1].Value;
-				if (licenseText.Contains("NonCommercial"))
-					license += CCNC;
-				if (licenseText.Contains("NoDerivatives"))
-					license += CCND;
-				if (licenseText.Contains("ShareAlike"))
-					license += CCSA;
-				switch (license)
-				{
-					case CCBY:
-						abbrev = "CC BY";
-						break;
-					case CCNC:
-						abbrev = "CC BY-NC";
-						break;
-					case CCND:
-						abbrev = "CC BY-ND";
-						break;
-					case CCNC + CCND:
-						abbrev = "CC BY-NC-ND";
-						break;
-					case CCSA:
-						abbrev = "CC BY-SA";
-						break;
-					case CCNC + CCSA:
-						abbrev = "CC BY-NC-SA";
-						break;
-				}
-				if (licenseText.Contains("4.0"))
-					abbrev = abbrev + " 4.0";
+				string abbrev = GetLicenseAbbrevFromEnglishText(licenseText);
 				SetBookLicense(abbrev);
 				return abbrev;
 			}
@@ -1329,7 +1335,64 @@ namespace RoseGarden
 				SetBookLicense(abbrev);
 				return abbrev;
 			}
-			return "";
+			return GetLicenseFromOpdsEntryIfPossible();
+		}
+
+		private static string GetLicenseAbbrevFromEnglishText(string licenseText)
+		{
+			const int CCBY = 0;
+			const int CCNC = 1;
+			const int CCND = 2;
+			const int CCSA = 4;
+			string abbrev = "";
+			int license = CCBY;
+			if (Regex.IsMatch(licenseText, ".*Non\\s*Commercial.*"))
+				license += CCNC;
+			if (Regex.IsMatch(licenseText, ".*No\\s+Derivatives.*"))
+				license += CCND;
+			if (Regex.IsMatch(licenseText, ".*Share\\s+Alike.*"))
+				license += CCSA;
+			switch (license)
+			{
+				case CCBY:
+					abbrev = "CC BY";
+					break;
+				case CCNC:
+					abbrev = "CC BY-NC";
+					break;
+				case CCND:
+					abbrev = "CC BY-ND";
+					break;
+				case CCNC + CCND:
+					abbrev = "CC BY-NC-ND";
+					break;
+				case CCSA:
+					abbrev = "CC BY-SA";
+					break;
+				case CCNC + CCSA:
+					abbrev = "CC BY-NC-SA";
+					break;
+			}
+			if (licenseText.Contains("4.0"))
+				abbrev = abbrev + " 4.0";
+			return abbrev;
+		}
+
+		private string GetLicenseFromOpdsEntryIfPossible()
+		{
+			if (_opdsEntry == null)
+				return "";
+			var licenseDiv = _opdsEntry.SelectSingleNode("/a:feed/a:entry/dc:license", _opdsNsmgr) as XmlElement;
+			if (licenseDiv == null)
+				licenseDiv = _opdsEntry.SelectSingleNode("/a:feed/a:entry/dcterms:license", _opdsNsmgr) as XmlElement;
+			if (licenseDiv == null)
+				return "";
+			var licenseText = licenseDiv.InnerText.Trim();
+			if (!licenseText.Contains("Creative Commons Attribution"))
+				return "";
+			var abbrev = GetLicenseAbbrevFromEnglishText(licenseDiv.InnerText.Trim());
+			SetBookLicense(abbrev);
+			return abbrev;
 		}
 
 		const string kStoryAttribution = "Story Attribution:";
