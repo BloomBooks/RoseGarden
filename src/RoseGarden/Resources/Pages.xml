@@ -1,5 +1,9 @@
 <!-- These page divs were taken from an empty book created from the Basic Book template, Traditional XMatter, and default branding in Bloom 4.6 on January 30, 2020 -->
 <Pages>
+  <!-- The outside front cover is the only xmatter page that the conversion process actually produces.
+       All other xmatter related information is merely stored in the data div, with the relevant pages
+       created by Bloom proper during the upload process.
+    -->
   <div class="bloom-page cover coverColor bloom-frontMatter frontCover outsideFrontCover A5Portrait side-right" data-page="required singleton" data-export="front-matter-cover" data-xmatter-page="frontCover" id="Front Cover" data-page-number="" lang="">
     <div data-after-content="Traditional Front/Back Matter" class="pageLabel" data-i18n="TemplateBooks.PageLabel.Front Cover" lang="en">Front Cover</div>
     <div class="pageDescription" lang="en"></div>
@@ -53,7 +57,52 @@
     </div>
   </div>
 
-  <div class="bloom-page numberedPage customPage bloom-combinedPage A5Portrait bloom-monolingual side-left" data-page="" id="Picture in Middle" data-pagelineage="adcd48df-e9ab-4a07-afd4-6a24d0398383" data-page-number="2" lang="">
+  <div class="bloom-page numberedPage customPage bloom-combinedPage A5Portrait side-left bloom-monolingual" data-page="" id="Picture on Left" data-pagelineage="7b192144-527c-417c-a2cb-1fb5e78bf38a" data-page-number="1" lang="">
+    <div class="pageLabel" data-i18n="TemplateBooks.PageLabel.Picture on Left" lang="en">Picture on Left</div>
+    <div class="pageDescription" lang="en"></div>
+    <div class="marginBox">
+      <div style="min-width: 0px;" class="split-pane vertical-percent">
+        <div class="split-pane-component position-left">
+          <div class="split-pane-component-inner" min-height="60px 150px 250px" min-width="60px 150px" style="position: relative;">
+            <div class="bloom-imageContainer bloom-leadingElement"><img src="placeHolder.png" alt=""></img></div>
+          </div>
+        </div>
+        <div class="split-pane-divider vertical-divider"></div>
+        <div class="split-pane-component position-right">
+          <div class="split-pane-component-inner" min-height="60px 150px 250px" min-width="60px 150px" style="position: relative;">
+            <div class="bloom-translationGroup bloom-trailingElement bloom-vertical-align-center" data-default-languages="auto">
+              <div style="" class="bloom-editable normal-style" contenteditable="true" lang="z"><p></p></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- This page doesn't exist in Basic Book, but maybe it should for properly handling right-to-left books? -->
+  <div class="bloom-page numberedPage customPage A5Portrait side-right bloom-monolingual" data-page="" id="Picture on Right" data-pagelineage="5dcd48df-e9ab-4a07-afd4-6a24d0398386" data-page-number="1" lang="">
+    <div class="pageLabel" data-i18n="TemplateBooks.PageLabel.Picture on Right" lang="en">Picture on Right</div>
+    <div class="pageDescription" lang="en"></div>
+    <div class="marginBox">
+      <div style="min-width: 0px;" class="split-pane vertical-percent">
+        <div class="split-pane-component position-left">
+          <div class="split-pane-component-inner" min-height="60px 150px 250px" min-width="60px 150px" style="position: relative;">
+            <div class="bloom-translationGroup bloom-leadingElement bloom-vertical-align-center" data-default-languages="auto">
+              <div style="" class="bloom-editable normal-style" contenteditable="true" lang="z"><p></p></div>
+            </div>
+          </div>
+        </div>
+        <div class="split-pane-divider vertical-divider"></div>
+        <div class="split-pane-component position-right">
+          <div class="split-pane-component-inner" min-height="60px 150px 250px" min-width="60px 150px" style="position: relative;">
+            <div class="bloom-imageContainer bloom-trailingElement"><img src="placeHolder.png" alt=""></img></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="bloom-page numberedPage customPage bloom-combinedPage A5Portrait bloom-monolingual side-left" data-page="" id="Picture in Middle" data-pagelineage="adcd48df-e9ab-4a07-afd4-6a24d0398383" data-page-number="1" lang="">
     <div class="pageLabel" data-i18n="TemplateBooks.PageLabel.Picture in Middle" lang="en">Picture in Middle</div>
     <div class="pageDescription" lang="en"></div>
     <div class="marginBox">
@@ -89,7 +138,7 @@
     </div>
   </div>
 
-  <div class="bloom-page numberedPage customPage bloom-combinedPage A5Portrait bloom-monolingual side-right" data-page="" id="Picture on Bottom" data-pagelineage="adcd48df-e9ab-4a07-afd4-6a24d0398384" data-page-number="3" lang="">
+  <div class="bloom-page numberedPage customPage bloom-combinedPage A5Portrait bloom-monolingual side-right" data-page="" id="Picture on Bottom" data-pagelineage="adcd48df-e9ab-4a07-afd4-6a24d0398384" data-page-number="1" lang="">
     <div class="pageLabel" data-i18n="TemplateBooks.PageLabel.Picture on Bottom" lang="en">Picture on Bottom</div>
     <div class="pageDescription" lang="en"></div>
     <div class="marginBox">
@@ -111,7 +160,7 @@
     </div>
   </div>
 
-  <div class="bloom-page numberedPage customPage A5Portrait bloom-monolingual side-left" data-page="" id="Just a Picture" data-pagelineage="adcd48df-e9ab-4a07-afd4-6a24d0398385" data-page-number="4" lang="">
+  <div class="bloom-page numberedPage customPage A5Portrait bloom-monolingual side-left" data-page="" id="Just a Picture" data-pagelineage="adcd48df-e9ab-4a07-afd4-6a24d0398385" data-page-number="1" lang="">
     <div class="pageLabel" data-i18n="TemplateBooks.PageLabel.Just a Picture" lang="en">Just a Picture</div>
     <div class="pageDescription" lang="en"></div>
     <div class="marginBox">
@@ -121,7 +170,7 @@
     </div>
   </div>
 
-  <div class="bloom-page numberedPage customPage A5Portrait side-right bloom-monolingual" data-page="" id="Just Text" data-pagelineage="a31c38d8-c1cb-4eb9-951b-d2840f6a8bdb" data-page-number="5" lang="">
+  <div class="bloom-page numberedPage customPage A5Portrait side-right bloom-monolingual" data-page="" id="Just Text" data-pagelineage="a31c38d8-c1cb-4eb9-951b-d2840f6a8bdb" data-page-number="1" lang="">
     <div class="pageLabel" data-i18n="TemplateBooks.PageLabel.Just Text" lang="en">Just Text</div>
     <div class="pageDescription" lang="en"></div>
     <div class="marginBox">

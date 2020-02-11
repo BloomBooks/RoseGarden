@@ -74,6 +74,12 @@ namespace RoseGarden
 		[Option( "rtl", Required = false, HelpText = "Flag that the language is written right-to-left.")]
 		public bool IsRtl { get; set; }
 
+		[Option( "landscape", Required = false, HelpText = "Lay out the book in landscape format.")]
+		public bool UseLandscape { get; set; }
+
+		[Option( "portrait", Required = false, HelpText = "Lay out the book in portrait format.  (This is the default behavior.)")]
+		public bool UsePortrait { get; set; }
+
 		[Option('v', "verbose", Required = false, HelpText = "Write verbose progress messages to the console.")]
 		public bool Verbose { get; set; }
 

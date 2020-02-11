@@ -77,6 +77,8 @@ namespace RoseGarden
 				var pagesFile = Path.Combine(Path.GetDirectoryName(location), "Resources", "Pages.xml");
 				_templateBook.Load(pagesFile);
 				_templatePages = _templateBook.SelectNodes("//div[contains(@class,'bloom-page')]").Cast<XmlElement>().ToList();
+				if (_options.UseLandscape)
+					ChangePagesToLandscape();
 
 				ConvertBook();
 
@@ -86,6 +88,8 @@ namespace RoseGarden
 					CopyBloomBookToOutputFolder();
 				if (NeedCopyrightInformation())
 					Console.WriteLine("WARNING: could not find copyright information for {0}", _bookMetaData.Title);
+				if (NeedLicenseInformation())
+					Console.WriteLine("WARNING: could not find license information for {0}", _bookMetaData.Title);
 			}
 			catch (Exception e)
 			{
@@ -95,6 +99,16 @@ namespace RoseGarden
 				return 2;
 			}
 			return 0;
+		}
+
+		private void ChangePagesToLandscape()
+		{
+			foreach (var page in _templatePages)
+			{
+				var classes = page.GetAttribute("class");
+				var newClasses = classes.Replace("A5Portrait", "A5Landscape");
+				page.SetAttribute("class", newClasses);
+			}
 		}
 
 		/// <summary>
@@ -115,7 +129,11 @@ namespace RoseGarden
 		private bool VerifyOptions()
 		{
 			var allValid = true;
-			// placeholder for if/when there's something we can validate at this point.
+			if (_options.UseLandscape && _options.UsePortrait)
+			{
+				Console.WriteLine("--portrait and --landscape cannot be used together.  --portrait is the default behavior for most books.  --landscape may become the default for some publishers.");
+				allValid = false;
+			}
 			return allValid;
 		}
 
@@ -241,7 +259,14 @@ namespace RoseGarden
 			_bookMetaData.BookLineage = _bookMetaData.Id;
 			_bookMetaData.Id = Guid.NewGuid().ToString();   // This may be replaced if we're updating an existing book.
 
-			// If collection settings file exists, ensure that our language information matches with it.
+			DoubleCheckLanguageInformation(langCode);
+		}
+
+		/// <summary>
+		/// If the collection settings file exists, ensure that our language information matches with it.
+		/// </summary>
+		private void DoubleCheckLanguageInformation(string langCode)
+		{
 			var collectionFile = Path.Combine(_options.CollectionFolder, Path.GetFileName(_options.CollectionFolder) + ".bloomCollection");
 			if (File.Exists(collectionFile))
 			{
@@ -372,6 +397,7 @@ namespace RoseGarden
 					var title = Regex.Replace(titleNode.InnerText, " \\[extract\\]$", "");
 					SetHeadMetaValue("OpdsSource", title);
 				}
+				AdjustLayoutIfNeeded();
 			}
 
 			SetDataDivTextValue("contentLanguage1", _epubMetaData.LanguageCode);
@@ -404,6 +430,26 @@ namespace RoseGarden
 			if (_options.Verbose)
 				Console.WriteLine("INFO: processed {0} pages from {1} ({2} pages of end credits)", _epubMetaData.PageFiles.Count, Path.GetFileName(_options.EpubFile), _endCreditsPageCount);
 			FillInBookMetaData();
+		}
+
+		private void AdjustLayoutIfNeeded()
+		{
+			if (_options.UsePortrait || _options.UseLandscape)
+				return;     // user specifically demanded a particular layout
+			// Africa Storybook Project books should be landscape by default instead of portrait.
+			var divPublisher = _opdsEntry.SelectSingleNode("/a:feed/a:entry/dc:publisher", _opdsNsmgr) as XmlElement;
+			if (divPublisher == null)
+				divPublisher = _opdsEntry.SelectSingleNode("/a:feed/a:entry/dcterms:publisher", _opdsNsmgr) as XmlElement;
+			if (divPublisher == null)
+				return;
+			var publisher = divPublisher.InnerText.Trim();
+			if (publisher.ToLowerInvariant().StartsWith("african storybook", StringComparison.InvariantCulture))
+			{
+				if (_options.Verbose)
+					Console.WriteLine("INFO: setting book layout to landscape for {0}", _epubMetaData.Title);
+				_options.UseLandscape = true;
+				ChangePagesToLandscape();
+			}
 		}
 
 		private void ExtractCopyrightAndLicenseFromAttributionText(string attributionText)
@@ -1000,6 +1046,8 @@ namespace RoseGarden
 
 		private XmlElement SelectTemplatePage(string id)
 		{
+			if (_options.UseLandscape && id == "Basic Text & Picture")
+				id = "Picture on Left";
 			foreach (var page in _templatePages)
 			{
 				if (page.GetAttribute("id") == id)
@@ -1157,6 +1205,12 @@ namespace RoseGarden
 		{
 			var copyright = GetOrCreateDataDivElement("copyright", "*");
 			return String.IsNullOrWhiteSpace(copyright.InnerText);
+		}
+
+		private bool NeedLicenseInformation()
+		{
+			var license = GetOrCreateDataDivElement("copyrightUrl", "*");
+			return String.IsNullOrWhiteSpace(license.InnerText);
 		}
 
 		private void ProcessRawCreditsPageForCopyrights(XmlElement body, int pageNumber)
