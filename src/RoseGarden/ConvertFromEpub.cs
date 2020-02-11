@@ -488,7 +488,7 @@ namespace RoseGarden
 			{
 				var link0 = _opdsEntry.SelectSingleNode("/a:feed/a:entry/a:link[@type='application/epub+zip' and contains(@rel, 'http://opds-spec.org/acquisition')]", _opdsNsmgr) as XmlElement;
 				if (link0 != null)
-					_bookMetaData.OriginalBookSourceUrl = link0.GetAttribute("href");
+					_bookMetaData.ImportedBookSourceUrl = link0.GetAttribute("href");
 			}
 			// Something that the Basic Books meta.json doesn't get right for our purposes.
 			// We're aren't making "shells" from this book, but rather more vernacular books.
