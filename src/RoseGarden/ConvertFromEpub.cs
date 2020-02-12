@@ -232,6 +232,11 @@ namespace RoseGarden
 					Console.WriteLine("INFO: replacing obsolete language code '{0}' with '{1}'", _epubMetaData.LanguageCode, langCode);
 					_epubMetaData.LanguageCode = langCode;
 				}
+				else if (_epubMetaData.LanguageCode.StartsWith(langCode+"-", StringComparison.InvariantCulture))
+				{
+					Console.WriteLine("INFO: replacing language code '{0}' with '{1}'", _epubMetaData.LanguageCode, langCode);
+					_epubMetaData.LanguageCode = langCode;
+				}
 				else
 				{
 					Console.WriteLine("WARNING: language code '{0}' for {1} does not match expected '{2}'.", _epubMetaData.LanguageCode, _options.LanguageName, langCode);
