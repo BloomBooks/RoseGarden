@@ -83,6 +83,7 @@
     <Reference Include="System.Runtime.InteropServices.RuntimeInformation">
       <HintPath>..\..\packages\System.Runtime.InteropServices.RuntimeInformation.4.0.0\lib\net45\System.Runtime.InteropServices.RuntimeInformation.dll</HintPath>
     </Reference>
+    <Reference Include="System.Drawing" />
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Program.cs" />
@@ -93,6 +94,7 @@
     <Compile Include="LanguageData.cs" />
     <Compile Include="UploadToBloomLibrary.cs" />
     <Compile Include="BookMetaData.cs" />
+    <Compile Include="ImageUtility.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="App.config" />

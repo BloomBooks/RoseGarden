@@ -85,6 +85,7 @@ namespace RoseGarden
 
 				File.Delete(Path.Combine(_bookFolder, _htmFileName));
 				_bloomDoc.Save(Path.Combine(_bookFolder, _htmFileName));
+				CreateThumbnails();
 				if (!String.IsNullOrWhiteSpace(_options.CollectionFolder) && _options.CollectionFolder != _bookFolder)
 					CopyBloomBookToOutputFolder();
 				if (NeedCopyrightInformation())
@@ -1605,6 +1606,39 @@ namespace RoseGarden
 			{
 				Console.WriteLine("WARNING: Could not find expected image on page {0}", pageNumber == 0 ? "Front Cover" : pageNumber.ToString());
 			}
+		}
+
+		private void CreateThumbnails()
+		{
+			var imageFile = Path.ChangeExtension(_options.EpubFile, "jpg");
+			if (_options.EpubFile.EndsWith(".epub.zip", StringComparison.InvariantCulture))
+				imageFile = _options.EpubFile.Replace(".epub.zip", ".jpg");
+			if (_publisher.ToLowerInvariant().StartsWith("african storybook", StringComparison.InvariantCulture))
+				imageFile = GetFirstPageOrCoverImage();
+			if (String.IsNullOrWhiteSpace(imageFile) || !File.Exists(imageFile))
+				return;
+			if (_options.Verbose)
+				Console.WriteLine("INFO: creating thumbnail images from {0}", imageFile);
+			using (var util = new ImageUtility(imageFile))
+			{
+				util.CreateThumbnail(70, Path.Combine(_bookFolder, "thumbnail-70.png"));
+				File.Copy(Path.Combine(_bookFolder, "thumbnail-70.png"), Path.Combine(_bookFolder, "thumbnail.png"));
+				util.CreateThumbnail(256, Path.Combine(_bookFolder, "thumbnail-256.png"));
+				util.CreateThumbnail(200, Path.Combine(_bookFolder, "coverImage200.jpg"));
+			}
+			if (File.Exists(Path.Combine(_bookFolder, "thumbnail.jpg")))
+				File.Delete(Path.Combine(_bookFolder, "thumbnail.jpg"));
+		}
+
+		private string GetFirstPageOrCoverImage()
+		{
+			var firstPageImageDiv = _bloomDoc.SelectSingleNode("/html/body/div[@data-page-number='1']//div[contains(@class,'bloom-imageContainer')]/img") as XmlElement;
+			if (firstPageImageDiv != null)
+				return Path.Combine(_bookFolder, firstPageImageDiv.GetAttribute("src"));
+			var coverImageDiv = _bloomDoc.SelectSingleNode("/html/body/div[@id='bloomDataDiv']/div[@data-book='coverImage' and @lang='*']") as XmlElement;
+			if (coverImageDiv != null)
+				return Path.Combine(_bookFolder, coverImageDiv.InnerText.Trim());
+			return "";
 		}
 	}
 }
