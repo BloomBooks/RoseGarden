@@ -16,6 +16,8 @@ namespace RoseGarden
 {
 	public class ConvertFromEpub
 	{
+		private const int kMaxTextLengthForLandscape = 300;		// number is rather arbitrary...
+
 		ConvertOptions _options;
 
 		EpubMetadata _epubMetaData;
@@ -450,14 +452,65 @@ namespace RoseGarden
 		{
 			if (_options.UsePortrait || _options.UseLandscape)
 				return;     // user specifically demanded a particular layout
-			// Africa Storybook Project books should be landscape by default instead of portrait.
-			if (_publisher != null && _publisher.ToLowerInvariant().StartsWith("african storybook", StringComparison.InvariantCulture))
+			// African Storybook Project books should be landscape by default instead of portrait.
+			//if (_publisher != null && _publisher.ToLowerInvariant().StartsWith("african storybook", StringComparison.InvariantCulture))
+			//{
+			//	if (_options.Verbose)
+			//		Console.WriteLine("INFO: setting book layout to landscape for {0}", _epubMetaData.Title);
+			//	_options.UseLandscape = true;
+			//	ChangePagesToLandscape();
+			//	return;
+			//}
+			for (int pageNumber = 1; pageNumber < _epubMetaData.PageFiles.Count; ++pageNumber)
+				ScanPageForMetrics(pageNumber);
+			_endCreditsStart = Int32.MaxValue;	// reset credits page marker
+			if (_options.VeryVerbose)
+			{
+				Console.WriteLine("DEBUG: scanning the book shows {0} content pages with {1} image-only and {2} text-only pages",
+					_contentPageCount, _imageOnlyPageCount, _textOnlyPageCount);
+				Console.WriteLine("DEBUG: the maximum character count on a page is {0}, or {1} if the page has an image",
+					_maxTextLength, _maxTextLengthWithImage);
+			}
+			var singularPageCount = _textOnlyPageCount + _imageOnlyPageCount;
+			if (_maxTextLengthWithImage <= kMaxTextLengthForLandscape &&
+				(singularPageCount * 3) < _contentPageCount)	//text-only and image-only are < 1/3 of all total pages
 			{
 				if (_options.Verbose)
 					Console.WriteLine("INFO: setting book layout to landscape for {0}", _epubMetaData.Title);
 				_options.UseLandscape = true;
 				ChangePagesToLandscape();
 			}
+		}
+
+		int _maxTextLengthWithImage = 0;
+		int _maxTextLength = 0;
+		int _imageOnlyPageCount = 0;
+		int _textOnlyPageCount = 0;
+		int _contentPageCount = 0;
+
+		private void ScanPageForMetrics(int pageNumber)
+		{
+			var pageDoc = new XmlDocument();
+			pageDoc.Load(_epubMetaData.PageFiles[pageNumber]);
+			var nsmgr = new XmlNamespaceManager(pageDoc.NameTable);
+			nsmgr.AddNamespace("x", "http://www.w3.org/1999/xhtml");
+			var body = pageDoc.SelectSingleNode("/x:html/x:body", nsmgr) as XmlElement;
+			if (IsEndCreditsPage(body, pageNumber))
+				return;		// ignore credits pages
+			++_contentPageCount;
+			var img = body.SelectSingleNode("//x:img", nsmgr);
+			var text = body.InnerText.Trim();
+			text = Regex.Replace(body.InnerText.Trim(), "[\\s\n]+", " ");
+			if (img != null && text.Length == 0)
+				++_imageOnlyPageCount;
+			if (img == null && text.Length > 0)
+				++_textOnlyPageCount;
+			if (img == null && text.Length == 0)
+				Console.WriteLine("WARNING: page {0} has no content!?");
+			if (_maxTextLength < text.Length)
+				_maxTextLength = text.Length;
+			if (img != null && _maxTextLengthWithImage < text.Length)
+				_maxTextLengthWithImage = text.Length;
 		}
 
 		private void ExtractCopyrightAndLicenseFromAttributionText(string attributionText)
@@ -1077,7 +1130,10 @@ namespace RoseGarden
 				return true;    // Once we hit the end credits, we assume other pages go on inside/output back cover.
 			var divs = body.SelectNodes(".//div[@class='attrb-full' or @class='attribution-text' or @class='license_container']");
 			if (divs.Count > 0)
-				return true;	// StoryWeaver output apparently...
+			{
+				_endCreditsStart = pageNumber;
+				return true;    // StoryWeaver output apparently...
+			}
 			var text = body.InnerText;
 			// Not all books contain an explicit copyright.  But I think all the books we want use Creative Commons licensing,
 			// and they appear to use the English phrase.
