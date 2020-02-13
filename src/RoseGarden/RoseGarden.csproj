@@ -58,11 +58,17 @@
     <Reference Include="SIL.Core">
       <HintPath>..\..\packages\SIL.Core.7.0.0\lib\net461\SIL.Core.dll</HintPath>
     </Reference>
+    <Reference Include="SIL.Windows.Forms">
+      <HintPath>..\..\packages\SIL.Windows.Forms.7.0.0\lib\net461\SIL.Windows.Forms.dll</HintPath>
+    </Reference>
     <Reference Include="SIL.WritingSystems">
       <HintPath>..\..\packages\SIL.WritingSystems.7.0.0\lib\net461\SIL.WritingSystems.dll</HintPath>
     </Reference>
     <Reference Include="Spart">
       <HintPath>..\..\packages\Spart.1.0.0\lib\net461\Spart.dll</HintPath>
+    </Reference>
+    <Reference Include="taglib-sharp">
+      <HintPath>..\..\packages\TagLibSharp-patched.2.2.0-beta.1/lib/net462/taglib-sharp.dll</HintPath>
     </Reference>
     <Reference Include="System.Security.Principal.Windows">
       <HintPath>..\..\packages\System.Security.Principal.Windows.4.7.0\lib\net461\System.Security.Principal.Windows.dll</HintPath>

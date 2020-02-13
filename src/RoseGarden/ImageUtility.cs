@@ -1,9 +1,14 @@
 ﻿using System;
 using System.Drawing;
 using System.Drawing.Imaging;
+using SIL.Windows.Forms.ClearShare;
 
 namespace RoseGarden
 {
+	/// <summary>
+	/// Image utility class.  This provides operations for deriving thumbnail images and for reading
+	/// or writing the image metadata.
+	/// </summary>
 	public class ImageUtility : IDisposable
 	{
 		private Bitmap _originalImage;
@@ -49,5 +54,21 @@ namespace RoseGarden
 			Dispose(true);
 		}
 		#endregion
+
+		/// <summary>
+		/// Get the current metadata from an image file.
+		/// </summary>
+		public static Metadata GetImageMetadata(string path)
+		{
+			return Metadata.FromFile(path);
+		}
+
+		/// <summary>
+		/// Write the interesting (intellectual property) metadata to an image file.
+		/// </summary>
+		public static void SetImageMetadata(string path, Metadata meta)
+		{
+			meta.WriteIntellectualPropertyOnly(path);
+		}
 	}
 }

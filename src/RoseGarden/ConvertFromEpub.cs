@@ -10,6 +10,7 @@ using System.Reflection;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Xml;
+using SIL.Windows.Forms.ClearShare;
 
 namespace RoseGarden
 {
@@ -466,7 +467,7 @@ namespace RoseGarden
 			{
 				SetBookCopyright(copyright.Groups[1].Value);
 			}
-			var license = Regex.Match(attributionText, "under a (CC.*) license", RegexOptions.CultureInvariant);
+			var license = Regex.Match(attributionText, "under a* *(CC.*) license", RegexOptions.CultureInvariant);
 			if (license.Success)
 			{
 				SetBookLicense(license.Groups[1].Value);
@@ -479,29 +480,35 @@ namespace RoseGarden
 			switch (licenseAbbreviation)
 			{
 				case "CC BY":
-				case "CC BY 4.0":
-					url = "http://creativecommons.org/licenses/by/4.0/";
-					break;
+				case "CC BY 4.0":		url = "http://creativecommons.org/licenses/by/4.0/";		break;
 				case "CC BY-SA":
-				case "CC BY-SA 4.0":
-					url = "http://creativecommons.org/licenses/by-sa/4.0/";
-					break;
+				case "CC BY-SA 4.0":	url = "http://creativecommons.org/licenses/by-sa/4.0/";		break;
 				case "CC BY-ND":
-				case "CC BY-ND 4.0":
-					url = "http://creativecommons.org/licenses/by-nd/4.0/";
-					break;
+				case "CC BY-ND 4.0":	url = "http://creativecommons.org/licenses/by-nd/4.0/";		break;
 				case "CC BY-NC":
-				case "CC BY-NC 4.0":
-					url = "http://creativecommons.org/licenses/by-nc/4.0/";
-					break;
+				case "CC BY-NC 4.0":	url = "http://creativecommons.org/licenses/by-nc/4.0/";		break;
 				case "CC BY-NC-SA":
-				case "CC BY-NC-SA 4.0":
-					url = "https://creativecommons.org/licenses/by-nc-sa/4.0/";
-					break;
+				case "CC BY-NC-SA 4.0":	url = "https://creativecommons.org/licenses/by-nc-sa/4.0/";	break;
 				case "CC BY-NC-ND":
-				case "CC BY-NC-ND 4.0":
-					url = "http://creativecommons.org/licenses/by-nc-nd/4.0/";
-					break;
+				case "CC BY-NC-ND 4.0":	url = "http://creativecommons.org/licenses/by-nc-nd/4.0/";	break;
+				case "CC BY 3.0":		url = "http://creativecommons.org/licenses/by/3.0/";		break;
+				case "CC BY-SA 3.0":	url = "http://creativecommons.org/licenses/by-sa/3.0/";		break;
+				case "CC BY-ND 3.0":	url = "http://creativecommons.org/licenses/by-nd/3.0/";		break;
+				case "CC BY-NC 3.0":	url = "http://creativecommons.org/licenses/by-nc/3.0/";		break;
+				case "CC BY-NC-SA 3.0":	url = "https://creativecommons.org/licenses/by-nc-sa/3.0/";	break;
+				case "CC BY-NC-ND 3.0":	url = "http://creativecommons.org/licenses/by-nc-nd/3.0/";	break;
+				case "CC BY 2.5":		url = "http://creativecommons.org/licenses/by/2.5/";		break;
+				case "CC BY-SA 2.5":	url = "http://creativecommons.org/licenses/by-sa/2.5/";		break;
+				case "CC BY-ND 2.5":	url = "http://creativecommons.org/licenses/by-nd/2.5/";		break;
+				case "CC BY-NC 2.5":	url = "http://creativecommons.org/licenses/by-nc/2.5/";		break;
+				case "CC BY-NC-SA 2.5":	url = "https://creativecommons.org/licenses/by-nc-sa/2.5/";	break;
+				case "CC BY-NC-ND 2.5":	url = "http://creativecommons.org/licenses/by-nc-nd/2.5/";	break;
+				case "CC BY 2.0":		url = "http://creativecommons.org/licenses/by/2.0/";		break;
+				case "CC BY-SA 2.0":	url = "http://creativecommons.org/licenses/by-sa/2.0/";		break;
+				case "CC BY-ND 2.0":	url = "http://creativecommons.org/licenses/by-nd/2.0/";		break;
+				case "CC BY-NC 2.0":	url = "http://creativecommons.org/licenses/by-nc/2.0/";		break;
+				case "CC BY-NC-SA 2.0":	url = "https://creativecommons.org/licenses/by-nc-sa/2.0/";	break;
+				case "CC BY-NC-ND 2.0":	url = "http://creativecommons.org/licenses/by-nc-nd/2.0/";	break;
 				case "CC0":
 					url = "https://creativecommons.org/share-your-work/public-domain/cc0/";
 					break;
@@ -518,7 +525,7 @@ namespace RoseGarden
 
 		private void SetBookCopyright(string matchedCopyright)
 		{
-			var text = "Copyright " + matchedCopyright;
+			var text = "Copyright " + matchedCopyright.Trim();
 			_bookMetaData.Copyright = text;
 			SetDataDivTextValue("copyright", text);
 		}
@@ -590,7 +597,6 @@ namespace RoseGarden
 				Console.WriteLine("WARNING: {0} did not convert successfully.", pageFilePath);
 			}
 		}
-
 		private void ConvertFrontCoverPage(string pageFilePath)
 		{
 			// The cover page created here will be overwritten by Bloom when it applies the user's chosen xmatter.
@@ -1223,29 +1229,37 @@ namespace RoseGarden
 		private void ProcessRawCreditsPageForCopyrights(XmlElement body, int pageNumber)
 		{
 			var bodyText = body.InnerText;
-			if (bodyText.Contains("Pratham Books") && bodyText.Contains("©") && (bodyText.Contains(kStoryAttribution) || bodyText.Contains(kIllustrationAttribs)))
+			if (bodyText.Contains("Pratham Books") && bodyText.Contains("©") &&
+				(bodyText.Contains(kStoryAttribution) || bodyText.Contains(kIllustrationAttribs) || bodyText.Contains(kImagesAttribs)))
 			{
 				ProcessRawPrathamCreditsPage(bodyText, pageNumber);
+				return;
 			}
 			var artCopyright = "";
+			var bookCopyright = "";
 			var copyright = GetOrCreateDataDivElement("copyright", "*");
+			var matches = Regex.Matches(bodyText, "(©[^0-9©]* ([12][09][0-9][0-9]))", RegexOptions.CultureInvariant|RegexOptions.Singleline);
+			if (matches.Count > 1)
+				Console.WriteLine("WARNING: MULTIPLE COPYRIGHTS FOUND ON CREDIT PAGE!  THIS NEEDS TO BE CHECKED OUT!");
 			if (String.IsNullOrWhiteSpace(copyright.InnerText))
 			{
-				var match = Regex.Match(bodyText, "(©[^0-9]* ([12][09][0-9][0-9]))", RegexOptions.CultureInvariant);
-				if (match.Success)
+				//var match = Regex.Match(bodyText, "(©[^0-9]* ([12][09][0-9][0-9]))", RegexOptions.CultureInvariant);
+				//if (match.Success)
+				if (matches.Count > 0)
 				{
+					var match = matches[0];
 					var copyrightMatch = match.Groups[1].Value;
 					if (copyrightMatch.StartsWith("© Text:", StringComparison.InvariantCulture) && copyrightMatch.Contains("Artwork:"))
 					{
 						var beginArtwork = copyrightMatch.IndexOf("Artwork:", StringComparison.InvariantCulture);
-						var bookCopyright = "© " + copyrightMatch.Substring(7, beginArtwork - 7).Trim() + " " + match.Groups[2].Value;
-						SetBookCopyright(bookCopyright);
-						artCopyright = $"Artwork © { copyrightMatch.Substring(beginArtwork + 8).Trim()}";
+						bookCopyright = "© " + copyrightMatch.Substring(7, beginArtwork - 7).Trim() + " " + match.Groups[2].Value;
+						artCopyright = $"© { copyrightMatch.Substring(beginArtwork + 8).Trim()}";
 					}
 					else
 					{
-						SetBookCopyright(copyrightMatch);
+						bookCopyright = copyrightMatch;
 					}
+					SetBookCopyright(bookCopyright);
 				}
 				else
 				{
@@ -1279,26 +1293,43 @@ namespace RoseGarden
 						}
 						if (year == null)
 							year = DateTime.Now.Year.ToString();
-						SetBookCopyright(String.Format("Copyright © by Book Dash, {0}", year));
+						bookCopyright = String.Format("© by Book Dash, {0}", year);
+						SetBookCopyright(bookCopyright);
 					}
 				}
 			}
-			var copyrightUrl = GetOrCreateDataDivElement("copyrightUrl", "*");
+			var licenseUrl = GetOrCreateDataDivElement("copyrightUrl", "*");
 			var licenseAbbrev = "";
-			if (String.IsNullOrWhiteSpace(copyrightUrl.InnerText))
+			if (String.IsNullOrWhiteSpace(licenseUrl.InnerText))
 			{
 				licenseAbbrev = FindAndProcessCreativeCommonsForBook(bodyText);
+				if (String.IsNullOrWhiteSpace(licenseAbbrev))
+					Console.WriteLine("WARNING: No license found for book {0}", _bookMetaData.Title);
+			}
+			if (String.IsNullOrWhiteSpace(artCopyright) && !String.IsNullOrWhiteSpace(bookCopyright))
+			{
+				// Artwork is presumably the same copyright and license as the text.
+				if (!String.IsNullOrWhiteSpace(bookCopyright))
+					artCopyright = "Copyright " + bookCopyright.Trim();
 			}
 			if (!String.IsNullOrWhiteSpace(artCopyright))
 			{
 				// Assume art has the same license as the text.
+				var artCreator = "";
+				if (_epubMetaData.Illustrators.Count > 0)
+					artCreator = String.Join(", ", _epubMetaData.Illustrators).Trim(' ', ',');
+				SetAllImageMetadata(artCreator, artCopyright, licenseAbbrev);
+
 				var artCopyrightAndLicense = artCopyright;
 				if (licenseAbbrev == "CC0")
 					artCopyrightAndLicense = "Artwork: no rights reserved. (public domain)";
 				if (licenseAbbrev.StartsWith("CC BY", StringComparison.InvariantCulture))
 					artCopyrightAndLicense = $"{artCopyright}.  Some rights reserved.  Released under the {licenseAbbrev} license.";
+				if (String.IsNullOrEmpty(artCreator))
+					artCopyrightAndLicense = $"All illustrations copyright {artCopyrightAndLicense}";
+				else
+					artCopyrightAndLicense = $"All illustrations by {artCreator}.  Copyright {artCopyrightAndLicense}";
 				_contributionsXmlBldr.AppendLine(artCopyrightAndLicense);
-				SetAllImageCopyrights(artCopyright, licenseAbbrev);
 				var contributions = GetOrCreateDataDivElement("originalContributions", "en");
 				if (!String.IsNullOrWhiteSpace(contributions.InnerText))
 				{
@@ -1326,7 +1357,7 @@ namespace RoseGarden
 			bodyText = bodyText.Replace("\u00a0", " ");
 			match = Regex.Match(bodyText, "(Creative\\s+Commons:?\\s+Attribution.*)\n", RegexOptions.CultureInvariant);
 			if (!match.Success)
-				match = Regex.Match(bodyText, "(Creative\\s+Commons:?\\s+Attribution.*4\\.0)", RegexOptions.CultureInvariant);
+				match = Regex.Match(bodyText, "(Creative\\s+Commons:?\\s+Attribution.*[1-9]\\.[0-9])", RegexOptions.CultureInvariant);
 			if (match.Success)
 			{
 				var licenseText = match.Groups[1].Value;
@@ -1334,7 +1365,7 @@ namespace RoseGarden
 				SetBookLicense(abbrev);
 				return abbrev;
 			}
-			match = Regex.Match(bodyText, "(CC BY(-[A-Z][A-Z])*( 4.0)?)");
+			match = Regex.Match(bodyText, "(CC BY(-[A-Z][A-Z])*( [1-9]\\.[0-9])?)");
 			if (match.Success)
 			{
 				var abbrev = match.Groups[1].Value.Trim();
@@ -1379,8 +1410,17 @@ namespace RoseGarden
 					abbrev = "CC BY-NC-SA";
 					break;
 			}
+			// 4.0 and 3.0 are the most likely to be found, but include the others for completeness.
 			if (licenseText.Contains("4.0"))
 				abbrev = abbrev + " 4.0";
+			else if (licenseText.Contains("3.0"))
+				abbrev = abbrev + " 3.0";
+			else if (licenseText.Contains("2.5"))
+				abbrev = abbrev + " 2.5";
+			else if (licenseText.Contains("2.0"))
+				abbrev = abbrev + " 2.0";
+			else if (licenseText.Contains("1.0"))
+				abbrev = abbrev + " 1.0";
 			return abbrev;
 		}
 
@@ -1404,6 +1444,7 @@ namespace RoseGarden
 		const string kStoryAttribution = "Story Attribution:";
 		const string kOtherCredits = "Other Credits:";
 		const string kIllustrationAttribs = "Illustration Attributions:";
+		const string kImagesAttribs = "Images Attributions:";	// alternative to kIllustrationAttribs
 		const string kDisclaimer = "Disclaimer:";
 
 		private void ProcessRawPrathamCreditsPage(string bodyText, int pageNumber)
@@ -1412,7 +1453,9 @@ namespace RoseGarden
 			bodyText = bodyText.Replace(" ,",",").Replace(" .",".").Replace(" '","'").Replace("' ","'").Replace(":'",": '");
 			var beginStoryAttrib = bodyText.IndexOf(kStoryAttribution, StringComparison.InvariantCulture);
 			var beginOtherCredits = bodyText.IndexOf(kOtherCredits, StringComparison.InvariantCulture);
-			var beginIllustration = bodyText.IndexOf(kIllustrationAttribs, StringComparison.InvariantCulture); // already checked by Contains
+			var beginIllustration = bodyText.IndexOf(kIllustrationAttribs, StringComparison.InvariantCulture);
+			if (beginIllustration < 0)
+				beginIllustration = bodyText.IndexOf(kImagesAttribs, StringComparison.InvariantCulture);
 			var beginDisclaimer = bodyText.IndexOf(kDisclaimer, StringComparison.InvariantCulture);
 			var copyright = GetOrCreateDataDivElement("copyright", "*");
 			if (String.IsNullOrWhiteSpace(copyright.InnerText) && beginStoryAttrib >= 0)
@@ -1493,7 +1536,7 @@ namespace RoseGarden
 				pageNumber = GetPageNumber(pageText) - 1;   // Content starts at page 2 for Pratham, but page 1 for Bloom.
 			pages.Add(pageNumber);
 
-			var beginDesc = pageText.Length + 1;
+			var beginDesc = pageText.Length;
 			var endDesc = beginDesc + beginCredit - 1;
 			string description = "";
 			if (beginDesc < endDesc)
@@ -1542,18 +1585,24 @@ namespace RoseGarden
 			}
 		}
 
-		private void SetAllImageCopyrights(string artCopyright, string artLicense)
+		private void SetAllImageMetadata(string artCreator, string artCopyright, string artLicense)
 		{
+			if (_options.VeryVerbose)
+				Console.WriteLine("DEBUG: all images metadata: creator={0}; copyright={1}; license={2}", artCreator, artCopyright, artLicense);
 			var imgCover = _bloomDoc.SelectSingleNode($"//div[@id='bloomDataDiv']/div[@data-book='coverImage']") as XmlElement;
 			if (imgCover != null)
 			{
 				imgCover.SetAttribute("data-copyright", artCopyright);
 				imgCover.SetAttribute("data-license", artLicense);
+				SetMetadataInImageFile(imgCover.InnerText.Trim(), artCreator, artCopyright, artLicense);
 			}
 			foreach (var img in _bloomDoc.SelectNodes("//div[contains(@class,'numberedPage')]//div[contains(@class,'bloom-imageContainer')]/img[@src]").Cast<XmlElement>().ToList())
 			{
+				if (!String.IsNullOrWhiteSpace(artCreator))
+					img.SetAttribute("data-creator", artCreator);
 				img.SetAttribute("data-copyright", artCopyright);
 				img.SetAttribute("data-license", artLicense);
+				SetMetadataInImageFile(img.GetAttribute("src"), artCreator, artCopyright, artLicense);
 			}
 		}
 
@@ -1606,10 +1655,50 @@ namespace RoseGarden
 					img.SetAttribute("data-license", license);
 				// Set internal image description values as well as the alt attribute?
 				// Set copyright/license information inside the image files.
+				SetMetadataInImageFile(img.GetAttribute("src"), creator, copyright, license);
+				if (_options.VeryVerbose)
+					Console.WriteLine("DEBUG: page {0} image metadata: creator={1}; copyright={2}; license={3}", pageNumber == 0 ? "Front Cover" : pageNumber.ToString(), creator, copyright, license);
 			}
 			else
 			{
 				Console.WriteLine("WARNING: Could not find expected image on page {0}", pageNumber == 0 ? "Front Cover" : pageNumber.ToString());
+			}
+		}
+
+		private void SetMetadataInImageFile(string filename, string creator, string copyright, string licenseAbbrev)
+		{
+			var path = Path.Combine(_bookFolder, filename);
+			if (File.Exists(path))
+			{
+				var metadata = ImageUtility.GetImageMetadata(path);
+				if (!String.IsNullOrWhiteSpace(creator) && String.IsNullOrWhiteSpace(metadata.Creator))
+					metadata.Creator = creator;
+				if (!String.IsNullOrWhiteSpace(copyright) && String.IsNullOrWhiteSpace(metadata.CopyrightNotice))
+					metadata.CopyrightNotice = copyright;
+				if (!String.IsNullOrWhiteSpace(licenseAbbrev) && licenseAbbrev.StartsWith("CC BY", StringComparison.InvariantCulture) &&
+					(metadata.License is NullLicense || metadata.License == null))
+				{
+					// parse license to set right values here.
+					var commercialUseOK = !licenseAbbrev.Contains("NC");
+					var derivativeRule = CreativeCommonsLicense.DerivativeRules.Derivatives;
+					if (licenseAbbrev.Contains("SA"))
+						derivativeRule = CreativeCommonsLicense.DerivativeRules.DerivativesWithShareAndShareAlike;
+					else if (licenseAbbrev.Contains("ND"))
+						derivativeRule = CreativeCommonsLicense.DerivativeRules.NoDerivatives;
+					var version = "";
+					if (licenseAbbrev.Contains("4.0"))
+						version = "4.0";
+					else if (licenseAbbrev.Contains("3.0"))
+						version = "3.0";
+					else if (licenseAbbrev.Contains("2.5"))
+						version = "2.5";
+					else if (licenseAbbrev.Contains("2.0"))
+						version = "2.0";
+					else if (licenseAbbrev.Contains("1.0"))
+						version = "1.0";
+					metadata.License = new CreativeCommonsLicense(true, commercialUseOK, derivativeRule, version);
+				}
+				ImageUtility.SetImageMetadata(path, metadata);
 			}
 		}
 
