@@ -1,5 +1,6 @@
 ﻿// Copyright (c) 2020 SIL International
 // This software is licensed under the MIT License (http://opensource.org/licenses/MIT)
+using System;
 using CommandLine;
 
 namespace RoseGarden
@@ -96,10 +97,10 @@ namespace RoseGarden
 		[Option('b', "bloomexe", Required = true, HelpText = "Path of the Bloom executable.  This is probably a shell script on Linux but the actual Bloom.exe file on Windows.")]
 		public string BloomExe { get; set; }
 
-		[Option('u', "user", Required = true, HelpText = "Bloomlibrary user for the upload")]
+		[Option('u', "user", Required = false, HelpText = "Bloomlibrary user for the upload")]
 		public string UploadUser { get; set; }
 
-		[Option('p', "password", Required = true, HelpText = "Password for the given upload user")]
+		[Option('p', "password", Required = false, HelpText = "Password for the given Bloomlibrary user")]
 		public string UploadPassword { get; set; }
 
 		[Option('s', "singlelevel", HelpText = "Restrict bookshelf name to only the top level under the path.  (default limit is 2 levels)", Required = false)]
@@ -213,5 +214,16 @@ namespace RoseGarden
 			};
 		}
 
+		/// <summary>
+		/// Utility method to get the value of an environment variable.  It tries the all-uppercase
+		/// version of the variable name if the original name doesn't provide a value.
+		/// </summary>
+		public static string GetEnvironmentVariable(string variableName)
+		{
+			var value = Environment.GetEnvironmentVariable(variableName);
+			if (String.IsNullOrEmpty(value))	// Linux users tend to use all-caps for environment variables...
+				value = Environment.GetEnvironmentVariable(variableName.ToUpperInvariant());
+			return value;
+		}
 	}
 }
