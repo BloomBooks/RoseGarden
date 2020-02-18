@@ -13,7 +13,8 @@ namespace RoseGarden
 
 		public LanguageData()
 		{
-			Sldr.Initialize();
+			if (!Sldr.IsInitialized)
+				Sldr.Initialize();
 			_languageLookup = new LanguageLookup();
 			// These are from the GDL catalog of January 2020.
 			_nameToCode.Add("አማርኛ", "am");

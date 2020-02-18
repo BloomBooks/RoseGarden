@@ -1,16 +1,13 @@
 ﻿// Copyright (c) 2020 SIL International
 // This software is licensed under the MIT License (http://opensource.org/licenses/MIT)
 using System;
+using System.Reflection;
 using CommandLine;
 
 namespace RoseGarden
 {
-	[Verb("fetch", HelpText = "Fetch a book or catalog from the OPDS source.")]
-	public class FetchOptions
+	public class OpdsOptions
 	{
-		[Option('a', "author", Required = false, HelpText = "Author of desired book to download")]
-		public string Author { get; set; }
-
 		[Option('c', "catalog", Required = false, HelpText = "Catalog file: output if either -u or -s is provided, input if neither is given.")]
 		public string CatalogFile { get; set; }
 
@@ -23,23 +20,8 @@ namespace RoseGarden
 		[Option('l', "language", Required = false, HelpText = "Name of desired language: limits catalog output and book title searches")]
 		public string LanguageName { get; set; }
 
-		[Option('o', "output", Required = false, HelpText = "Output file path for downloaded book")]
-		public string OutputFile { get; set; }
-
-		[Option('p', "pdf", Required = false, HelpText = "Download the PDF file as well as the ePUB file.")]
-		public bool DownloadPDF { get; set; }
-
 		[Option('s', "source", Required = false, HelpText = "Fetch from a known OPDS source (for example, gdl or sw)")]
 		public string Source { get; set; }
-
-		[Option('t', "title", Required = false, HelpText = "Title of desired book to download")]
-		public string BookTitle { get; set; }
-
-		[Option('T', "thumbnail", Required = false, HelpText = "Download the thumbnail image file as well as the ePUB file.")]
-		public bool DownloadThumbnail { get; set; }
-
-		[Option('I', "image", Required = false, HelpText = "Download the fullsize image file as well as the ePUB file.")]
-		public bool DownloadImage { get; set; }
 
 		[Option('u', "url", Required = false, HelpText = "Url of the OPDS catalog file (or its root)")]
 		public string Url { get; set; }
@@ -49,6 +31,28 @@ namespace RoseGarden
 
 		[Option('V', "veryverbose", Required = false, HelpText = "Write very verbose progress messages to the console.")]
 		public bool VeryVerbose { get; set; }
+	}
+
+	[Verb("fetch", HelpText = "Fetch a book or catalog from the OPDS source.")]
+	public class FetchOptions : OpdsOptions
+	{
+		[Option('a', "author", Required = false, HelpText = "Author of desired book to download")]
+		public string Author { get; set; }
+
+		[Option('o', "output", Required = false, HelpText = "Output file path for downloaded book")]
+		public string OutputFile { get; set; }
+
+		[Option('p', "pdf", Required = false, HelpText = "Download the PDF file as well as the ePUB file.")]
+		public bool DownloadPDF { get; set; }
+
+		[Option('t', "title", Required = false, HelpText = "Title of desired book to download")]
+		public string BookTitle { get; set; }
+
+		[Option('T', "thumbnail", Required = false, HelpText = "Download the thumbnail image file as well as the ePUB file.")]
+		public bool DownloadThumbnail { get; set; }
+
+		[Option('I', "image", Required = false, HelpText = "Download the fullsize image file as well as the ePUB file.")]
+		public bool DownloadImage { get; set; }
 	}
 
 	[Verb("convert", HelpText = "Convert a book from epub to Bloom source.")]
@@ -84,6 +88,12 @@ namespace RoseGarden
 		[Option( "portrait", Required = false, HelpText = "Lay out the book in portrait format.  (This is the default behavior.)")]
 		public bool UsePortrait { get; set; }
 
+		[Option('U', "user", Required = false, HelpText = "Bloomlibrary user for the upload")]
+		public string UploadUser { get; set; }
+
+		[Option('P', "password", Required = false, HelpText = "Password for the given Bloomlibrary user")]
+		public string UploadPassword { get; set; }
+
 		[Option('v', "verbose", Required = false, HelpText = "Write verbose progress messages to the console.")]
 		public bool Verbose { get; set; }
 
@@ -97,10 +107,10 @@ namespace RoseGarden
 		[Option('b', "bloomexe", Required = true, HelpText = "Path of the Bloom executable.  This is probably a shell script on Linux but the actual Bloom.exe file on Windows.")]
 		public string BloomExe { get; set; }
 
-		[Option('u', "user", Required = false, HelpText = "Bloomlibrary user for the upload")]
+		[Option('U', "user", Required = false, HelpText = "Bloomlibrary user for the upload")]
 		public string UploadUser { get; set; }
 
-		[Option('p', "password", Required = false, HelpText = "Password for the given Bloomlibrary user")]
+		[Option('P', "password", Required = false, HelpText = "Password for the given Bloomlibrary user")]
 		public string UploadPassword { get; set; }
 
 		[Option('s', "singlelevel", HelpText = "Restrict bookshelf name to only the top level under the path.  (default limit is 2 levels)", Required = false)]
@@ -116,26 +126,38 @@ namespace RoseGarden
 		public string BookShelfContainer { get; set; }
 	}
 
-	[Verb("check", HelpText = "Check whether the given book from the given source needs to be updated.")]
-	public class CheckOptions
+	[Verb("batch", HelpText = "Batch process books from a catalog, checking which need to be updated, then fetching, converting, and uploading.")]
+	public class BatchOptions : OpdsOptions
 	{
-		[Option('v', "verbose", Required = false, HelpText = "Write verbose progress messages to the console.")]
-		public bool Verbose { get; set; }
+		[Option('b', "bloomexe", Required = true, HelpText = "Path of the Bloom executable.  This is probably a shell script on Linux but the actual Bloom.exe file on Windows.")]
+		public string BloomExe { get; set; }
 
-		[Option('V', "veryverbose", Required = false, HelpText = "Write very verbose progress messages to the console.")]
-		public bool VeryVerbose { get; set; }
+		[Option('o', "output", Required = false, HelpText = "Output file path for downloaded book")]
+		public string OutputFile { get; set; }
+
+		[Option('I', "image", Required = false, HelpText = "Download the fullsize image file as well as the ePUB file.")]
+		public bool DownloadImage { get; set; }
+
+		[Option('U', "user", Required = false, HelpText = "Bloomlibrary user for the upload")]
+		public string UploadUser { get; set; }
+
+		[Option('P', "password", Required = false, HelpText = "Password for the given Bloomlibrary user")]
+		public string UploadPassword { get; set; }
+
+		[Value(0, Required = true, HelpText = "Folder containing a bookshelf folder structure.  Collection folders are 2 or 3 levels beneath the given folder.")]
+		public string BookShelfContainer { get; set; }
 	}
 
 	class Program
 	{
 		static int Main(string[] args)
 		{
-			return Parser.Default.ParseArguments<FetchOptions, ConvertOptions, UploadOptions, CheckOptions>(args)
+			return Parser.Default.ParseArguments<FetchOptions, ConvertOptions, UploadOptions, BatchOptions>(args)
 				.MapResult(
 					(FetchOptions opts) => FetchAndReturnExitCode(opts),
 					(ConvertOptions opts) => ConvertAndReturnExitCode(opts), 
 					(UploadOptions opts) => UploadAndReturnExitCode(opts),
-					(CheckOptions opts) => CheckAndReturnExitCode(opts),
+					(BatchOptions opts) => BatchAndReturnExitCode(opts),
 					errs => 1);
 		}
 
@@ -151,13 +173,13 @@ namespace RoseGarden
 		{
 			return new UploadToBloomLibrary(opts).RunUpload();
 		}
-		private static int CheckAndReturnExitCode(CheckOptions opts)
+		private static int BatchAndReturnExitCode(BatchOptions opts)
 		{
-			return 99;
+			return new BatchProcessBooks(opts).RunBatch();
 		}
 
 		/// <summary>
-		/// Utility function to sanitize a string for use in a filename or directory name.
+		/// Utility method to sanitize a string for use in a filename or directory name.
 		/// </summary>
 		/// <remarks>
 		/// This method and the following two methods are adapted from Bloom and libpalaso.
@@ -224,6 +246,16 @@ namespace RoseGarden
 			if (String.IsNullOrEmpty(value))	// Linux users tend to use all-caps for environment variables...
 				value = Environment.GetEnvironmentVariable(variableName.ToUpperInvariant());
 			return value;
+		}
+
+		/// <summary>
+		/// Utility method to get the major and minor version numbers of the executing program.
+		/// </summary>
+		public static void GetVersionNumbers(out int majorVersion, out int minorVersion)
+		{
+			var version = Assembly.GetExecutingAssembly().GetName().Version;
+			majorVersion = version.Major;
+			minorVersion = version.Minor;
 		}
 	}
 }

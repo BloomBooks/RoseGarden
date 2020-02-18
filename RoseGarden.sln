@@ -5,6 +5,8 @@ VisualStudioVersion = 15.0.28307.960
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "RoseGarden", "src\RoseGarden\RoseGarden.csproj", "{F4BFB175-973B-405D-A973-3E640D8C06F1}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "RoseGardenTests", "src\RoseGardenTests\RoseGardenTests.csproj", "{2BE22639-4B8E-4430-8981-5990071D6D6A}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -15,6 +17,10 @@ Global
 		{F4BFB175-973B-405D-A973-3E640D8C06F1}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{F4BFB175-973B-405D-A973-3E640D8C06F1}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{F4BFB175-973B-405D-A973-3E640D8C06F1}.Release|Any CPU.Build.0 = Release|Any CPU
+		{2BE22639-4B8E-4430-8981-5990071D6D6A}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{2BE22639-4B8E-4430-8981-5990071D6D6A}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{2BE22639-4B8E-4430-8981-5990071D6D6A}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{2BE22639-4B8E-4430-8981-5990071D6D6A}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

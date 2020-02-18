@@ -82,7 +82,7 @@ namespace RoseGarden
 				_options.UploadUser = Program.GetEnvironmentVariable("RoseGardenUserName");
 				if (String.IsNullOrWhiteSpace(_options.UploadUser))
 				{
-					Console.WriteLine("WARNING: the user name must be provided by -u (--user) or by the RoseGardenUserName environment variable.");
+					Console.WriteLine("WARNING: the user name must be provided by -U (--user) or by the RoseGardenUserName environment variable.");
 					allValid = false;
 				}
 			}
@@ -91,7 +91,7 @@ namespace RoseGarden
 				_options.UploadPassword = Program.GetEnvironmentVariable("RoseGardenUserPassword");
 				if (String.IsNullOrWhiteSpace(_options.UploadPassword))
 				{
-					Console.WriteLine("WARNING: the user name must be provided by -p (--password) or by the RoseGardenUserPassword environment variable.");
+					Console.WriteLine("WARNING: the user name must be provided by -P (--password) or by the RoseGardenUserPassword environment variable.");
 					allValid = false;
 				}
 			}
@@ -115,7 +115,15 @@ namespace RoseGarden
 			IEnumerable<Book> bookList = parseClient.GetBooks(importedFilter, new [] { "uploader" });
 			int majorVersion;
 			int minorVersion;
-			GetVersionNumbers(out majorVersion, out minorVersion);
+			Program.GetVersionNumbers(out majorVersion, out minorVersion);
+			var uploadDate = new Date(DateTime.Now.ToUniversalTime());
+			var updateJson = String.Format("{{ \"{0}\":\"{1}\", \"{2}\":{3}, \"{4}\":{5}, \"{6}\":\"{7}\", \"{8}\": {9} }}",
+				Book.kImporterNameField, "RoseGarden",				// possibly unneeded, but loudly claim RoseGarden did the import
+				Book.kImporterMajorVersionField, majorVersion,		// version stamp so we can update for new versions of RoseGarden
+				Book.kImporterMinorVersionField, minorVersion,
+				"updateSource", "importerbot@bloomlibrary.org",		// very important so we don't add system:incoming tag
+				"lastUploaded", uploadDate.ToJson()                 // timestamp so we can check later for books modified on ODPS source
+				);
 			foreach (var book in bookList)
 			{
 				string localTitle;
@@ -123,22 +131,17 @@ namespace RoseGarden
 				{
 					if (localTitle != book.Title)
 						Console.WriteLine("WARNING: mismatch in titles from local to parse server: \"{0}\" vs \"{1}\"", localTitle, book.Title);
-					if (book.ImporterName != "RoseGarden" || book.ImporterMajorVersion != majorVersion || book.ImporterMinorVersion != minorVersion)
+					if (book.ImporterName != "RoseGarden" || book.ImporterMajorVersion != majorVersion || book.ImporterMinorVersion != minorVersion ||
+						book.LastUploaded == null || book.LastUploaded.UtcTime < uploadDate.UtcTime)
 					{
 						if (_options.Verbose)
 							Console.WriteLine("INFO: updating bloomlibrary books table with RoseGarden importer values for {0}", book.Title);
-						var response = parseClient.UpdateObject("books", book.ObjectId,
-							$"{{ \"{Book.kImporterNameField}\":\"RoseGarden\", \"{Book.kImporterMajorVersionField}\":{majorVersion}, \"{Book.kImporterMinorVersionField}\":{minorVersion} }}");
+						var response = parseClient.UpdateObject("books", book.ObjectId, updateJson);
+						if (response.StatusCode != System.Net.HttpStatusCode.OK)
+							Console.WriteLine("WARNING: updating the book table for \"{0}\" failed: {1}", book.Title, response.Content);
 					}
 				}
 			}
-		}
-
-		private void GetVersionNumbers(out int majorVersion, out int minorVersion)
-		{
-			var version = Assembly.GetExecutingAssembly().GetName().Version;
-			majorVersion = version.Major;
-			minorVersion = version.Minor;
 		}
 	}
 }

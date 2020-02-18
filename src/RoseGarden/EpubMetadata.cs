@@ -35,11 +35,24 @@ namespace RoseGarden
 				Console.WriteLine("WARNING: Could not read rootfile information from META-INF/container.xml!?");
 				return;
 			}
+			var opfXml = File.ReadAllText(opfPath);
+			InitializeMetadata(epubFolder, opfPath, opfXml);
+		}
 
+		/// <summary>
+		/// Constructor for use by tests that avoids file reading.
+		/// </summary>
+		internal EpubMetadata(string epubFolder, string opfPath, string opfXml)
+		{
+			InitializeMetadata(epubFolder, opfPath, opfXml);
+		}
+
+		internal void InitializeMetadata(string epubFolder, string opfPath, string opfXml)
+		{
 			var contentFolder = Path.GetFileName(Path.GetDirectoryName(opfPath));
 			_opfDocument = new XmlDocument();
 			_opfDocument.PreserveWhitespace = true;
-			_opfDocument.Load(opfPath);
+			_opfDocument.LoadXml(opfXml);
 			_opfNsmgr = new XmlNamespaceManager(_opfDocument.NameTable);
 			_opfNsmgr.AddNamespace("o", "http://www.idpf.org/2007/opf");
 			_opfNsmgr.AddNamespace("dc", "http://purl.org/dc/elements/1.1/");
@@ -92,10 +105,17 @@ namespace RoseGarden
 			}
 		}
 
-		public static string GetOpfPath(string epubFolder)
+		private string GetOpfPath(string epubFolder)
+		{
+			var metaPath = Path.Combine(epubFolder, "META-INF", "container.xml");
+			var metaXml = File.ReadAllText(metaPath);
+			return GetOpfPath(epubFolder, metaXml);
+		}
+
+		static internal string GetOpfPath(string epubFolder, string metaXml)
 		{
 			var metaInf = new XmlDocument();
-			metaInf.Load(Path.Combine(epubFolder, "META-INF", "container.xml"));
+			metaInf.LoadXml(metaXml);
 			var nsmgr = new XmlNamespaceManager(metaInf.NameTable);
 			nsmgr.AddNamespace("u", "urn:oasis:names:tc:opendocument:xmlns:container");
 			var node = metaInf.SelectSingleNode("/u:container/u:rootfiles/u:rootfile", nsmgr) as XmlElement;

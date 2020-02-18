@@ -10,34 +10,37 @@ using System.Reflection;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Xml;
+using RoseGarden.Parse;
+using RoseGarden.Parse.Model;
 using SIL.Windows.Forms.ClearShare;
 
 namespace RoseGarden
 {
 	public class ConvertFromEpub
 	{
-		private const int kMaxTextLengthForLandscape = 300;		// number is rather arbitrary...
+		internal const int kMaxTextLengthForLandscape = 300;		// number is rather arbitrary...
 
-		ConvertOptions _options;
+		internal ConvertOptions _options;
 
-		EpubMetadata _epubMetaData;
-		string _epubFolder;
-		string _epubFile;
-		string _bookFolder;
-		string _htmFileName;
-		XmlDocument _bloomDoc;
-		XmlDocument _templateBook;  // provides templates for new front cover and content pages.
-		List<XmlElement> _templatePages;
-		XmlDocument _opdsEntry;     // from catalog entry file (if it exists)
-		XmlNamespaceManager _opdsNsmgr;
-		private readonly LanguageData _languageData = new LanguageData();
-		private BookMetaData _bookMetaData;
-		string _publisher;
+		internal EpubMetadata _epubMetaData;
+		internal string _epubFolder;
+		internal string _epubFile;
+		internal string _bookFolder;
+		internal string _htmFileName;
+		internal XmlDocument _bloomDoc;
+		internal XmlDocument _templateBook;  // provides templates for new front cover and content pages.
+		internal List<XmlElement> _templatePages;
+		internal XmlDocument _opdsEntry;     // from catalog entry file (if it exists)
+		internal XmlNamespaceManager _opdsNsmgr;
+		internal readonly LanguageData _languageData = new LanguageData();
+		internal BookMetaData _bookMetaData;
+		internal string _publisher;
 
 		private int _endCreditsStart = Int32.MaxValue;  // Assume no end credits pages to begin with.
 		private int _endCreditsPageCount = 0;
-		StringBuilder _contributionsXmlBldr = new StringBuilder();
+		internal StringBuilder _contributionsXmlBldr = new StringBuilder();
 		Dictionary<string, List<int>> _creditsAndPages;
+		Dictionary<string, Book> _bloomlibraryBooks;
 
 		// Files that are copied into a new Basic Book.
 		readonly private string[] _copiedFiles = new string[]
@@ -71,19 +74,6 @@ namespace RoseGarden
 			{
 				InitializeData();
 
-				_bloomDoc = new XmlDocument();
-				_bloomDoc.PreserveWhitespace = true;
-				_bloomDoc.Load(Path.Combine(_bookFolder, _htmFileName));
-
-				_templateBook = new XmlDocument();
-				_templateBook.PreserveWhitespace = true;
-				var location = Assembly.GetExecutingAssembly().Location;
-				var pagesFile = Path.Combine(Path.GetDirectoryName(location), "Resources", "Pages.xml");
-				_templateBook.Load(pagesFile);
-				_templatePages = _templateBook.SelectNodes("//div[contains(@class,'bloom-page')]").Cast<XmlElement>().ToList();
-				if (_options.UseLandscape)
-					ChangePagesToLandscape();
-
 				ConvertBook();
 
 				File.Delete(Path.Combine(_bookFolder, _htmFileName));
@@ -106,7 +96,7 @@ namespace RoseGarden
 			return 0;
 		}
 
-		private void ChangePagesToLandscape()
+		internal void ChangePagesToLandscape()
 		{
 			foreach (var page in _templatePages)
 			{
@@ -131,7 +121,7 @@ namespace RoseGarden
 			return htmlText;
 		}
 
-		private bool VerifyOptions()
+		internal bool VerifyOptions()
 		{
 			var allValid = true;
 			if (_options.UseLandscape && _options.UsePortrait)
@@ -139,11 +129,43 @@ namespace RoseGarden
 				Console.WriteLine("--portrait and --landscape cannot be used together.  --portrait is the default behavior for most books.  --landscape may become the default for some publishers.");
 				allValid = false;
 			}
+			if (String.IsNullOrWhiteSpace(_options.UploadUser) || String.IsNullOrWhiteSpace(_options.UploadPassword))
+			{
+				if (String.IsNullOrWhiteSpace(_options.UploadUser))
+					_options.UploadUser = Program.GetEnvironmentVariable("RoseGardenUserName");
+				if (String.IsNullOrWhiteSpace(_options.UploadPassword))
+					_options.UploadPassword = Program.GetEnvironmentVariable("RoseGardenUserPassword");
+				if (String.IsNullOrWhiteSpace(_options.UploadUser) || String.IsNullOrWhiteSpace(_options.UploadPassword))
+				{
+					// lengthy warning message, but let the program proceed.
+					Console.WriteLine("WARNING: without a user name (-U/--user) and password (-P/--password), RoseGarden cannot guarantee maintaining the same book instance id for books that have already been uploaded.  These values may be supplied by the RoseGardenUserName and RoseGardenUserPassword environment variables.");
+				}
+			}
 			return allValid;
 		}
 
 		private void CopyBloomBookToOutputFolder()
 		{
+			string oldBookId = null;
+			if (_bloomlibraryBooks != null)
+			{
+				var link = _opdsEntry.SelectSingleNode("/a:feed/a:entry/a:link[@type='application/epub+zip' and starts-with(@rel,'http://opds-spec.org/acquisition')]", _opdsNsmgr) as XmlElement;
+				if (link != null)
+				{
+					var href = link.GetAttribute("href");
+					if (!String.IsNullOrWhiteSpace(href))
+					{
+						Book book;
+						if (_bloomlibraryBooks.TryGetValue(href.Trim(), out book))
+						{
+							oldBookId = book.BookInstanceId;
+							if (_options.Verbose)
+								Console.WriteLine("INFO: preserving book id {0} (from parse) for {1}", oldBookId, _bookMetaData.Title);
+							_bookMetaData.Id = oldBookId;
+						}
+					}
+				}
+			}
 			var newBookFolder = Path.Combine(_options.CollectionFolder, Path.GetFileNameWithoutExtension(_htmFileName));
 			if (Directory.Exists(newBookFolder))
 			{
@@ -153,13 +175,16 @@ namespace RoseGarden
 					Console.WriteLine("Use -F (--force) if you want to overwrite it.");
 					return;
 				}
-				// Maintain the book id that was set before.
-				var oldmeta = BookMetaData.FromFolder(newBookFolder);
-				if (!String.IsNullOrWhiteSpace(oldmeta.Id) && oldmeta.Id != _bookMetaData.BookLineage)
+				if (oldBookId == null)
 				{
-					if (_options.Verbose)
-						Console.WriteLine("INFO: preserving book id {0} for {1}", oldmeta.Id, _bookMetaData.Title);
-					_bookMetaData.Id = oldmeta.Id;
+					// Maintain the book id that was set before.
+					var oldmeta = BookMetaData.FromFolder(newBookFolder);
+					if (!String.IsNullOrWhiteSpace(oldmeta.Id) && oldmeta.Id != _bookMetaData.BookLineage)
+					{
+						if (_options.Verbose)
+							Console.WriteLine("INFO: preserving book id {0} for {1}", oldmeta.Id, _bookMetaData.Title);
+						_bookMetaData.Id = oldmeta.Id;
+					}
 				}
 				if (_options.VeryVerbose)
 					Console.WriteLine("DEBUG: deleting directory {0}", newBookFolder);
@@ -217,34 +242,7 @@ namespace RoseGarden
 				_epubFile = _options.EpubFile;
 			ExtractZippedFiles(_epubFile, _epubFolder);
 			_epubMetaData = new EpubMetadata(_epubFolder, _options.VeryVerbose);
-			var langCode = _languageData.GetCodeForName(_options.LanguageName);
-			if (_epubMetaData.LanguageCode != langCode)
-			{
-				if (_epubMetaData.LanguageCode == "en")
-				{
-					Console.WriteLine("WARNING: using '{0}' for {1} instead of 'en'", langCode, _options.LanguageName);
-					_epubMetaData.LanguageCode = langCode;
-				}
-				else if (_epubMetaData.LanguageCode.ToLowerInvariant() == langCode.ToLowerInvariant())
-				{
-					Console.WriteLine("INFO: replacing language code '{0}' with '{1}'", _epubMetaData.LanguageCode, langCode);
-					_epubMetaData.LanguageCode = langCode;
-				}
-				else if (_epubMetaData.LanguageCode == "bxk" && langCode == "luy")
-				{
-					Console.WriteLine("INFO: replacing obsolete language code '{0}' with '{1}'", _epubMetaData.LanguageCode, langCode);
-					_epubMetaData.LanguageCode = langCode;
-				}
-				else if (_epubMetaData.LanguageCode.StartsWith(langCode+"-", StringComparison.InvariantCulture))
-				{
-					Console.WriteLine("INFO: replacing language code '{0}' with '{1}'", _epubMetaData.LanguageCode, langCode);
-					_epubMetaData.LanguageCode = langCode;
-				}
-				else
-				{
-					Console.WriteLine("WARNING: language code '{0}' for {1} does not match expected '{2}'.", _epubMetaData.LanguageCode, _options.LanguageName, langCode);
-				}
-			}
+			string langCode = ForceGoodLanguageCode();
 			if (String.IsNullOrWhiteSpace(_options.FileName))
 				_htmFileName = Program.SanitizeNameForFileSystem(_epubMetaData.Title) + ".htm";
 			else
@@ -270,6 +268,52 @@ namespace RoseGarden
 			_bookMetaData.Id = Guid.NewGuid().ToString();   // This may be replaced if we're updating an existing book.
 
 			DoubleCheckLanguageInformation(langCode);
+
+			_bloomDoc = new XmlDocument();
+			_bloomDoc.PreserveWhitespace = true;
+			_bloomDoc.Load(Path.Combine(_bookFolder, _htmFileName));
+
+			_templateBook = new XmlDocument();
+			_templateBook.PreserveWhitespace = true;
+			var pagesFile = Path.Combine(Path.GetDirectoryName(location), "Resources", "Pages.xml");
+			_templateBook.Load(pagesFile);
+			_templatePages = _templateBook.SelectNodes("//div[contains(@class,'bloom-page')]").Cast<XmlElement>().ToList();
+			if (_options.UseLandscape)
+				ChangePagesToLandscape();
+		}
+
+		internal string ForceGoodLanguageCode()
+		{
+			var langCode = _languageData.GetCodeForName(_options.LanguageName);
+			if (_epubMetaData.LanguageCode != langCode)
+			{
+				if (_epubMetaData.LanguageCode == "en")
+				{
+					Console.WriteLine("WARNING: using '{0}' for {1} instead of 'en'", langCode, _options.LanguageName);
+					_epubMetaData.LanguageCode = langCode;
+				}
+				else if (_epubMetaData.LanguageCode.ToLowerInvariant() == langCode.ToLowerInvariant())
+				{
+					Console.WriteLine("INFO: replacing language code '{0}' with '{1}'", _epubMetaData.LanguageCode, langCode);
+					_epubMetaData.LanguageCode = langCode;
+				}
+				else if (_epubMetaData.LanguageCode == "bxk" && langCode == "luy")
+				{
+					Console.WriteLine("INFO: replacing obsolete language code '{0}' with '{1}'", _epubMetaData.LanguageCode, langCode);
+					_epubMetaData.LanguageCode = langCode;
+				}
+				else if (_epubMetaData.LanguageCode.StartsWith(langCode + "-", StringComparison.InvariantCulture))
+				{
+					Console.WriteLine("INFO: replacing language code '{0}' with '{1}'", _epubMetaData.LanguageCode, langCode);
+					_epubMetaData.LanguageCode = langCode;
+				}
+				else
+				{
+					Console.WriteLine("WARNING: language code '{0}' for {1} does not match expected '{2}'.", _epubMetaData.LanguageCode, _options.LanguageName, langCode);
+				}
+			}
+
+			return langCode;
 		}
 
 		/// <summary>
@@ -385,25 +429,53 @@ namespace RoseGarden
 			}
 			if (File.Exists(pathOPDS))
 			{
-				File.Copy(pathOPDS, Path.Combine(_bookFolder, Path.GetFileName(pathOPDS).Replace(".opds",".original.opds")));
+				File.Copy(pathOPDS, Path.Combine(_bookFolder, Path.GetFileName(pathOPDS).Replace(".opds", ".original.opds")));
+				var opdsXml = File.ReadAllText(pathOPDS);
 				// load the OPDS catalog information
-				_opdsEntry = new XmlDocument();
-				_opdsEntry.PreserveWhitespace = true;
-				_opdsEntry.Load(pathOPDS);
-				_opdsNsmgr = new XmlNamespaceManager(_opdsEntry.NameTable);
-				_opdsNsmgr.AddNamespace("lrmi", "http://purl.org/dcx/lrmi-terms/");
-				_opdsNsmgr.AddNamespace("opds", "http://opds-spec.org/2010/catalog");
-				_opdsNsmgr.AddNamespace("dc", "http://purl.org/dc/terms/");
-				_opdsNsmgr.AddNamespace("dcterms", "http://purl.org/dc/terms/");
-				_opdsNsmgr.AddNamespace("a", "http://www.w3.org/2005/Atom");
+				LoadOpdsDataAndSetPublisher(opdsXml);
 
-				var divPublisher = _opdsEntry.SelectSingleNode("/a:feed/a:entry/dc:publisher", _opdsNsmgr) as XmlElement;
-				if (divPublisher == null)
-					divPublisher = _opdsEntry.SelectSingleNode("/a:feed/a:entry/dcterms:publisher", _opdsNsmgr) as XmlElement;
-				if (divPublisher != null)
-					_publisher = divPublisher.InnerText.Trim();
+				if (!String.IsNullOrWhiteSpace(_options.UploadUser) && !String.IsNullOrWhiteSpace(_options.UploadPassword))
+					_bloomlibraryBooks = ParseClient.LoadBloomLibraryInfo(_options.UploadUser, _options.UploadPassword);
 			}
 
+			SetHeadMetaAndBookLanguage();
+
+			for (int pageNumber = 0; pageNumber < _epubMetaData.PageFiles.Count; ++pageNumber)
+			{
+				ConvertPage(pageNumber, _epubMetaData.PageFiles[pageNumber]);
+			}
+			if (_endCreditsPageCount > 3 || _endCreditsPageCount == 0)
+				Console.WriteLine("WARNING: found {0} end credit pages in the book", _endCreditsPageCount);
+
+			if (!String.IsNullOrWhiteSpace(_options.AttributionFile) && File.Exists(_options.AttributionFile))
+			{
+				var attributionText = File.ReadAllText(_options.AttributionFile);
+				attributionText = ProcessAttributionFileText(attributionText);
+			}
+			if (_options.Verbose)
+				Console.WriteLine("INFO: processed {0} pages from {1} ({2} pages of end credits)", _epubMetaData.PageFiles.Count, Path.GetFileName(_options.EpubFile), _endCreditsPageCount);
+			FillInBookMetaData();
+		}
+
+		private string ProcessAttributionFileText(string attributionText)
+		{
+			const string AttributionTextHeader = "Attribution Text:";
+			var idxStart = attributionText.IndexOf(AttributionTextHeader, StringComparison.InvariantCulture);
+			if (idxStart >= 0)
+			{
+				idxStart = idxStart + AttributionTextHeader.Length;
+				var idxEnd = attributionText.IndexOf('\n', idxStart);
+				if (idxEnd < 0)
+					idxEnd = attributionText.Length;
+				attributionText = attributionText.Substring(idxStart, idxEnd - idxStart).Trim();
+			}
+			SetDataDivParaValue("originalAcknowledgments", _epubMetaData.LanguageCode, attributionText);
+			ExtractCopyrightAndLicenseFromAttributionText(attributionText);
+			return attributionText;
+		}
+
+		internal void SetHeadMetaAndBookLanguage()
+		{
 			SetHeadMetaValue("ConvertedBy", String.Format("RoseGarden {0} ({1})", GetVersion(), GetTimeStamp()));
 			if (_opdsEntry != null)
 			{
@@ -419,33 +491,25 @@ namespace RoseGarden
 			SetDataDivTextValue("contentLanguage1", _epubMetaData.LanguageCode);
 			SetDataDivTextValue("languagesOfBook", _options.LanguageName);
 			SetDataDivTextValue("smallCoverCredits", "");
+		}
 
-			for (int pageNumber = 0; pageNumber < _epubMetaData.PageFiles.Count; ++pageNumber)
-			{
-				ConvertPage(pageNumber, _epubMetaData.PageFiles[pageNumber]);
-			}
-			if (_endCreditsPageCount > 3 || _endCreditsPageCount == 0)
-				Console.WriteLine("WARNING: found {0} end credit pages in the book", _endCreditsPageCount);
+		internal void LoadOpdsDataAndSetPublisher(string opdsXml)
+		{
+			_opdsEntry = new XmlDocument();
+			_opdsEntry.PreserveWhitespace = true;
+			_opdsEntry.LoadXml(opdsXml);
+			_opdsNsmgr = new XmlNamespaceManager(_opdsEntry.NameTable);
+			_opdsNsmgr.AddNamespace("lrmi", "http://purl.org/dcx/lrmi-terms/");
+			_opdsNsmgr.AddNamespace("opds", "http://opds-spec.org/2010/catalog");
+			_opdsNsmgr.AddNamespace("dc", "http://purl.org/dc/terms/");
+			_opdsNsmgr.AddNamespace("dcterms", "http://purl.org/dc/terms/");
+			_opdsNsmgr.AddNamespace("a", "http://www.w3.org/2005/Atom");
 
-			if (!String.IsNullOrWhiteSpace(_options.AttributionFile) && File.Exists(_options.AttributionFile))
-			{
-				const string AttributionTextHeader = "Attribution Text:";
-				var attributionText = File.ReadAllText(_options.AttributionFile);
-				var idxStart = attributionText.IndexOf(AttributionTextHeader, StringComparison.InvariantCulture);
-				if (idxStart >= 0)
-				{
-					idxStart = idxStart + AttributionTextHeader.Length;
-					var idxEnd = attributionText.IndexOf('\n', idxStart);
-					if (idxEnd < 0)
-						idxEnd = attributionText.Length;
-					attributionText = attributionText.Substring(idxStart, idxEnd - idxStart).Trim();
-				}
-				SetDataDivParaValue("originalAcknowledgments", _epubMetaData.LanguageCode, attributionText);
-				ExtractCopyrightAndLicenseFromAttributionText(attributionText);
-			}
-			if (_options.Verbose)
-				Console.WriteLine("INFO: processed {0} pages from {1} ({2} pages of end credits)", _epubMetaData.PageFiles.Count, Path.GetFileName(_options.EpubFile), _endCreditsPageCount);
-			FillInBookMetaData();
+			var divPublisher = _opdsEntry.SelectSingleNode("/a:feed/a:entry/dc:publisher", _opdsNsmgr) as XmlElement;
+			if (divPublisher == null)
+				divPublisher = _opdsEntry.SelectSingleNode("/a:feed/a:entry/dcterms:publisher", _opdsNsmgr) as XmlElement;
+			if (divPublisher != null)
+				_publisher = divPublisher.InnerText.Trim();
 		}
 
 		private void AdjustLayoutIfNeeded()
@@ -513,7 +577,7 @@ namespace RoseGarden
 				_maxTextLengthWithImage = text.Length;
 		}
 
-		private void ExtractCopyrightAndLicenseFromAttributionText(string attributionText)
+		internal void ExtractCopyrightAndLicenseFromAttributionText(string attributionText)
 		{
 			var copyright = Regex.Match(attributionText, "\\((©.*, [12][09][0-9][0-9])\\)", RegexOptions.CultureInvariant);
 			if (copyright.Success)
@@ -527,7 +591,7 @@ namespace RoseGarden
 			}
 		}
 
-		private void SetBookLicense(string licenseAbbreviation)
+		internal void SetBookLicense(string licenseAbbreviation)
 		{
 			var url = "";
 			switch (licenseAbbreviation)
@@ -652,11 +716,17 @@ namespace RoseGarden
 		}
 		private void ConvertFrontCoverPage(string pageFilePath)
 		{
+			var coverPageXhtml = File.ReadAllText(pageFilePath);
+			ConvertCoverPage(coverPageXhtml);
+		}
+
+		internal void ConvertCoverPage(string coverPageXhtml)
+		{
 			// The cover page created here will be overwritten by Bloom when it applies the user's chosen xmatter.
 			// The important result is filling in values in the data div.
 			AddEmptyCoverPage();
 			var pageDoc = new XmlDocument();
-			pageDoc.Load(pageFilePath);
+			pageDoc.LoadXml(coverPageXhtml);
 			var nsmgr = new XmlNamespaceManager(pageDoc.NameTable);
 			nsmgr.AddNamespace("x", "http://www.w3.org/1999/xhtml");
 			var body = pageDoc.SelectSingleNode("/x:html/x:body", nsmgr);
@@ -888,8 +958,14 @@ namespace RoseGarden
 
 		private bool ConvertContentPage(string pageFilePath, int pageNumber)
 		{
+			var pageXhtml = File.ReadAllText(pageFilePath);
+			return ConvertContentPage(pageNumber, pageXhtml);
+		}
+
+		internal bool ConvertContentPage(int pageNumber, string pageXhtml)
+		{
 			var pageDoc = new XmlDocument();
-			pageDoc.Load(pageFilePath);
+			pageDoc.LoadXml(pageXhtml);
 			var nsmgr = new XmlNamespaceManager(pageDoc.NameTable);
 			nsmgr.AddNamespace("x", "http://www.w3.org/1999/xhtml");
 			var body = pageDoc.SelectSingleNode("/x:html/x:body", nsmgr) as XmlElement;
@@ -989,7 +1065,7 @@ namespace RoseGarden
 					else
 					{
 						innerXmlBldr.Append("<p>");
-						innerXmlBldr.Append(node.InnerText);
+						innerXmlBldr.Append(node.InnerText.Trim());
 						innerXmlBldr.Append("</p>");
 						StoreAccumulatedParagraphs(textIdx, innerXmlBldr, textGroupDivs);
 						++textIdx;
@@ -1393,7 +1469,7 @@ namespace RoseGarden
 					var oldXml = RemoveXmlnsAttribsFromXmlString(contributions.InnerXml);
 					_contributionsXmlBldr.Insert(0, oldXml);
 				}
-				contributions.InnerXml = _contributionsXmlBldr.ToString();
+				contributions.InnerXml = _contributionsXmlBldr.ToString().Trim();
 				_contributionsXmlBldr.Clear();
 			}
 		}
@@ -1650,9 +1726,11 @@ namespace RoseGarden
 			{
 				imgCover.SetAttribute("data-copyright", artCopyright);
 				imgCover.SetAttribute("data-license", artLicense);
+				if (!String.IsNullOrEmpty(artCreator))
+					imgCover.SetAttribute("data-creator", artCreator);
 				SetMetadataInImageFile(imgCover.InnerText.Trim(), artCreator, artCopyright, artLicense);
 			}
-			foreach (var img in _bloomDoc.SelectNodes("//div[contains(@class,'numberedPage')]//div[contains(@class,'bloom-imageContainer')]/img[@src]").Cast<XmlElement>().ToList())
+			foreach (var img in _bloomDoc.SelectNodes("//div[contains(@class,'bloom-page')]//div[contains(@class,'bloom-imageContainer')]/img[@src]").Cast<XmlElement>().ToList())
 			{
 				if (!String.IsNullOrWhiteSpace(artCreator))
 					img.SetAttribute("data-creator", artCreator);
@@ -1723,6 +1801,8 @@ namespace RoseGarden
 
 		private void SetMetadataInImageFile(string filename, string creator, string copyright, string licenseAbbrev)
 		{
+			if (String.IsNullOrEmpty(_bookFolder))
+				return;		// This can happen in tests.
 			var path = Path.Combine(_bookFolder, filename);
 			if (File.Exists(path))
 			{

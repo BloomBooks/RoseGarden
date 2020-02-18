@@ -221,7 +221,7 @@ namespace RoseGarden.Parse
 		{
 			var request = new RestRequest("classes/books", Method.GET);
 			SetCommonHeaders(request);
-			request.AddParameter("keys", "object_id,importerName,importerMajorVersion,importerMinorVersion,importedBookSourceUrl,title,bookInstanceId,uploader");
+			request.AddParameter("keys", "object_id,importerName,importerMajorVersion,importerMinorVersion,importedBookSourceUrl,title,bookInstanceId,uploader,lastUploaded,updateSource,tags,inCirculation");
 
 			if (!String.IsNullOrEmpty(whereCondition))
 			{
@@ -329,6 +329,24 @@ namespace RoseGarden.Parse
 				}
 				return _client;
 			}
+		}
+
+		public static Dictionary<string, Book> LoadBloomLibraryInfo(string user, string password)
+		{
+			var bloomlibraryBooks = new Dictionary<string, Book>();
+			ParseClient parseClient = new ParseClient(user, password);
+			string importedFilter = "{\"importedBookSourceUrl\": {\"$regex\": \".\"}}";
+			IEnumerable<Book> bookList = parseClient.GetBooks(importedFilter, new[] { "uploader" });
+			foreach (var book in bookList)
+			{
+				if (bloomlibraryBooks.ContainsKey(book.ImportedBookSourceUrl))
+				{
+					Console.WriteLine("ERROR: the same book has been imported twice with different book instance ids!? ({0}/{1})", book.Title, book.ImportedBookSourceUrl);
+					Environment.Exit(2);
+				}
+				bloomlibraryBooks.Add(book.ImportedBookSourceUrl, book);
+			}
+			return bloomlibraryBooks;
 		}
 	}
 }

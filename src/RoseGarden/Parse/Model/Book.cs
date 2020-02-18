@@ -64,6 +64,18 @@ namespace RoseGarden.Parse.Model
 
 		[JsonProperty("uploader")]
 		public User Uploader;
+
+		[JsonProperty("lastUploaded")]
+		public Date LastUploaded;
+
+		[JsonProperty("inCirculation")]
+		public bool InCirculation;
+
+		[JsonProperty("updateSource")]
+		public string UpdateSource;
+
+		[JsonProperty("tags")]
+		public List<string> Tags;
 		#endregion
 
 		// Returns the class name (like a table name) of the class on the Parse server that this object corresponds to
