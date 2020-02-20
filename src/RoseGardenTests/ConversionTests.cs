@@ -1,12 +1,12 @@
 ﻿// Copyright (c) 2020 SIL International
 // This software is licensed under the MIT License (http://opensource.org/licenses/MIT)
 using System;
-using RoseGarden;
-using NUnit.Framework;
 using System.IO;
+using System.Linq;
 using System.Reflection;
 using System.Xml;
-using System.Linq;
+using NUnit.Framework;
+using RoseGarden;
 
 namespace RoseGardenTests
 {
@@ -386,12 +386,7 @@ http://ugcla.org
  Translator: Alisha Berger
 </p>", out XmlElement coverImageData);
 			// This book has two extra images on the front cover page.  We save this information even though it doesn't do any good.
-			var coverImage2Data = convert._bloomDoc.SelectSingleNode($"/html/body/div[@id='bloomDataDiv']/div[@data-book='coverImage2' and @lang='*']") as XmlElement;
-			Assert.That(coverImage2Data, Is.Not.Null, "The second cover image is set in the data div.");
-			Assert.That(coverImage2Data.InnerXml, Is.EqualTo("1088b6d732161819888481bc20863e7c.png"));
-			var coverImage3Data = convert._bloomDoc.SelectSingleNode($"/html/body/div[@id='bloomDataDiv']/div[@data-book='coverImage3' and @lang='*']") as XmlElement;
-			Assert.That(coverImage3Data, Is.Not.Null, "The third cover image is set in the data div.");
-			Assert.That(coverImage3Data.InnerXml, Is.EqualTo("61fdf7a3fe76891db5a123fe68b73434.png"));
+			CheckExtraCoverImages(convert._bloomDoc, "1088b6d732161819888481bc20863e7c.png", "61fdf7a3fe76891db5a123fe68b73434.png");
 
 			// SUT
 			var result = convert.ConvertContentPage(1, _dogsPage2Xhtml);
@@ -873,6 +868,8 @@ Pratham Books goes digital to weave a whole new chapter in the realm of multilin
  Illustrator:
  Hari Kumar Nair
 </p>", out XmlElement coverImageData);
+			// This book has two extra images on the front cover page.  We save this information even though it doesn't do any good.
+			CheckExtraCoverImages(convert._bloomDoc, "61fd7e1fd7a0b699c82eb4f089a455f7.png", "8716a9ccecd3c9b8a45e823d244f7647.png");
 
 			// SUT
 			var result = convert.ConvertContentPage(1, _whatIfPage2Xhtml);
@@ -1536,10 +1533,8 @@ Pratham Books goes digital to weave a whole new chapter in the realm of multilin
  Illustrator:
  Megha Vishwanath
 </p>", out XmlElement coverImageData);
-			/*
-			 * <img src="327960bfcbc83b0500bbb87e89866273.png" />
-			 * <img src="8716a9ccecd3c9b8a45e823d244f7647.png" />
-			 */
+			// This book has two extra images on the front cover page.  We save this information even though it doesn't do any good.
+			CheckExtraCoverImages(convert._bloomDoc, "327960bfcbc83b0500bbb87e89866273.png", "8716a9ccecd3c9b8a45e823d244f7647.png");
 
 			// SUT
 			var result = convert.ConvertContentPage(1, _birthdayPage2Xhtml);
@@ -2062,6 +2057,16 @@ Pratham Books goes digital to weave a whole new chapter in the realm of multilin
 			Assert.That(img.GetAttribute("data-copyright"), Is.EqualTo(imageCopyright), "End page sets image copyright");
 			Assert.That(img.GetAttribute("data-license"), Is.EqualTo(imageLicense), "End page sets image license");
 			Assert.That(img.GetAttribute("data-creator"), Is.EqualTo(imageCreator), "End page sets image creator");
+		}
+
+		private static void CheckExtraCoverImages(XmlDocument bookDoc, string image2Src, string image3Src)
+		{
+			var coverImage2Data = bookDoc.SelectSingleNode($"/html/body/div[@id='bloomDataDiv']/div[@data-book='coverImage2' and @lang='*']") as XmlElement;
+			Assert.That(coverImage2Data, Is.Not.Null, "The second cover image is set in the data div.");
+			Assert.That(coverImage2Data.InnerXml, Is.EqualTo(image2Src));
+			var coverImage3Data = bookDoc.SelectSingleNode($"/html/body/div[@id='bloomDataDiv']/div[@data-book='coverImage3' and @lang='*']") as XmlElement;
+			Assert.That(coverImage3Data, Is.Not.Null, "The third cover image is set in the data div.");
+			Assert.That(coverImage3Data.InnerXml, Is.EqualTo(image3Src));
 		}
 	}
 }
