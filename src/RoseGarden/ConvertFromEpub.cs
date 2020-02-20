@@ -38,6 +38,7 @@ namespace RoseGarden
 
 		private int _endCreditsStart = Int32.MaxValue;  // Assume no end credits pages to begin with.
 		private int _endCreditsPageCount = 0;
+		private const string kMatchRawPrathamIllustrationCredit = "([^©]*)(©.*[12][09][0-9][0-9]\\.?).*Released under[ a]* (CC[ A-Z0-9.-]+) license";
 		internal StringBuilder _contributionsXmlBldr = new StringBuilder();
 		Dictionary<string, List<int>> _creditsAndPages;
 		Dictionary<string, Book> _bloomlibraryBooks;
@@ -126,7 +127,7 @@ namespace RoseGarden
 			var allValid = true;
 			if (_options.UseLandscape && _options.UsePortrait)
 			{
-				Console.WriteLine("--portrait and --landscape cannot be used together.  --portrait is the default behavior for most books.  --landscape may become the default for some publishers.");
+				Console.WriteLine("--portrait and --landscape cannot be used together.  --landscape is the default for books with pictures on most pages and limited text.  --portrait is the default otherwise.");
 				allValid = false;
 			}
 			if (String.IsNullOrWhiteSpace(_options.UploadUser) || String.IsNullOrWhiteSpace(_options.UploadPassword))
@@ -284,7 +285,7 @@ namespace RoseGarden
 
 		internal string ForceGoodLanguageCode()
 		{
-			var langCode = _languageData.GetCodeForName(_options.LanguageName);
+			var langCode = _languageData.GetCodeForName(_options.LanguageName, _options.VeryVerbose);
 			if (_epubMetaData.LanguageCode != langCode)
 			{
 				if (_epubMetaData.LanguageCode == "en")
@@ -733,21 +734,20 @@ namespace RoseGarden
 			bool titleSet = false;
 			bool authorEtcSet = false;
 			int imageCount = 0;
-			foreach (var child in body.SelectNodes("//x:img|//x:p[normalize-space()!='']", nsmgr).Cast<XmlElement>())
+			foreach (var child in body.ChildNodes.Cast<XmlNode>())
 			{
 				if (child.Name == "img")
 				{
 					++imageCount;
-					var imageFile = child.GetAttribute("src");
+					var imageFile = (child as XmlElement).GetAttribute("src");
 					// cover image always comes first
 					if (imageCount == 1)
 						SetCoverImage(imageFile);
 					else
 						AddExtraCoverImage(imageFile, imageCount);
 				}
-				else
+				else if (child.Name == "p" || child.Name == "h1" || child.Name == "h2" || child.Name == "h3")
 				{
-					Debug.Assert(child.Name == "p");
 					if (!titleSet)
 					{
 						var title = child.InnerText.Trim();
@@ -767,9 +767,16 @@ namespace RoseGarden
 					}
 					else
 					{
-						AddCoverContributor(child.OuterXml);
+						var childXml = child.OuterXml;
+						if (child.Name != "p")
+							childXml = $"<p>{child.InnerXml.Trim()}</p>";
+						AddCoverContributor(childXml);
 						authorEtcSet = true;
 					}
+				}
+				else
+				{
+					Console.WriteLine("WARNING: UNEXPECTED ITEM IN THE FIRST (COVER) PAGE: {0} / \"{1}\"", child.NodeType.ToString(), child.OuterXml);
 				}
 			}
 			if (!titleSet)
@@ -965,6 +972,7 @@ namespace RoseGarden
 		internal bool ConvertContentPage(int pageNumber, string pageXhtml)
 		{
 			var pageDoc = new XmlDocument();
+			pageDoc.PreserveWhitespace = true;
 			pageDoc.LoadXml(pageXhtml);
 			var nsmgr = new XmlNamespaceManager(pageDoc.NameTable);
 			nsmgr.AddNamespace("x", "http://www.w3.org/1999/xhtml");
@@ -972,59 +980,44 @@ namespace RoseGarden
 			if (IsEndCreditsPage(body, pageNumber))
 				return ConvertEndCreditsPage(body, nsmgr, pageNumber);
 
-			var elements = body.SelectNodes(".//x:img[normalize-space(@src)!='']|//x:p[normalize-space()!='']", nsmgr).Cast<XmlElement>().ToList();
 			var imageCount = 0;
 			var textCount = 0;
 			var firstChild = "";
 			var lastChild = "";
 			var prevChild = "";
+			var rawNodes = new List<XmlNode>();
 			// Summarize the page content to find an appropriate template page.
-			foreach (var child in elements)
+			foreach (var child in body.ChildNodes.Cast<XmlNode>())
 			{
-				if (String.IsNullOrEmpty(firstChild))
-					firstChild = child.Name;
-				lastChild = child.Name;
+				if (child is XmlWhitespace)
+					continue;
 				if (child.Name == "img")
 				{
-					++imageCount;   // each image counts separately.
+					++imageCount;
+					if (String.IsNullOrEmpty(firstChild))
+						firstChild = child.Name;
+					prevChild = child.Name;
+				}
+				else if (child.Name == "p" || child is XmlText)
+				{
+					if (String.IsNullOrWhiteSpace(child.InnerText))
+						continue;	// ignore empty paragraphs
+					if (String.IsNullOrEmpty(firstChild))
+						firstChild = "p";
+					if (prevChild != "p")
+						++textCount;
+					prevChild = "p";
 				}
 				else
 				{
-					Debug.Assert(child.Name == "p");
-					if (prevChild != "p")   // paragraphs clump together when contiguous.
-						++textCount;
+					// Should we pay attention to <br> to create paragraphs instead of every text node becoming a paragraph?
+					// I think the <br> element breaks up the text nodes anyway so its effect is implicit.
+					if (child.Name != "br")
+						Console.WriteLine("WARNING: UNEXPECTED ELEMENT IN EPUB PAGE: {0} / \"{1}\"", child.NodeType.ToString(), child.OuterXml);
+					continue;
 				}
-				prevChild = child.Name;
+				rawNodes.Add(child);
 			}
-			var rawNodes = new List<XmlNode>();
-			if (textCount == 0 && !String.IsNullOrWhiteSpace(body.InnerText))
-			{
-				// Some Global Digital Library epubs have pages with text directly in the HTML body with no div or p elements.
-				// Such pages may still have img (and br) elements.
-				firstChild = lastChild = "";
-				imageCount = 0;
-				foreach (var node in body.ChildNodes.Cast<XmlNode>())
-				{
-					if (String.IsNullOrEmpty(firstChild))
-						firstChild = node.Name;
-					if (node.NodeType == XmlNodeType.Element && node.Name == "img")
-					{
-						++imageCount;
-						rawNodes.Add(node);
-					}
-					else if (node.NodeType == XmlNodeType.Text && !String.IsNullOrWhiteSpace(node.InnerText))
-					{
-						++textCount;
-						rawNodes.Add(node);
-					}
-					lastChild = node.Name;
-				}
-			}
-			//if (elements.Count == 0 && body.ChildNodes.Count == 1 && !body.FirstChild.HasChildNodes && !String.IsNullOrWhiteSpace(body.FirstChild.InnerText))
-			//{
-			//	textCount = 1;
-			//	firstChild = lastChild = "p";
-			//}
 			var templatePage = SelectTemplatePage(imageCount, textCount, firstChild, lastChild);
 			if (templatePage == null)
 			{
@@ -1066,39 +1059,11 @@ namespace RoseGarden
 					{
 						innerXmlBldr.Append("<p>");
 						innerXmlBldr.Append(node.InnerText.Trim());
-						innerXmlBldr.Append("</p>");
+						innerXmlBldr.AppendLine("</p>");
 						StoreAccumulatedParagraphs(textIdx, innerXmlBldr, textGroupDivs);
 						++textIdx;
 					}
 				}
-			}
-			else
-			{
-				foreach (var child in elements)
-				{
-					if (child.Name == "img")
-					{
-						StoreImage(imageIdx, images, child);
-						++imageIdx;
-					}
-					else
-					{
-						if (innerXmlBldr.Length > 0 && prevChild != "p")
-						{
-							StoreAccumulatedParagraphs(textIdx, innerXmlBldr, textGroupDivs);
-							++textIdx;
-						}
-						if (child.InnerText.Trim().Length > 0)
-						{
-							var outer = child.OuterXml;
-							var xml = RemoveXmlnsAttribsFromXmlString(outer);
-							innerXmlBldr.Append(xml);
-						}
-					}
-					prevChild = child.Name;
-				}
-				if (innerXmlBldr.Length > 0)
-					StoreAccumulatedParagraphs(textIdx, innerXmlBldr, textGroupDivs);
 			}
 			return true;
 		}
@@ -1129,7 +1094,7 @@ namespace RoseGarden
 			{
 				var zTemplateDiv = textGroupDivs[textIdx].SelectSingleNode("./div[contains(@class, 'bloom-editable') and @lang='z' and @contenteditable='true']") as XmlElement;
 				// Add new div with accumulated paragraphs
-				AddNewLanguageDiv(zTemplateDiv, innerXmlBldr.ToString());
+				AddNewLanguageDiv(zTemplateDiv, innerXmlBldr.ToString().Trim());
 			}
 			else
 			{
@@ -1140,8 +1105,9 @@ namespace RoseGarden
 				{
 					var inner = div.InnerXml;
 					var xml = RemoveXmlnsAttribsFromXmlString(inner);
+					innerXmlBldr.Insert(0, Environment.NewLine);
 					innerXmlBldr.Insert(0, xml);
-					div.InnerXml = innerXmlBldr.ToString();
+					div.InnerXml = innerXmlBldr.ToString().Trim();
 				}
 				else
 				{
@@ -1275,18 +1241,35 @@ namespace RoseGarden
 				}
 				if (_creditsAndPages.Count == 1)
 				{
-					_contributionsXmlBldr.AppendLine($"All images {_creditsAndPages.Keys.First()}");
+					var creditText = FormatIllustrationCredit(_creditsAndPages.Keys.First());
+					_contributionsXmlBldr.AppendLine($"<p>All images {creditText}</p>");
 				}
 				else if (_creditsAndPages.Count > 1)
 				{
 					foreach (var credit in _creditsAndPages.Keys)
 					{
 						var pagesText = ConvertIntListToPageString(_creditsAndPages[credit]);
-						_contributionsXmlBldr.AppendLine($"<p>{pagesText}{credit}</p>");
+						var creditText = FormatIllustrationCredit(credit);
+						_contributionsXmlBldr.AppendLine($"<p>{pagesText} {creditText}</p>");
 					}
 				}
-				contributions.InnerXml = _contributionsXmlBldr.ToString();
+				contributions.InnerXml = _contributionsXmlBldr.ToString().Trim();
 			}
+		}
+
+		private string FormatIllustrationCredit(string credit)
+		{
+			var match = Regex.Match(credit, kMatchRawPrathamIllustrationCredit);
+			if (match.Success)
+			{
+				var creator = match.Groups[1].Value.Trim(' ', '.');
+				var copyright = match.Groups[2].Value.Trim(' ', '.');
+				var license = match.Groups[3].Value.Trim();
+				if (copyright.StartsWith("Copyright", StringComparison.InvariantCulture))
+					copyright = copyright.Substring(9).Trim();
+				return String.Format("by {0}. Copyright {1}. Some rights reserved. Released under the {2} license.", creator, copyright, license);
+			}
+			return credit;	// stick with what we have...
 		}
 
 		private string ConvertIntListToPageString(List<int> pageList)
@@ -1425,7 +1408,7 @@ namespace RoseGarden
 						}
 						if (year == null)
 							year = DateTime.Now.Year.ToString();
-						bookCopyright = String.Format("© by Book Dash, {0}", year);
+						bookCopyright = String.Format("© Book Dash, {0}", year);
 						SetBookCopyright(bookCopyright);
 					}
 				}
@@ -1442,7 +1425,7 @@ namespace RoseGarden
 			{
 				// Artwork is presumably the same copyright and license as the text.
 				if (!String.IsNullOrWhiteSpace(bookCopyright))
-					artCopyright = "Copyright " + bookCopyright.Trim();
+					artCopyright = bookCopyright.Trim();
 			}
 			if (!String.IsNullOrWhiteSpace(artCopyright))
 			{
@@ -1450,18 +1433,18 @@ namespace RoseGarden
 				var artCreator = "";
 				if (_epubMetaData.Illustrators.Count > 0)
 					artCreator = String.Join(", ", _epubMetaData.Illustrators).Trim(' ', ',');
-				SetAllImageMetadata(artCreator, artCopyright, licenseAbbrev);
+				SetAllImageMetadata(artCreator, "Copyright " + artCopyright, licenseAbbrev);
 
 				var artCopyrightAndLicense = artCopyright;
 				if (licenseAbbrev == "CC0")
 					artCopyrightAndLicense = "Artwork: no rights reserved. (public domain)";
 				if (licenseAbbrev.StartsWith("CC BY", StringComparison.InvariantCulture))
-					artCopyrightAndLicense = $"{artCopyright}.  Some rights reserved.  Released under the {licenseAbbrev} license.";
+					artCopyrightAndLicense = $"{artCopyright}. Some rights reserved. Released under the {licenseAbbrev} license.";
 				if (String.IsNullOrEmpty(artCreator))
 					artCopyrightAndLicense = $"All illustrations copyright {artCopyrightAndLicense}";
 				else
-					artCopyrightAndLicense = $"All illustrations by {artCreator}.  Copyright {artCopyrightAndLicense}";
-				_contributionsXmlBldr.AppendLine(artCopyrightAndLicense);
+					artCopyrightAndLicense = $"All illustrations by {artCreator}. Copyright {artCopyrightAndLicense}";
+				_contributionsXmlBldr.AppendLine($"<p>{artCopyrightAndLicense}</p>");
 				var contributions = GetOrCreateDataDivElement("originalContributions", "en");
 				if (!String.IsNullOrWhiteSpace(contributions.InnerText))
 				{
@@ -1581,8 +1564,8 @@ namespace RoseGarden
 
 		private void ProcessRawPrathamCreditsPage(string bodyText, int pageNumber)
 		{
-			bodyText = Regex.Replace(bodyText, "\\s+", " ", RegexOptions.Singleline);
-			bodyText = bodyText.Replace(" ,",",").Replace(" .",".").Replace(" '","'").Replace("' ","'").Replace(":'",": '");
+			bodyText = Regex.Replace(bodyText, "\\s+", " ");
+			bodyText = Regex.Replace(bodyText, " ([,;:!?.])", "$1").Replace(":'", ": '");
 			var beginStoryAttrib = bodyText.IndexOf(kStoryAttribution, StringComparison.InvariantCulture);
 			var beginOtherCredits = bodyText.IndexOf(kOtherCredits, StringComparison.InvariantCulture);
 			var beginIllustration = bodyText.IndexOf(kIllustrationAttribs, StringComparison.InvariantCulture);
@@ -1652,7 +1635,11 @@ namespace RoseGarden
 				// Some books omit the space between "by" and the author's name.
 				beginCredit = creditText.IndexOf(", by", StringComparison.InvariantCulture);
 				if (beginCredit > 0)
-					++beginCredit;	// move past comma
+					beginCredit += 4;	// move past the ", by"
+			}
+			else
+			{
+				beginCredit += 4;	// move past the " by "
 			}
 			if (beginCredit > 0)
 				creditText = creditText.Substring(beginCredit).Trim();
@@ -1722,6 +1709,8 @@ namespace RoseGarden
 			if (_options.VeryVerbose)
 				Console.WriteLine("DEBUG: all images metadata: creator={0}; copyright={1}; license={2}", artCreator, artCopyright, artLicense);
 			var imgCover = _bloomDoc.SelectSingleNode($"//div[@id='bloomDataDiv']/div[@data-book='coverImage']") as XmlElement;
+			if (artCopyright.StartsWith("©", StringComparison.InvariantCulture) && !artCopyright.ToLowerInvariant().Contains("copyright"))
+				artCopyright = "Copyright " + artCopyright;
 			if (imgCover != null)
 			{
 				imgCover.SetAttribute("data-copyright", artCopyright);
@@ -1746,11 +1735,13 @@ namespace RoseGarden
 			string creator = null;
 			string copyright = null;
 			string license = null;
-			var match = Regex.Match(creditText, "by *(.*) *(©.*[12][09][0-9][0-9]\\.?).*Released under[ a]* (CC[ A-Z0-9.-]+) license");
+			var match = Regex.Match(creditText, kMatchRawPrathamIllustrationCredit);
 			if (match.Success)
 			{
-				creator = match.Groups[1].Value.Trim();
-				copyright = match.Groups[2].Value.Trim();
+				creator = match.Groups[1].Value.Trim(' ', '.');
+				copyright = match.Groups[2].Value.Trim(' ', '.');
+				if (copyright.StartsWith("©", StringComparison.InvariantCulture) && !copyright.ToLowerInvariant().Contains("copyright"))
+					copyright = "Copyright " + copyright;
 				license = match.Groups[3].Value.Trim();
 			}
 			if (pageNumber == 0)

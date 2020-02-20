@@ -216,12 +216,13 @@ namespace RoseGarden
 			//_nameToCode.Add("Saura-Odia", "srb-Orya");
 		}
 
-		public string GetCodeForName(string name)
+		public string GetCodeForName(string name, bool verbose)
 		{
 			string code;
 			if (_nameToCode.TryGetValue(name, out code))
 				return code;
-			Console.WriteLine("INFO: try to obtain language code from SLDR information for {0}.", name);
+			if (verbose)
+				Console.WriteLine("INFO: try to obtain language code from SLDR information for {0}.", name);
 			code = "";
 			foreach (var language in _languageLookup.SuggestLanguages(name))
 			{
