@@ -1325,7 +1325,6 @@ namespace RoseGarden
 			var lastPage = pageList[pageList.Count - 1];
 			if (lastPage != lastPageShowing)
 				bldr.AppendFormat("-{0}", lastPage);	// had to be contiguous range to finish
-			bldr.Append(" by ");
 			return bldr.ToString();
 		}
 

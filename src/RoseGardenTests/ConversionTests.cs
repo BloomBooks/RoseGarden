@@ -1305,6 +1305,9 @@ Pratham Books goes digital to weave a whole new chapter in the realm of multilin
 		/// * single end page in English with Bengali title and names
 		/// * licensed under CC BY-NC 4.0 instead of CC BY 4.0
 		/// </summary>
+		/// <remarks>
+		/// If we can figure out anything better to do to handle the end page, this test will need to be updated.
+		/// </remarks>
 		[Test]
 		public void TestConvertingBengaliBook_GDL()
 		{
@@ -1510,6 +1513,428 @@ Pratham Books goes digital to weave a whole new chapter in the realm of multilin
 </html>";
 
 		/// <summary>
+		/// This tests converting the Global Digital Library version of "The Birthday Party" published by Pratham Books.
+		/// It has these distinctive features:
+		/// * the front cover page has 3 images
+		/// * wordless story: most pages have no text
+		/// * 2 end pages, the first with (minimal) Pratham markup for book and illustration credits.  The copyright
+		///   for each illustration varies between the artist and Pratham Books.
+		/// </summary>
+		[Test]
+		public void TestConvertingBirthday_GDL()
+		{
+			// SUT (UsePortrait or UseLandscape must be true to avoid invalid file access)
+			var convert = InitializeForConversions(new ConvertOptions() { LanguageName = "English", UsePortrait = true }, _birthdayOpfXml, _birthdayOpdsXml);
+			var dataDiv0 = CheckInitialBookSetup(convert, "The Birthday Party");
+
+			// SUT
+			convert.ConvertCoverPage(_birthdayPage1Xhtml);
+			var coverImg = CheckCoverPageImport(convert, dataDiv0, "The Birthday Party", "01d36947d2cd48e29d9239fc22d2f2dd.jpg", @"<p>
+ Author:
+ Storyweaver, Pratham Books
+</p><p>
+ Illustrator:
+ Megha Vishwanath
+</p>", out XmlElement coverImageData);
+			/*
+			 * <img src="327960bfcbc83b0500bbb87e89866273.png" />
+			 * <img src="8716a9ccecd3c9b8a45e823d244f7647.png" />
+			 */
+
+			// SUT
+			var result = convert.ConvertContentPage(1, _birthdayPage2Xhtml);
+			Assert.That(result, Is.True, "converting The Birthday Party chapter 2 succeeded");
+			var page1Img = CheckTrueContentPageImport(convert._bloomDoc, "1", 2, "296dc94e65540e945f21665a7c44a801.jpg", null);
+
+			// SUT
+			result = convert.ConvertContentPage(2, _birthdayPage3Xhtml);
+			Assert.That(result, Is.True, "converting The Birthday Party chapter 3 succeeded");
+			var page2Img = CheckTrueContentPageImport(convert._bloomDoc, "2", 3, "7935930bd3ead65ff8abbb51c14fd303.jpg", null);
+
+			// SUT
+			result = convert.ConvertContentPage(3, _birthdayPage4Xhtml);
+			Assert.That(result, Is.True, "converting The Birthday Party chapter 4 succeeded");
+			var page3Img = CheckTrueContentPageImport(convert._bloomDoc, "3", 4, "2aa8778355a0f25384d96e8421402c6a.jpg", null);
+
+			// SUT
+			result = convert.ConvertContentPage(4, _birthdayPage5Xhtml);
+			Assert.That(result, Is.True, "converting The Birthday Party chapter 5 succeeded");
+			var page4Img = CheckTrueContentPageImport(convert._bloomDoc, "4", 5, "df22465a96ac6839a15a9de54dd5d417.jpg", null);
+
+			// SUT
+			result = convert.ConvertContentPage(5, _birthdayPage6Xhtml);
+			Assert.That(result, Is.True, "converting The Birthday Party chapter 6 succeeded");
+			var page5Img = CheckTrueContentPageImport(convert._bloomDoc, "5", 6, "c81aac9617591f5591d3bf8e500e8c89.jpg", null);
+
+			// SUT
+			result = convert.ConvertContentPage(6, _birthdayPage7Xhtml);
+			Assert.That(result, Is.True, "converting The Birthday Party chapter 7 succeeded");
+			var page6Img = CheckTrueContentPageImport(convert._bloomDoc, "6", 7, "81fc38f93c2b8c8d53bddd7ec9eb8ec6.jpg", null);
+
+			// SUT
+			result = convert.ConvertContentPage(7, _birthdayPage8Xhtml);
+			Assert.That(result, Is.True, "converting The Birthday Party chapter 8 succeeded");
+			var page7Img = CheckTrueContentPageImport(convert._bloomDoc, "7", 8, "e723496d42cb09497980634d6ba9d9a7.jpg", @"<p>Wondering what to do with wordless stories?</p>
+<p>Wordless stories are wonderful because they contain infinite possibilities. Here are a few ideas for engaging with children using visual stories:</p>
+<p>- Explore the story in a leisurely manner. Draw attention to the details - the expressions of the characters, setting, colours, etc. The idea is for each child to build her own story. If the story is being shown to a group of children, you could ask each of them to contribute a sentence or two for each illustration. Take joy in exploring each illustration and build the story as you go along.</p>
+<p>- Use themes explored in the story to start a discussion. For instance, in this story, you could ask children about what they do for their birthday, or even how they help out at home.</p>
+<p>- Encourage children to create 2-3 different stories using the same set of visuals. This will help push their imagination.</p>");
+
+			// SUT
+			result = convert.ConvertContentPage(8, _birthdayPage9Xhtml);
+			Assert.That(result, Is.True, "converting The Birthday Party chapter 9 (end page 1/2) succeeded");
+			var pages = convert._bloomDoc.SelectNodes("/html/body/div[contains(@class,'bloom-page')]").Cast<XmlElement>().ToList();
+			Assert.That(pages.Count, Is.EqualTo(8), "Eight pages should exist after converting the cover page, seven content pages, and one end page.");
+
+			// SUT
+			result = convert.ConvertContentPage(9, _birthdayPage10Xhtml);
+			Assert.That(result, Is.True, "converting What If? chapter 10 (end page 2/2) succeeded");
+			// We can't use the normal checking method because it assumes only 2 content pages and we have 7.
+			Assert.That(pages.Count, Is.EqualTo(8), "Eight pages should exist after converting the cover page, seven content pages, and two end pages.");
+			var imageCreator = "Megha Vishwanath";
+			var imageCopyright = "Copyright © Megha Vishwanath, 2015";
+			var imageLicense = "CC BY 4.0";
+			CheckImageMetaData(coverImageData, imageCreator, "Copyright © Pratham Books, 2015", imageLicense);
+			CheckImageMetaData(coverImg, imageCreator, "Copyright © Pratham Books, 2015", imageLicense);
+			CheckImageMetaData(page1Img, imageCreator, imageCopyright, imageLicense);
+			CheckImageMetaData(page2Img, imageCreator, imageCopyright, imageLicense);
+			CheckImageMetaData(page3Img, imageCreator, "Copyright © Pratham Books, 2015", imageLicense);
+			CheckImageMetaData(page4Img, imageCreator, imageCopyright, imageLicense);
+			CheckImageMetaData(page5Img, imageCreator, imageCopyright, imageLicense);
+			CheckImageMetaData(page6Img, imageCreator, imageCopyright, imageLicense);
+			CheckImageMetaData(page7Img, imageCreator, imageCopyright, imageLicense);
+			var licenseUrlData = convert._bloomDoc.SelectSingleNode("/html/body/div[@id='bloomDataDiv']/div[@data-book='copyrightUrl' and @lang='*']") as XmlElement;
+			Assert.That(licenseUrlData, Is.Not.Null, "End page sets copyrightUrl in data div");
+			Assert.That(licenseUrlData.InnerXml, Is.EqualTo("http://creativecommons.org/licenses/by/4.0/"));
+			var originalContribData = convert._bloomDoc.SelectSingleNode($"/html/body/div[@id='bloomDataDiv']/div[@data-book='originalContributions' and @lang='en']") as XmlElement;
+			Assert.That(originalContribData, Is.Not.Null, "End page sets originalContributions in data div");
+			Assert.That(originalContribData.InnerXml, Is.EqualTo(@"<p>Images on Front Cover, page 3 by Megha Vishwanath. Copyright © Pratham Books, 2015. Some rights reserved. Released under the CC BY 4.0 license.</p>
+<p>Images on pages 1-2, 4-7 by Megha Vishwanath. Copyright © Megha Vishwanath, 2015. Some rights reserved. Released under the CC BY 4.0 license.</p>"));
+			var copyrightData = convert._bloomDoc.SelectSingleNode("/html/body/div[@id='bloomDataDiv']/div[@data-book='copyright' and @lang='*']") as XmlElement;
+			Assert.That(copyrightData, Is.Not.Null, "End page sets copyright in data div");
+			Assert.That(copyrightData.InnerXml, Is.EqualTo("Copyright © Pratham Books, 2015"));
+			var insideBackCoverData = convert._bloomDoc.SelectSingleNode($"/html/body/div[@id='bloomDataDiv']/div[@data-book='insideBackCover' and @lang='en']") as XmlElement;
+			Assert.That(insideBackCoverData, Is.Not.Null, "End page sets the inside back cover in the data div");
+			Assert.That(insideBackCoverData.InnerXml, Does.StartWith(@"<p>
+ The Birthday Party
+ (English)
+</p>"));
+			Assert.That(insideBackCoverData.InnerXml.Trim(), Does.EndWith(@"Come, start weaving today, and help us get a book in every child's hand!"));
+			Assert.That(insideBackCoverData.InnerXml, Does.Contain(@"After his birthday party, the boy in the story opens his gifts and is thrilled to find a camera."));
+			Assert.That(insideBackCoverData.InnerXml, Does.Contain(@"<p>
+ This is a Level 1 book for children who are eager to begin reading.
+</p>"));
+			Assert.That(insideBackCoverData.InnerXml, Does.Contain(@"<img src=""d710444fa4fa11e970eed00fa1977069.png"" />"));
+		}
+
+		const string _birthdayOpfXml = @"<?xml version=""1.0"" encoding=""UTF-8""?>
+<package xmlns=""http://www.idpf.org/2007/opf"" version=""3.0"" unique-identifier=""uid"">
+	<metadata xmlns:dc=""http://purl.org/dc/elements/1.1/"">
+		<dc:identifier id=""uid"">25d40f31-5c64-427a-922d-fb5d6902b711</dc:identifier>
+		<dc:title>The Birthday Party</dc:title>
+		<dc:language>en</dc:language>
+		<meta property=""dcterms:modified"">2020-02-11T11:03:14Z</meta>
+		<dc:description>After his birthday party, the boy in the story opens his gifts and is thrilled to find a camera. But as he&apos;s playing with his new gift, he notices his mother crying in the kitchen. Find out what he does next!</dc:description>
+		<dc:creator id=""contributor_1"">Storyweaver, Pratham Books</dc:creator>
+		<meta refines=""#contributor_1"" property=""role"" scheme=""marc:relators"">aut</meta>
+		<dc:contributor id=""contributor_2"">Megha Vishwanath</dc:contributor>
+		<meta refines=""#contributor_2"" property=""role"" scheme=""marc:relators"">ill</meta>
+	</metadata>
+	<manifest>
+		<item href=""toc.xhtml"" id=""toc"" media-type=""application/xhtml+xml"" properties=""nav"" />
+		<item href=""epub.css"" id=""css"" media-type=""text/css"" />
+		<item href=""01d36947d2cd48e29d9239fc22d2f2dd.jpg"" id=""cover"" media-type=""image/jpeg"" properties=""cover-image"" />
+		<item href=""327960bfcbc83b0500bbb87e89866273.png"" id=""image-7814-1"" media-type=""image/png"" />
+		<item href=""8716a9ccecd3c9b8a45e823d244f7647.png"" id=""image-7815-2"" media-type=""image/png"" />
+		<item href=""296dc94e65540e945f21665a7c44a801.jpg"" id=""image-7816-3"" media-type=""image/jpeg"" />
+		<item href=""7935930bd3ead65ff8abbb51c14fd303.jpg"" id=""image-7817-4"" media-type=""image/jpeg"" />
+		<item href=""2aa8778355a0f25384d96e8421402c6a.jpg"" id=""image-7818-5"" media-type=""image/jpeg"" />
+		<item href=""df22465a96ac6839a15a9de54dd5d417.jpg"" id=""image-7819-6"" media-type=""image/jpeg"" />
+		<item href=""c81aac9617591f5591d3bf8e500e8c89.jpg"" id=""image-7820-7"" media-type=""image/jpeg"" />
+		<item href=""81fc38f93c2b8c8d53bddd7ec9eb8ec6.jpg"" id=""image-7821-8"" media-type=""image/jpeg"" />
+		<item href=""e723496d42cb09497980634d6ba9d9a7.jpg"" id=""image-7822-9"" media-type=""image/jpeg"" />
+		<item href=""d710444fa4fa11e970eed00fa1977069.png"" id=""image-7823-10"" media-type=""image/png"" />
+		<item href=""a5c66ea0438e97ee66266fcc2890dcfd.png"" id=""image-7824-11"" media-type=""image/png"" />
+		<item href=""chapter-1.xhtml"" id=""chapter-1"" media-type=""application/xhtml+xml"" />
+		<item href=""chapter-2.xhtml"" id=""chapter-2"" media-type=""application/xhtml+xml"" />
+		<item href=""chapter-3.xhtml"" id=""chapter-3"" media-type=""application/xhtml+xml"" />
+		<item href=""chapter-4.xhtml"" id=""chapter-4"" media-type=""application/xhtml+xml"" />
+		<item href=""chapter-5.xhtml"" id=""chapter-5"" media-type=""application/xhtml+xml"" />
+		<item href=""chapter-6.xhtml"" id=""chapter-6"" media-type=""application/xhtml+xml"" />
+		<item href=""chapter-7.xhtml"" id=""chapter-7"" media-type=""application/xhtml+xml"" />
+		<item href=""chapter-8.xhtml"" id=""chapter-8"" media-type=""application/xhtml+xml"" />
+		<item href=""chapter-9.xhtml"" id=""chapter-9"" media-type=""application/xhtml+xml"" />
+		<item href=""chapter-10.xhtml"" id=""chapter-10"" media-type=""application/xhtml+xml"" />
+	</manifest>
+</package>";
+		const string _birthdayOpdsXml = @"<feed xmlns='http://www.w3.org/2005/Atom' xmlns:lrmi='http://purl.org/dcx/lrmi-terms/' xmlns:dc='http://purl.org/dc/terms/' xmlns:dcterms='http://purl.org/dc/terms/' xmlns:opds='http://opds-spec.org/2010/catalog'>
+<title>Global Digital Library - Book Catalog [extract]</title>
+<entry>
+<id>urn:uuid:25d40f31-5c64-427a-922d-fb5d6902b711</id>
+<title>The Birthday Party</title>
+<author>
+<name>Storyweaver, Pratham Books</name>
+</author>
+<contributor type=""Illustrator"">
+<name>Megha Vishwanath</name>
+</contributor>
+<dc:license>Creative Commons Attribution 4.0 International</dc:license>
+<dc:publisher>Pratham books</dc:publisher>
+<updated>2017-11-10T00:00:00Z</updated>
+<dc:created>2017-11-10T00:00:00Z</dc:created>
+<published>2017-11-10T00:00:00Z</published>
+<lrmi:educationalAlignment alignmentType=""readingLevel"" targetName=""Level 1"" />
+<summary>After his birthday party, the boy in the story opens his gifts and is thrilled to find a camera. But as he's playing with his new gift, he notices his mother crying in the kitchen. Find out what he does next!</summary>
+<link href=""https://res.cloudinary.com/dwqxoowxi/f_auto,q_auto/01d36947d2cd48e29d9239fc22d2f2dd"" type=""image/jpeg"" rel=""http://opds-spec.org/image"" />
+<link href=""https://res.cloudinary.com/dwqxoowxi/f_auto,q_auto/01d36947d2cd48e29d9239fc22d2f2dd?width=200"" type=""image/png"" rel=""http://opds-spec.org/image/thumbnail"" />
+<link href=""https://books.digitallibrary.io/epub/en/25d40f31-5c64-427a-922d-fb5d6902b711.epub"" type=""application/epub+zip"" rel=""http://opds-spec.org/acquisition/open-access"" />
+<link href=""https://books.digitallibrary.io/pdf/en/25d40f31-5c64-427a-922d-fb5d6902b711.pdf"" type=""application/pdf"" rel=""http://opds-spec.org/acquisition/open-access"" />
+<dcterms:language>English</dcterms:language>
+</entry>
+</feed>";
+		const string _birthdayPage1Xhtml = @"<html xmlns=""http://www.w3.org/1999/xhtml"">
+<head>
+    <title>Chapter 1</title>
+    <link href=""epub.css"" rel=""stylesheet"" type=""text/css""/>
+</head>
+<body><img src=""01d36947d2cd48e29d9239fc22d2f2dd.jpg"" />
+<img src=""327960bfcbc83b0500bbb87e89866273.png"" />
+<img src=""8716a9ccecd3c9b8a45e823d244f7647.png"" />
+<p>
+ <b>
+  The Birthday Party
+ </b>
+</p>
+<p>
+ Author:
+ Storyweaver, Pratham Books
+</p>
+<p>
+ Illustrator:
+ Megha Vishwanath
+</p>
+</body>
+</html>";
+		const string _birthdayPage2Xhtml = @"<html xmlns=""http://www.w3.org/1999/xhtml"">
+<head>
+    <title>Chapter 2</title>
+    <link href=""epub.css"" rel=""stylesheet"" type=""text/css""/>
+</head>
+<body><img src=""296dc94e65540e945f21665a7c44a801.jpg"" />
+</body>
+</html>";
+		const string _birthdayPage3Xhtml = @"<html xmlns=""http://www.w3.org/1999/xhtml"">
+<head>
+    <title>Chapter 3</title>
+    <link href=""epub.css"" rel=""stylesheet"" type=""text/css""/>
+</head>
+<body><img src=""7935930bd3ead65ff8abbb51c14fd303.jpg"" />
+</body>
+</html>";
+		const string _birthdayPage4Xhtml = @"<html xmlns=""http://www.w3.org/1999/xhtml"">
+<head>
+    <title>Chapter 4</title>
+    <link href=""epub.css"" rel=""stylesheet"" type=""text/css""/>
+</head>
+<body><img src=""2aa8778355a0f25384d96e8421402c6a.jpg"" />
+</body>
+</html>";
+		const string _birthdayPage5Xhtml = @"<html xmlns=""http://www.w3.org/1999/xhtml"">
+<head>
+    <title>Chapter 5</title>
+    <link href=""epub.css"" rel=""stylesheet"" type=""text/css""/>
+</head>
+<body><img src=""df22465a96ac6839a15a9de54dd5d417.jpg"" />
+</body>
+</html>";
+		const string _birthdayPage6Xhtml = @"<html xmlns=""http://www.w3.org/1999/xhtml"">
+<head>
+    <title>Chapter 6</title>
+    <link href=""epub.css"" rel=""stylesheet"" type=""text/css""/>
+</head>
+<body><img src=""c81aac9617591f5591d3bf8e500e8c89.jpg"" />
+</body>
+</html>";
+		const string _birthdayPage7Xhtml = @"<html xmlns=""http://www.w3.org/1999/xhtml"">
+<head>
+    <title>Chapter 7</title>
+    <link href=""epub.css"" rel=""stylesheet"" type=""text/css""/>
+</head>
+<body><img src=""81fc38f93c2b8c8d53bddd7ec9eb8ec6.jpg"" />
+</body>
+</html>";
+		const string _birthdayPage8Xhtml = @"<html xmlns=""http://www.w3.org/1999/xhtml"">
+<head>
+    <title>Chapter 8</title>
+    <link href=""epub.css"" rel=""stylesheet"" type=""text/css""/>
+</head>
+<body><img src=""e723496d42cb09497980634d6ba9d9a7.jpg"" />
+<p>
+ <b>
+  Wondering what to do with wordless stories?
+  <br />
+ </b>
+</p>
+<p>
+ <br />
+</p>
+<p>
+ Wordless stories are wonderful because they contain infinite possibilities. Here are a few ideas for engaging with children using visual stories:
+ <br />
+</p>
+<p>
+ <br />
+ - Explore the story in a leisurely manner. Draw attention to the details - the expressions of the characters, setting, colours, etc. The idea is for each child to build her own story. If the story is being shown to a group of children, you could ask each of them to contribute a sentence or two for each illustration. Take joy in exploring each illustration and build the story as you go along.
+ <br />
+</p>
+<p>
+ <br />
+</p>
+<p>
+ - Use themes explored in the story to start a discussion. For instance, in this story, you could ask children about what they do for their birthday, or even how they help out at home.
+</p>
+<p>
+ <br />
+</p>
+<p>
+ - Encourage children to create 2-3 different stories using the same set of visuals. This will help push their imagination.
+</p>
+</body>
+</html>";
+		const string _birthdayPage9Xhtml = @"<html xmlns=""http://www.w3.org/1999/xhtml"">
+<head>
+    <title>Chapter 9</title>
+    <link href=""epub.css"" rel=""stylesheet"" type=""text/css""/>
+</head>
+<body><img src=""d710444fa4fa11e970eed00fa1977069.png"" />
+<p>
+ This book was made possible by Pratham Books' StoryWeaver platform. Content under Creative Commons licenses can be downloaded, translated and can even be used to create new stories ­ provided you give appropriate credit, and indicate if changes were made. To know more about this, and the full terms of use and attribution, please visit the following
+ <a>
+  link
+ </a>
+ .
+</p>
+<p>
+ Story Attribution:
+</p>
+This story:
+The Birthday Party
+is written by
+<a>
+ Storyweaver, Pratham Books
+</a>
+.
+            © Pratham Books
+  , 2015. Some rights reserved. Released under CC BY 4.0 license.
+<p>
+ Illustration Attributions:
+</p>
+Cover page:
+<a>
+ Boy taking photographs, mother crying in the kitchen
+</a>
+, by
+<a>
+ Megha Vishwanath
+</a>
+© Pratham Books, 2015. Some rights reserved. Released under CC BY 4.0 license.
+Page 2:
+<a>
+ Birthday party
+</a>
+, by
+<a>
+ Megha Vishwanath
+</a>
+© Megha Vishwanath, 2015. Some rights reserved. Released under CC BY 4.0 license.
+Page 3:
+<a>
+ A boy opening gifts after a party
+</a>
+, by
+<a>
+ Megha Vishwanath
+</a>
+© Megha Vishwanath, 2015. Some rights reserved. Released under CC BY 4.0 license.
+Page 4:
+<a>
+ Boy taking photographs, mother crying in the kitchen
+</a>
+, by
+<a>
+ Megha Vishwanath
+</a>
+© Pratham Books, 2015. Some rights reserved. Released under CC BY 4.0 license.
+Page 5:
+<a>
+ Crying mother and son
+</a>
+, by
+<a>
+ Megha Vishwanath
+</a>
+© Megha Vishwanath, 2015. Some rights reserved. Released under CC BY 4.0 license.
+Page 6:
+<a>
+ Boy and mother in the kitchen
+</a>
+, by
+<a>
+ Megha Vishwanath
+</a>
+© Megha Vishwanath, 2015. Some rights reserved. Released under CC BY 4.0 license.
+Page 7:
+<a>
+ Camera Frame
+</a>
+, by
+<a>
+ Megha Vishwanath
+</a>
+© Megha Vishwanath, 2015. Some rights reserved. Released under CC BY 4.0 license.
+Page 8:
+<a>
+ Crying mother and son
+</a>
+, by
+<a>
+ Megha Vishwanath
+</a>
+© Megha Vishwanath, 2015. Some rights reserved. Released under CC BY 4.0 license.
+Disclaimer:
+<a>
+ https://www.storyweaver.org.in/terms_and_conditions
+</a>
+<img src=""a5c66ea0438e97ee66266fcc2890dcfd.png"" />
+<p>
+ Some rights reserved. This book is CC­-BY­-4.0 licensed. You can copy, modify, distribute and perform the work, even for commercial purposes, all without asking permission. For full terms of use and attribution,
+ <a>
+  http://creativecommons.org/licenses/by/4.0/
+ </a>
+</p>
+</body>
+</html>";
+		const string _birthdayPage10Xhtml = @"<html xmlns=""http://www.w3.org/1999/xhtml"">
+<head>
+    <title>Chapter 10</title>
+    <link href=""epub.css"" rel=""stylesheet"" type=""text/css""/>
+</head>
+<body><p>
+ The Birthday Party
+ (English)
+</p>
+<p>
+ After his birthday party, the boy in the story opens his gifts and is thrilled to find a camera. But as he's playing with his new gift, he notices his mother crying in the kitchen. Find out what he does next!
+</p>
+<p>
+ This is a Level 1 book for children who are eager to begin reading.
+</p>
+<img src=""d710444fa4fa11e970eed00fa1977069.png"" />
+Pratham Books goes digital to weave a whole new chapter in the realm of multilingual children's stories. Knitting together children, authors, illustrators and publishers. Folding in teachers, and translators. To create a rich fabric of openly licensed multilingual stories for the children of India ­­ and the world. Our unique online platform, StoryWeaver, is a playground where children, parents, teachers and librarians can get creative. Come, start weaving today, and help us get a book in every child's hand!
+</body>
+</html>";
+
+		/// <summary>
 		/// Checks the initial book setup to verify that the epub's opf file and the opds file were read
 		/// and the book XHTML initialized properly.
 		/// </summary>
@@ -1589,8 +2014,15 @@ Pratham Books goes digital to weave a whole new chapter in the realm of multilin
 			var pageImage = imgList[0];
 			Assert.That(pageImage.GetAttribute("src"), Is.EqualTo(imageSrc));
 			var textDivList = pages[pageCount - 2].SelectNodes($".//div[contains(@class,'bloom-translationGroup')]/div[contains(@class,'bloom-editable') and @lang='{lang}']").Cast<XmlElement>().ToList();
-			Assert.That(textDivList.Count, Is.EqualTo(1), $"Page {pageNumber} has one text block (list has one item)");
-			Assert.That(textDivList[0].InnerXml, Is.EqualTo(textInnerXml));
+			if (String.IsNullOrEmpty(textInnerXml))
+			{
+				Assert.That(textDivList.Count, Is.EqualTo(0), $"Page {pageNumber} has no text block (list has zero items)");
+			}
+			else
+			{
+				Assert.That(textDivList.Count, Is.EqualTo(1), $"Page {pageNumber} has one text block (list has one item)");
+				Assert.That(textDivList[0].InnerXml, Is.EqualTo(textInnerXml));
+			}
 			return pageImage;
 		}
 
@@ -1604,18 +2036,10 @@ Pratham Books goes digital to weave a whole new chapter in the realm of multilin
 		{
 			var pages = convert._bloomDoc.SelectNodes("/html/body/div[contains(@class,'bloom-page')]").Cast<XmlElement>().ToList();
 			Assert.That(pages.Count, Is.EqualTo(3), "Three pages should exist after converting the cover page, two content pages, and any end pages. (list has three pages)");
-			Assert.That(coverImageData.GetAttribute("data-copyright"), Is.EqualTo(imageCopyright), "End page sets cover image copyright in data div");
-			Assert.That(coverImageData.GetAttribute("data-license"), Is.EqualTo(imageLicense), "End page sets cover image license in data div");
-			Assert.That(coverImageData.GetAttribute("data-creator"), Is.EqualTo(imageCreator), "End page sets cover image creator in data div");
-			Assert.That(coverImg.GetAttribute("data-copyright"), Is.EqualTo(imageCopyright), "End page sets cover image copyright");
-			Assert.That(coverImg.GetAttribute("data-license"), Is.EqualTo(imageLicense), "End page sets cover image license");
-			Assert.That(coverImg.GetAttribute("data-creator"), Is.EqualTo(imageCreator), "End page sets cover image creator");
-			Assert.That(firstPageImage.GetAttribute("data-copyright"), Is.EqualTo(imageCopyright), "End page sets page 1 image copyright");
-			Assert.That(firstPageImage.GetAttribute("data-license"), Is.EqualTo(imageLicense), "End page sets cover image license");
-			Assert.That(firstPageImage.GetAttribute("data-creator"), Is.EqualTo(imageCreator), "End page sets cover image creator");
-			Assert.That(secondPageImage.GetAttribute("data-copyright"), Is.EqualTo(imageCopyright), "End page sets page 18 image copyright");
-			Assert.That(secondPageImage.GetAttribute("data-license"), Is.EqualTo(imageLicense), "End page sets cover image license");
-			Assert.That(secondPageImage.GetAttribute("data-creator"), Is.EqualTo(imageCreator), "End page sets cover image creator");
+			CheckImageMetaData(coverImageData, imageCreator, imageCopyright, imageLicense);
+			CheckImageMetaData(coverImg, imageCreator, imageCopyright, imageLicense);
+			CheckImageMetaData(firstPageImage, imageCreator, imageCopyright, imageLicense);
+			CheckImageMetaData(secondPageImage, imageCreator, imageCopyright, imageLicense);
 			var licenseUrlData = convert._bloomDoc.SelectSingleNode("/html/body/div[@id='bloomDataDiv']/div[@data-book='copyrightUrl' and @lang='*']") as XmlElement;
 			Assert.That(licenseUrlData, Is.Not.Null, "End page sets copyrightUrl in data div");
 			Assert.That(licenseUrlData.InnerXml, Is.EqualTo(bookLicense));
@@ -1631,6 +2055,13 @@ Pratham Books goes digital to weave a whole new chapter in the realm of multilin
 			Assert.That(insideBackCoverData.InnerXml.Trim(), Does.EndWith(insideCoverFragments[1]));
 			for (int i = 2; i < insideCoverFragments.Length; ++i)
 				Assert.That(insideBackCoverData.InnerXml, Does.Contain(insideCoverFragments[i]));
+		}
+
+		private static void CheckImageMetaData(XmlElement img, string imageCreator, string imageCopyright, string imageLicense)
+		{
+			Assert.That(img.GetAttribute("data-copyright"), Is.EqualTo(imageCopyright), "End page sets image copyright");
+			Assert.That(img.GetAttribute("data-license"), Is.EqualTo(imageLicense), "End page sets image license");
+			Assert.That(img.GetAttribute("data-creator"), Is.EqualTo(imageCreator), "End page sets image creator");
 		}
 	}
 }
