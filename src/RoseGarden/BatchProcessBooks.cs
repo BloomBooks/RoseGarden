@@ -4,7 +4,6 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Net.Http;
 using System.Text;
 using System.Xml;
 using RoseGarden.Parse;
@@ -72,22 +71,21 @@ namespace RoseGarden
 				Console.WriteLine("INFO: No books need to be updated or converted.");
 				return 0;
 			}
-			DownloadBooks(entries);
+			FetchBooks(entries);
 			ConvertBooks(entries);
 			UploadBooks();
 			return 0;
 		}
 
-		private void DownloadBooks(List<XmlElement> entries)
+		private void FetchBooks(List<XmlElement> entries)
 		{
-			if (_options.DryRun)
-			{
-				foreach (var entry in entries)
-					Console.WriteLine(CreateFetchCommandLine(entry));
-				return;
-			}
 			foreach (var entry in entries)
-				FetchBook(entry);
+			{
+				if (_options.DryRun)
+					Console.WriteLine(CreateFetchCommandLine(entry));
+				else
+					FetchBook(entry);
+			}
 		}
 
 		/// <summary>
@@ -96,14 +94,7 @@ namespace RoseGarden
 		/// </summary>
 		private void FetchBook(XmlElement entry)
 		{
-			var titleXml = entry.SelectSingleNode("./a:title", _nsmgr) as XmlElement;
-			if (titleXml == null)
-			{
-				Console.WriteLine("WARNING: cannot find the title in the OPDS entry?! {0}", entry.OuterXml);
-				Environment.Exit(2);
-			}
-			var title = titleXml.InnerText.Trim();
-			var pathEpub = Path.Combine(OpdsClient.DownloadFolder, title, ".epub");
+			string pathEpub = ComputeEpubPathFromEntryTitle(entry);
 			_opdsClient.DownloadBook(entry, "epub", _feedTitle, pathEpub);
 			var pathImage = Path.ChangeExtension(pathEpub, "jpg");
 			_opdsClient.DownloadImage(entry, pathImage);
@@ -111,31 +102,37 @@ namespace RoseGarden
 			_opdsClient.WriteCatalogEntryFile(_rootCatalog, entry, pathOpds);
 		}
 
+		internal string ComputeEpubPathFromEntryTitle(XmlElement entry)
+		{
+			var titleXml = entry.SelectSingleNode("./a:title", _nsmgr) as XmlElement;
+			if (titleXml == null)
+			{
+				Console.WriteLine("WARNING: cannot find the title in the OPDS entry?! {0}", entry.OuterXml);
+				Environment.Exit(2);
+			}
+			var title = titleXml.InnerText.Trim();
+			return Path.Combine(OpdsClient.DownloadFolder, Program.SanitizeNameForFileSystem(title) + ".epub");
+		}
+
 		private string CreateFetchCommandLine(XmlElement entry)
 		{
 			var command = new StringBuilder();
-			command.Append("RoseGarden fetch -v --image");
+			command.Append("RoseGarden fetch --image");
+			if (_options.VeryVerbose)
+				command.Append(" -V");
+			else if (_options.Verbose)
+				command.Append(" -v");
 			if (!String.IsNullOrWhiteSpace(_options.CatalogFile))
-			{
 				command.AppendFormat(" -c \"{0}\"", _options.CatalogFile);
-			}
 			else if (!String.IsNullOrWhiteSpace(_options.Source))
-			{
 				command.AppendFormat(" -s {0}", _options.Source);
-			}
-			else if (!String.IsNullOrWhiteSpace(_options.Url))
-			{
-				command.AppendFormat(" -u \"{0}\"", _options.Url);
-			}
 			else
-			{
-				Console.WriteLine("ERROR: RoseGarden should have detected invalid input arguments before now: need one of -c, -s, or -u!");
-				Environment.Exit(2);
-			}
+				command.AppendFormat(" -u \"{0}\"", _options.Url);
 			if (!String.IsNullOrWhiteSpace(_options.AccessToken))
 				command.AppendFormat(" -k \"{0}\"", _options.AccessToken);
 			if (!String.IsNullOrWhiteSpace(_options.LanguageName))
 				command.AppendFormat(" -l \"{0}\"", _options.LanguageName);
+
 			var titleXml = entry.SelectSingleNode("./a:title", _nsmgr);
 			// There may be multiple authors, but we assume that finding one is good enough to match/disambiguate the title.
 			var authorXml = entry.SelectSingleNode("./a:author/a:name", _nsmgr) as XmlElement;
@@ -154,17 +151,108 @@ namespace RoseGarden
 
 		private void ConvertBooks(List<XmlElement> entries)
 		{
-			throw new NotImplementedException();
+			foreach (var entry in entries)
+			{
+				if (_options.DryRun)
+					Console.WriteLine(CreateConvertCommandLine(entry));
+				else
+					ConvertBook(entry);
+			}
+		}
+
+		private void ConvertBook(XmlElement entry)
+		{
+			Console.WriteLine("DEBUG: ConvertBook() IS NOT YET WRITTEN!");
+		}
+
+		private string CreateConvertCommandLine(XmlElement entry)
+		{
+			var command = new StringBuilder();
+			command.Append("RoseGarden convert");
+			if (_options.VeryVerbose)
+				command.Append(" -V");
+			else if (_options.Verbose)
+				command.Append(" -v");
+			if (_options.DownloadImage)
+				command.Append(" --image");
+			if (_options.ReplaceExistingBook)
+				command.Append(" --replace");
+			if (String.IsNullOrEmpty(_options.BloomFolder))
+				command.AppendFormat(" --bloomfolder \"{0}\"", Path.GetDirectoryName(_options.BloomExe));
+			else
+				command.AppendFormat(" --bloomfolder \"{0}\"", _options.BloomFolder);
+			var languageName = _options.LanguageName;
+			if (String.IsNullOrEmpty(_options.LanguageName))
+				languageName = GetLanguageFromOpdsEntry(entry);
+			command.AppendFormat(" -l \"{0}\"", languageName);
+			if (!String.IsNullOrEmpty(_options.BookShelfContainer))
+			{
+				var publisherName = GetPublisherFromOpdsEntry(entry);
+				command.AppendFormat(" -f \"{0}\"", ConvertFromEpub.FixOutputBloomSourceFolderPath(_options.BookShelfContainer, publisherName, languageName));
+			}
+			command.AppendFormat(" -e \"{0}\"", ComputeEpubPathFromEntryTitle(entry));
+			return command.ToString();
+		}
+
+		private string GetPublisherFromOpdsEntry(XmlElement entry)
+		{
+			var publisher = "$publisher$";
+			var divPublisher = entry.SelectSingleNode("./dc:publisher", _nsmgr) as XmlElement;
+			if (divPublisher == null)
+				divPublisher = entry.SelectSingleNode("./dcterms:publisher", _nsmgr) as XmlElement;
+			if (divPublisher != null)
+			{
+				publisher = divPublisher.InnerText.Trim();
+				switch (publisher.ToLowerInvariant())
+				{
+					case "pratham books":
+						return "Pratham";
+					case "african storybook initiative":
+					case "african storybook project":
+						return "African Storybook";
+					default:
+						return publisher;
+				}
+			}
+			return publisher;
+		}
+
+		private string GetLanguageFromOpdsEntry(XmlElement entry)
+		{
+			var divLanguage = entry.SelectSingleNode("./dc:language", _nsmgr) as XmlElement;
+			if (divLanguage == null)
+				divLanguage = entry.SelectSingleNode("./dcterms:language", _nsmgr) as XmlElement;
+			if (divLanguage != null)
+				return divLanguage.InnerText.Trim();
+			return "$language$";
 		}
 
 		private void UploadBooks()
 		{
-			throw new NotImplementedException();
+			if (_options.DryRun)
+			{
+				var command = new StringBuilder();
+				command.Append("RoseGarden upload -s");
+				if (_options.VeryVerbose)
+					command.Append(" -V");
+				else if (_options.Verbose)
+					command.Append(" -v");
+				command.AppendFormat(" -b \"{0}\"", _options.BloomExe);
+				var container = _options.BookShelfContainer;
+				var idx = container.IndexOf("$publisher$", StringComparison.InvariantCulture);
+				if (idx > 0)
+					container = container.Remove(idx).TrimEnd('\\','/');
+				command.AppendFormat(" \"{0}\"", container);
+				Console.WriteLine(command);
+				return;
+			}
+			Console.WriteLine("DEBUG: UploadBooks() IS NOT YET WRITTEN!");
 		}
 
 		private List<XmlElement> GetEntriesToProcess()
 		{
 			var catalog = String.IsNullOrWhiteSpace(_options.LanguageName) ? _rootCatalog : _langCatalog;
+			_nsmgr = OpdsClient.CreateNameSpaceManagerForOpdsDocument(catalog);
 			var allEntries = catalog.DocumentElement.SelectNodes($"/a:feed/a:entry", _nsmgr).Cast<XmlElement>().ToList();
 			int majorVersion;
 			int minorVersion;
@@ -182,29 +270,39 @@ namespace RoseGarden
 				if (_bloomlibraryBooks.TryGetValue(epubPath, out book))
 				{
 					// We have this book already, but is either the book or RoseGarden newer than before?
-					// The updated element should exist: it does in both the GDL and StoryWeaver catalog entries.
-					// But we'll check a couple of other possible fields in the entry just in case.
-					var timestampXml = entry.SelectSingleNode("./a:updated", _nsmgr) as XmlElement;
-					if (timestampXml == null)
-						timestampXml = entry.SelectSingleNode("./a:published", _nsmgr) as XmlElement;
-					if (timestampXml == null)
-						timestampXml = entry.SelectSingleNode("./dc:created", _nsmgr) as XmlElement;
-					DateTime catalogUpdated = DateTime.MinValue;
-					if (timestampXml != null)
-						catalogUpdated = DateTime.Parse(timestampXml.InnerText);
-					if (book.LastUploaded == null ||
-						book.LastUploaded.UtcTime < catalogUpdated ||
-						book.ImporterMajorVersion < majorVersion ||
-						(book.ImporterMajorVersion == majorVersion && book.ImporterMinorVersion < minorVersion))
+					bool needBook = book.ImporterMajorVersion < majorVersion ||
+						(book.ImporterMajorVersion == majorVersion && book.ImporterMinorVersion < minorVersion);
+					if (needBook)
+					{
+						if (_options.VeryVerbose)
+							Console.WriteLine("DEBUG: \"{0}\" is already imported, but needs to be updated for a new version of RoseGarden.", book.Title);
+					}
+					else
+					{
+						// The updated element should exist: it does in both the GDL and StoryWeaver catalog entries.
+						// But we'll check a couple of other possible fields in the entry just in case.
+						var timestampXml = entry.SelectSingleNode("./a:updated", _nsmgr) as XmlElement;
+						if (timestampXml == null)
+							timestampXml = entry.SelectSingleNode("./a:published", _nsmgr) as XmlElement;
+						if (timestampXml == null)
+							timestampXml = entry.SelectSingleNode("./dc:created", _nsmgr) as XmlElement;
+						var catalogUpdated = timestampXml?.InnerText;
+						if (!String.IsNullOrWhiteSpace(catalogUpdated))
+						{
+
+							needBook = book.LastUploaded == null || string.CompareOrdinal(book.LastUploaded.Iso, catalogUpdated) < 0;
+							if (needBook && _options.VeryVerbose)
+								Console.WriteLine("DEBUG: \"{0}\" is already imported, but needs to be updated.", book.Title);
+						}
+					}
+					if (needBook)
 					{
 						entriesToProcess.Add(entry);
-						if (_options.VeryVerbose)
-							Console.WriteLine("{0} is already imported, but needs to be updated.", book.Title);
 					}
 					else
 					{
 						if (_options.VeryVerbose)
-							Console.WriteLine("{0} is already converted and still up to date with RoseGarden and the catalog entry.", book.Title);
+							Console.WriteLine("DEBUG: \"{0}\" is already imported and still up to date with RoseGarden and the catalog entry.", book.Title);
 					}
 				}
 				else
@@ -258,13 +356,19 @@ namespace RoseGarden
 			}
 			if (!File.Exists(_options.BloomExe))
 			{
-				Console.WriteLine("WARNING: {0} does not exist!", _options.BloomExe);
-				allValid = false;
+				if (!_options.DryRun)
+				{
+					Console.WriteLine("WARNING: {0} does not exist!", _options.BloomExe);
+					allValid = false;
+				}
 			}
 			if (!Directory.Exists(_options.BookShelfContainer))
 			{
-				Console.WriteLine("WARNING: {0} does not exist!", _options.BookShelfContainer);
-				allValid = false;
+				if (!_options.DryRun)
+				{
+					Console.WriteLine("WARNING: {0} does not exist!", _options.BookShelfContainer);
+					allValid = false;
+				}
 			}
 			if (String.IsNullOrWhiteSpace(_options.UploadUser))
 			{

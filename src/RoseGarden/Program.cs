@@ -67,17 +67,17 @@ namespace RoseGarden
 		[Option('e', "epub", Required = true, HelpText = "Path to the input epub file.  If available, the pdf file and jpg/png thumbnail file of the same name will also be used as well as the opds entry file.  If the filename ends in .epub.zip (as from StoryWeaver), then that file is unzipped to obtain the actual epub (and attribution) files.")]
 		public string EpubFile { get; set; }
 
-		[Option('f', "folder", Required = false, HelpText = "Folder for storing the Bloom book source.  (This may be an existing collection folder.)")]
+		[Option('f', "folder", Required = false, HelpText = "Folder for storing the Bloom book source.  (This may be an existing collection folder.)  $publisher$ is replaced by the publisher name and $language$ is replaced by the language name in this folder path.  For example, /home/steve/BloomImport/$publisher$/$language$ could be replaced by /home/steve/BloomImport/Pratham/English for storing one book, but by /home/steve/BloomImport/African StoryBook/French for another book.  For conciseness, Pratham Books is replaced by Pratham, and African Storybook Initiative/Project is replaced by African Storybook.  Other publishers are passed verbatim.")]
 		public string CollectionFolder { get; set; }
-
-		[Option('R', "replace", Required = false, HelpText = "Force replacing the Bloom book source if it already exists.")]
-		public bool ReplaceExistingBook { get; set; }
 
 		[Option('l', "language", Required = true, HelpText = "Name of the main language of the book from the catalog entry")]
 		public string LanguageName { get; set; }
 
 		[Option('o', "output", Required = false, HelpText = "Output file name to use instead of the book's title (name without .htm used for both directory and file names)")]
 		public string FileName { get; set; }
+
+		[Option('R', "replace", Required = false, HelpText = "Force replacing the Bloom book source if it already exists.")]
+		public bool ReplaceExistingBook { get; set; }
 
 		[Option( "rtl", Required = false, HelpText = "Flag that the language is written right-to-left.")]
 		public bool IsRtl { get; set; }
@@ -132,11 +132,14 @@ namespace RoseGarden
 		[Option('b', "bloomexe", Required = true, HelpText = "Path of the Bloom executable.  This is probably a shell script on Linux but the actual Bloom.exe file on Windows.")]
 		public string BloomExe { get; set; }
 
-		[Option('o', "output", Required = false, HelpText = "Output file path for downloaded book")]
-		public string OutputFile { get; set; }
+		[Option('B', "bloomfolder", Required = false, HelpText = "Folder where Bloom is installed locally.  If not given, the folder portion of --bloomexe is used.  (This default probably works only on Windows.)")]
+		public string BloomFolder { get; set; }
 
 		[Option('I', "image", Required = false, HelpText = "Download the fullsize image file as well as the ePUB file.")]
 		public bool DownloadImage { get; set; }
+
+		[Option('R', "replace", Required = false, HelpText = "Force replacing the Bloom book source if it already exists in the local destination folder.")]
+		public bool ReplaceExistingBook { get; set; }
 
 		[Option('U', "user", Required = false, HelpText = "Bloomlibrary user for the upload")]
 		public string UploadUser { get; set; }
@@ -144,7 +147,7 @@ namespace RoseGarden
 		[Option('P', "password", Required = false, HelpText = "Password for the given Bloomlibrary user")]
 		public string UploadPassword { get; set; }
 
-		[Value(0, Required = true, HelpText = "Folder containing a bookshelf folder structure.  Collection folders are 2 or 3 levels beneath the given folder.")]
+		[Value(0, Required = true, HelpText = "Folder containing a bookshelf folder structure.  The directory level containing the separate bookshelves (which are based on publisher) is marked $publisher$, and replaced by each book's publisher.  Under that directory may be an additional level marked $language$ which is replaced by each book's language.  For example, /home/steve/BloomImport/$publisher$/$language$ could be replaced by /home/steve/BloomImport/Pratham/English for storing one book, but by /home/steve/BloomImport/African StoryBook/French for another book.  For conciseness, Pratham Books is replaced by Pratham, and African Storybook Initiative/Project is replaced by African Storybook.  Other publishers are passed verbatim.")]
 		public string BookShelfContainer { get; set; }
 	}
 

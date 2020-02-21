@@ -167,7 +167,8 @@ namespace RoseGarden
 					}
 				}
 			}
-			var newBookFolder = Path.Combine(_options.CollectionFolder, Path.GetFileNameWithoutExtension(_htmFileName));
+			var folder = FixOutputBloomSourceFolderPath(_options.CollectionFolder, _publisher, _options.LanguageName);
+			var newBookFolder = Path.Combine(folder, Path.GetFileNameWithoutExtension(_htmFileName));
 			if (Directory.Exists(newBookFolder))
 			{
 				if (!_options.ReplaceExistingBook)
@@ -194,6 +195,22 @@ namespace RoseGarden
 			_bookMetaData.WriteToFolder(_bookFolder);
 			CopyDirectory(_bookFolder, newBookFolder);
 			EnsureBloomCollectionFile();
+		}
+
+		public static string FixOutputBloomSourceFolderPath(string folderPath, string publisherName, string languageName)
+		{
+			var folder = folderPath;
+			if (folder.Contains("$publisher$"))
+			{
+				if (!String.IsNullOrWhiteSpace(publisherName))
+					folder = folder.Replace("$publisher$", publisherName);
+			}
+			if (folder.Contains("$language$"))
+			{
+				if (!String.IsNullOrWhiteSpace(languageName))
+					folder = folder.Replace("$language$", languageName);
+			}
+			return folder;
 		}
 
 		private void CopyDirectory(string sourceDir, string destDir)
