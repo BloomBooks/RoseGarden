@@ -499,12 +499,7 @@ namespace RoseGarden
 			_opdsEntry = new XmlDocument();
 			_opdsEntry.PreserveWhitespace = true;
 			_opdsEntry.LoadXml(opdsXml);
-			_opdsNsmgr = new XmlNamespaceManager(_opdsEntry.NameTable);
-			_opdsNsmgr.AddNamespace("lrmi", "http://purl.org/dcx/lrmi-terms/");
-			_opdsNsmgr.AddNamespace("opds", "http://opds-spec.org/2010/catalog");
-			_opdsNsmgr.AddNamespace("dc", "http://purl.org/dc/terms/");
-			_opdsNsmgr.AddNamespace("dcterms", "http://purl.org/dc/terms/");
-			_opdsNsmgr.AddNamespace("a", "http://www.w3.org/2005/Atom");
+			_opdsNsmgr = OpdsClient.CreateNameSpaceManagerForOpdsDocument(_opdsEntry);
 
 			var divPublisher = _opdsEntry.SelectSingleNode("/a:feed/a:entry/dc:publisher", _opdsNsmgr) as XmlElement;
 			if (divPublisher == null)

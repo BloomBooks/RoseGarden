@@ -188,12 +188,7 @@ namespace RoseGarden
 				doc.Load(_options.CatalogFile);
 			}
 
-			nsmgr = new XmlNamespaceManager(doc.NameTable);
-			nsmgr.AddNamespace("lrmi", "http://purl.org/dcx/lrmi-terms/");
-			nsmgr.AddNamespace("opds", "http://opds-spec.org/2010/catalog");
-			nsmgr.AddNamespace("dc", "http://purl.org/dc/terms/");
-			nsmgr.AddNamespace("dcterms", "http://purl.org/dc/terms/");
-			nsmgr.AddNamespace("a", "http://www.w3.org/2005/Atom");
+			nsmgr = CreateNameSpaceManagerForOpdsDocument(doc);
 			_nsmgr = nsmgr;
 
 			var title = doc.SelectSingleNode("/a:feed/a:title", nsmgr);
@@ -382,6 +377,21 @@ namespace RoseGarden
 			if (!_options.DryRun)
 				File.WriteAllBytes(path, bytes);
 			return 0;
+		}
+
+		/// <summary>
+		/// Utility method for creating a namespace manager that can handle either GDL or StoryWeaver catalog
+		/// files.
+		/// </summary>
+		public static XmlNamespaceManager CreateNameSpaceManagerForOpdsDocument(XmlDocument opdsDoc)
+		{
+			var nsmgr = new XmlNamespaceManager(opdsDoc.NameTable);
+			nsmgr.AddNamespace("lrmi", "http://purl.org/dcx/lrmi-terms/");
+			nsmgr.AddNamespace("opds", "http://opds-spec.org/2010/catalog");
+			nsmgr.AddNamespace("dc", "http://purl.org/dc/terms/");
+			nsmgr.AddNamespace("dcterms", "http://purl.org/dc/terms/");
+			nsmgr.AddNamespace("a", "http://www.w3.org/2005/Atom");
+			return nsmgr;
 		}
 	}
 }
