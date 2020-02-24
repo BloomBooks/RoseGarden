@@ -151,16 +151,33 @@ namespace RoseGarden
 		public string BookShelfContainer { get; set; }
 	}
 
+	[Verb("fixtable", HelpText = "Fix the table fields for imported books to make up for mistakes in development.")]
+	public class FixTableOptions
+	{
+		[Option('P', "password", Required = false, HelpText = "Password for the given Bloomlibrary user")]
+		public string UploadPassword { get; set; }
+
+		[Option('U', "user", Required = false, HelpText = "Bloomlibrary user for the upload")]
+		public string UploadUser { get; set; }
+
+		[Option('v', "verbose", Required = false, HelpText = "Write verbose progress messages to the console.")]
+		public bool Verbose { get; set; }
+
+		[Option('V', "veryverbose", Required = false, HelpText = "Write very verbose progress messages to the console.")]
+		public bool VeryVerbose { get; set; }
+	}
+
 	class Program
 	{
 		static int Main(string[] args)
 		{
-			return Parser.Default.ParseArguments<FetchOptions, ConvertOptions, UploadOptions, BatchOptions>(args)
+			return Parser.Default.ParseArguments<BatchOptions, ConvertOptions, FetchOptions, FixTableOptions, UploadOptions>(args)
 				.MapResult(
-					(FetchOptions opts) => FetchAndReturnExitCode(opts),
-					(ConvertOptions opts) => ConvertAndReturnExitCode(opts), 
-					(UploadOptions opts) => UploadAndReturnExitCode(opts),
 					(BatchOptions opts) => BatchAndReturnExitCode(opts),
+					(ConvertOptions opts) => ConvertAndReturnExitCode(opts),
+					(FetchOptions opts) => FetchAndReturnExitCode(opts),
+					(FixTableOptions opts) => FixTableAndReturnExitCode(opts),
+					(UploadOptions opts) => UploadAndReturnExitCode(opts),
 					errs => 1);
 		}
 
@@ -179,6 +196,11 @@ namespace RoseGarden
 		private static int BatchAndReturnExitCode(BatchOptions opts)
 		{
 			return new BatchProcessBooks(opts).RunBatch();
+		}
+
+		private static int FixTableAndReturnExitCode(FixTableOptions opts)
+		{
+			return new FixTable(opts).RunFix();
 		}
 
 		/// <summary>

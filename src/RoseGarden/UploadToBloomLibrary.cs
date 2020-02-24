@@ -211,7 +211,7 @@ namespace RoseGarden
 				Book.kImporterNameField, "RoseGarden",              // possibly unneeded, but loudly claim RoseGarden did the import
 				Book.kImporterMajorVersionField, _majorVersion,      // version stamp so we can update for new versions of RoseGarden
 				Book.kImporterMinorVersionField, _minorVersion,
-				"updateSource", "importerbot@bloomlibrary.org",     // very important so we don't add system:incoming tag
+				"updateSource", "importerbot@bloomlibrary.org",     // very important so we don't add system:Incoming tag
 				"lastUploaded", uploadDate.ToJson()                 // timestamp so we can check later for books modified on ODPS source
 				);
 			foreach (var book in bookList)
@@ -241,7 +241,7 @@ namespace RoseGarden
 						var level = levelNode?.GetAttribute("targetName");
 						if (!String.IsNullOrWhiteSpace(level))
 						{
-							var levelTag = $"level:{level}";
+							var levelTag = GetTagForLrmiReadingLevel(level);
 							if (!book.Tags.Contains(levelTag))
 							{
 								// This removal step may just be paranoid.  But I think there should always be at most one level tag!
@@ -282,6 +282,30 @@ namespace RoseGarden
 							Console.WriteLine("WARNING: updating the book table for \"{0}\" failed: {1}", book.Title, response.Content);
 					}
 				}
+			}
+		}
+
+		public static string GetTagForLrmiReadingLevel(string level)
+		{
+			if (level.StartsWith("Level ", StringComparison.InvariantCulture))
+			{
+				return "level:" + level.Replace("Level ","");
+			}
+			else if (level.StartsWith("ደረጃ ", StringComparison.InvariantCulture))
+			{
+				return "level:" + level.Replace("ደረጃ ", "");
+			}
+			else if (level == "Read aloud" || level == "ጮክ ብለህ አንብብ")
+			{
+				return "marked:Read aloud";
+			}
+			else if (level == "Decodable" || level == "መፍታት የሚችል")
+			{
+				return "marked:Decodable";
+			}
+			else
+			{
+				return "marked:" + level;	// just in case...
 			}
 		}
 

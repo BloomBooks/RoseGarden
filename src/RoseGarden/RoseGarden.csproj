@@ -113,6 +113,7 @@
     <Compile Include="BatchProcessBooks.cs" />
     <Compile Include="Parse\Model\Date.cs" />
     <Compile Include="OpdsClient.cs" />
+    <Compile Include="FixTable.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="App.config" />
