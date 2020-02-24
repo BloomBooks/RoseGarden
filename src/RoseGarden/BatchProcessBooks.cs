@@ -95,11 +95,28 @@ namespace RoseGarden
 		private void FetchBook(XmlElement entry)
 		{
 			string pathEpub = ComputeEpubPathFromEntryTitle(entry);
-			_opdsClient.DownloadBook(entry, "epub", _feedTitle, pathEpub);
 			var pathImage = Path.ChangeExtension(pathEpub, "jpg");
-			_opdsClient.DownloadImage(entry, pathImage);
 			var pathOpds = Path.ChangeExtension(pathEpub, "opds");
-			_opdsClient.WriteCatalogEntryFile(_rootCatalog, entry, pathOpds);
+			var obsolete = false;
+			if (File.Exists(pathOpds))
+				obsolete = IsExistingDownloadObsolete(entry, pathOpds);
+			if (!File.Exists(pathEpub) || !File.Exists(pathImage) || !File.Exists(pathOpds) || obsolete)
+			{
+				_opdsClient.DownloadBook(entry, "epub", _feedTitle, pathEpub);
+				_opdsClient.DownloadImage(entry, pathImage);
+				_opdsClient.WriteCatalogEntryFile(_rootCatalog, entry, pathOpds);
+			}
+			else
+			{
+				Console.WriteLine("INFO: skipping download of \"{0}\" because we apparently already have it.", Path.GetFileName(pathEpub));
+			}
+		}
+
+		private bool IsExistingDownloadObsolete(XmlElement entry, string pathOpds)
+		{
+			var newOpds = _opdsClient.CreateCatalogEntryFileAsString(_rootCatalog, entry);
+			var oldOpds = File.ReadAllText(pathOpds);
+			return newOpds != oldOpds;
 		}
 
 		internal string ComputeEpubPathFromEntryTitle(XmlElement entry)
@@ -162,35 +179,52 @@ namespace RoseGarden
 
 		private void ConvertBook(XmlElement entry)
 		{
-			Console.WriteLine("DEBUG: ConvertBook() IS NOT YET WRITTEN!");
+			var convertOptions = CreateConvertOptions(entry);
+			var convert = new ConvertFromEpub(convertOptions);
+			Console.WriteLine("INFO: trying to convert \"{0}\"", convertOptions.EpubFile);
+			if (convert.RunConvert() == 0)
+				Console.WriteLine("INFO: converting \"{0}\" apparently succeeded.", convertOptions.EpubFile);
+			else
+				Console.WriteLine("WARNING: converting \"{0}\" apparently failed.", convertOptions.EpubFile);
+		}
+
+		private ConvertOptions CreateConvertOptions(XmlElement entry)
+		{
+			var languageName = _options.LanguageName;
+			if (String.IsNullOrEmpty(_options.LanguageName))
+				languageName = GetLanguageFromOpdsEntry(entry);
+			var publisherName = GetPublisherFromOpdsEntry(entry);
+			var bloomFolder = _options.BloomFolder;
+			if (String.IsNullOrWhiteSpace(bloomFolder))
+				bloomFolder = Path.GetDirectoryName(_options.BloomExe);
+			return new ConvertOptions
+			{
+				Verbose = _options.Verbose,
+				VeryVerbose = _options.VeryVerbose,
+				ReplaceExistingBook = _options.ReplaceExistingBook,
+				BloomFolder = bloomFolder,
+				LanguageName = languageName,
+				CollectionFolder = ConvertFromEpub.FixOutputBloomSourceFolderPath(_options.BookShelfContainer, publisherName, languageName),
+				EpubFile = ComputeEpubPathFromEntryTitle(entry)
+				// TODO: add --user and --password to batch options so we can set them here?
+			};
 		}
 
 		private string CreateConvertCommandLine(XmlElement entry)
 		{
+			var convertOptions = CreateConvertOptions(entry);
 			var command = new StringBuilder();
 			command.Append("RoseGarden convert");
-			if (_options.VeryVerbose)
+			if (convertOptions.VeryVerbose)
 				command.Append(" -V");
-			else if (_options.Verbose)
+			else if (convertOptions.Verbose)
 				command.Append(" -v");
-			if (_options.DownloadImage)
-				command.Append(" --image");
-			if (_options.ReplaceExistingBook)
+			if (convertOptions.ReplaceExistingBook)
 				command.Append(" --replace");
-			if (String.IsNullOrEmpty(_options.BloomFolder))
-				command.AppendFormat(" --bloomfolder \"{0}\"", Path.GetDirectoryName(_options.BloomExe));
-			else
-				command.AppendFormat(" --bloomfolder \"{0}\"", _options.BloomFolder);
-			var languageName = _options.LanguageName;
-			if (String.IsNullOrEmpty(_options.LanguageName))
-				languageName = GetLanguageFromOpdsEntry(entry);
-			command.AppendFormat(" -l \"{0}\"", languageName);
-			if (!String.IsNullOrEmpty(_options.BookShelfContainer))
-			{
-				var publisherName = GetPublisherFromOpdsEntry(entry);
-				command.AppendFormat(" -f \"{0}\"", ConvertFromEpub.FixOutputBloomSourceFolderPath(_options.BookShelfContainer, publisherName, languageName));
-			}
-			command.AppendFormat(" -e \"{0}\"", ComputeEpubPathFromEntryTitle(entry));
+			command.AppendFormat(" --bloomfolder \"{0}\"", convertOptions.BloomFolder);
+			command.AppendFormat(" -l \"{0}\"", convertOptions.LanguageName);
+			command.AppendFormat(" -f \"{0}\"", convertOptions.CollectionFolder);
+			command.AppendFormat(" -e \"{0}\"", convertOptions.EpubFile);
 			return command.ToString();
 		}
 
@@ -229,24 +263,43 @@ namespace RoseGarden
 
 		private void UploadBooks()
 		{
+			var uploadOptions = new UploadOptions
+			{
+				Verbose = _options.Verbose,
+				VeryVerbose = _options.VeryVerbose,
+				SingleBookshelfLevel = true,
+				BloomExe = _options.BloomExe,
+				BookShelfContainer = TrimBookShelfContainerToBaseFolder()
+				// TODO: add --user and --password to batch options so we can set them here?
+			};
 			if (_options.DryRun)
 			{
 				var command = new StringBuilder();
 				command.Append("RoseGarden upload -s");
-				if (_options.VeryVerbose)
+				if (uploadOptions.VeryVerbose)
 					command.Append(" -V");
-				else if (_options.Verbose)
+				else if (uploadOptions.Verbose)
 					command.Append(" -v");
-				command.AppendFormat(" -b \"{0}\"", _options.BloomExe);
-				var container = _options.BookShelfContainer;
-				var idx = container.IndexOf("$publisher$", StringComparison.InvariantCulture);
-				if (idx > 0)
-					container = container.Remove(idx).TrimEnd('\\','/');
-				command.AppendFormat(" \"{0}\"", container);
+				command.AppendFormat(" -b \"{0}\"", uploadOptions.BloomExe);
+				command.AppendFormat(" \"{0}\"", uploadOptions.BookShelfContainer);
 				Console.WriteLine(command);
 				return;
 			}
-			Console.WriteLine("DEBUG: UploadBooks() IS NOT YET WRITTEN!");
+			Console.WriteLine("INFO: trying to upload the books.");
+			var upload = new UploadToBloomLibrary(uploadOptions);
+			if (upload.RunUpload() == 0)
+				Console.WriteLine("INFO: uploading the books appears to have succeeded.");
+			else
+				Console.WriteLine("WARNING: uploading the books appears to have failed.");
+		}
+
+		private string TrimBookShelfContainerToBaseFolder()
+		{
+			var container = _options.BookShelfContainer;
+			var idx = container.IndexOf("$publisher$", StringComparison.InvariantCulture);
+			if (idx > 0)
+				container = container.Remove(idx).TrimEnd('\\', '/');
+			return container;
 		}
 
 		private List<XmlElement> GetEntriesToProcess()
@@ -362,12 +415,13 @@ namespace RoseGarden
 					allValid = false;
 				}
 			}
-			if (!Directory.Exists(_options.BookShelfContainer))
+			var container = _options.BookShelfContainer;
+			if (!Directory.Exists(container))
 			{
 				if (!_options.DryRun)
 				{
-					Console.WriteLine("WARNING: {0} does not exist!", _options.BookShelfContainer);
-					allValid = false;
+					Console.WriteLine("WARNING: Creating folder {0} to hold the local bookshelf and collection folders.", container);
+					Directory.CreateDirectory(container);
 				}
 			}
 			if (String.IsNullOrWhiteSpace(_options.UploadUser))

@@ -234,6 +234,12 @@ namespace RoseGarden
 		{
 			if (_options.Verbose)
 				Console.WriteLine("INFO: writing catalog entry file {0}", path);
+			string content = CreateCatalogEntryFileAsString(rootCatalog, bookEntry);
+			File.WriteAllText(path, content);
+		}
+
+		public string CreateCatalogEntryFileAsString(XmlDocument rootCatalog, XmlElement bookEntry)
+		{
 			var bldr = new StringBuilder();
 			bldr.AppendLine("<feed xmlns='http://www.w3.org/2005/Atom' xmlns:lrmi='http://purl.org/dcx/lrmi-terms/'" +
 				" xmlns:dc='http://purl.org/dc/terms/' xmlns:dcterms='http://purl.org/dc/terms/'" +
@@ -247,7 +253,8 @@ namespace RoseGarden
 			var entry = Regex.Replace(bookEntry.OuterXml, " xmlns[:a-zA-Z]*=[\"'][^\"']+[\"']", "");
 			bldr.AppendLine(entry);
 			bldr.AppendLine("</feed>");
-			File.WriteAllText(path, bldr.ToString());
+			var content = bldr.ToString();
+			return content;
 		}
 
 		public int DownloadBook(XmlElement bookEntry, string type, string feedTitle, string path)
