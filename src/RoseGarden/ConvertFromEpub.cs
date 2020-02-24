@@ -999,37 +999,7 @@ namespace RoseGarden
 			var prevChild = "";
 			var rawNodes = new List<XmlNode>();
 			// Summarize the page content to find an appropriate template page.
-			foreach (var child in body.ChildNodes.Cast<XmlNode>())
-			{
-				if (child is XmlWhitespace)
-					continue;
-				if (child.Name == "img")
-				{
-					++imageCount;
-					if (String.IsNullOrEmpty(firstChild))
-						firstChild = child.Name;
-					prevChild = child.Name;
-				}
-				else if (child.Name == "p" || child is XmlText)
-				{
-					if (String.IsNullOrWhiteSpace(child.InnerText))
-						continue;	// ignore empty paragraphs
-					if (String.IsNullOrEmpty(firstChild))
-						firstChild = "p";
-					if (prevChild != "p")
-						++textCount;
-					prevChild = "p";
-				}
-				else
-				{
-					// Should we pay attention to <br> to create paragraphs instead of every text node becoming a paragraph?
-					// I think the <br> element breaks up the text nodes anyway so its effect is implicit.
-					if (child.Name != "br")
-						Console.WriteLine("WARNING: UNEXPECTED ELEMENT IN EPUB PAGE: {0} / \"{1}\"", child.NodeType.ToString(), child.OuterXml);
-					continue;
-				}
-				rawNodes.Add(child);
-			}
+			ExtractTextAndImageNodes(body, rawNodes, ref imageCount, ref textCount, ref firstChild, ref prevChild);
 			var templatePage = SelectTemplatePage(imageCount, textCount, firstChild, lastChild);
 			if (templatePage == null)
 			{
@@ -1067,8 +1037,17 @@ namespace RoseGarden
 						StoreImage(imageIdx, images, node as XmlElement);
 						++imageIdx;
 					}
+					else if (node.Name == "p")
+					{
+						innerXmlBldr.Append("<p>");
+						innerXmlBldr.Append(FixInnerXml(node.InnerXml.Trim()));
+						innerXmlBldr.AppendLine("</p>");
+						StoreAccumulatedParagraphs(textIdx, innerXmlBldr, textGroupDivs);
+						++textIdx;
+					}
 					else
 					{
+						Debug.Assert(node is XmlText, "The XmlNode has to be text if it's neither <img> nor <p>!");
 						innerXmlBldr.Append("<p>");
 						innerXmlBldr.Append(node.InnerText.Trim());
 						innerXmlBldr.AppendLine("</p>");
@@ -1078,6 +1057,64 @@ namespace RoseGarden
 				}
 			}
 			return true;
+		}
+
+		/// <summary>
+		/// One epub I've seen has multiple layers of &lt;b&gt; element enclosing a &lt;p&gt; element.  This seems rather
+		/// wierd, but let's try to cope with such situations without propagating *all* of the badness.
+		/// </summary>
+		private static void ExtractTextAndImageNodes(XmlElement body, List<XmlNode> rawNodes, ref int imageCount, ref int textCount, ref string firstChild, ref string prevChild)
+		{
+			foreach (var child in body.ChildNodes.Cast<XmlNode>())
+			{
+				if (child is XmlWhitespace)
+					continue;
+				if (child.Name == "img")
+				{
+					++imageCount;
+					if (String.IsNullOrEmpty(firstChild))
+						firstChild = child.Name;
+					prevChild = child.Name;
+				}
+				else if (child.Name == "p" || child is XmlText)
+				{
+					if (String.IsNullOrWhiteSpace(child.InnerText))
+						continue;   // ignore empty paragraphs
+					if (String.IsNullOrEmpty(firstChild))
+						firstChild = "p";
+					if (prevChild != "p")
+						++textCount;
+					prevChild = "p";
+				}
+				else if (child.Name == "b" || child.Name == "i" || child.Name == "strong" || child.Name == "em")
+				{
+					// recurse!
+					ExtractTextAndImageNodes(child as XmlElement, rawNodes, ref imageCount, ref textCount, ref firstChild, ref prevChild);
+					continue;
+				}
+				else
+				{
+					// Should we pay attention to <br> to create paragraphs instead of every text node becoming a paragraph?
+					// I think the <br> element breaks up the text nodes anyway so its effect is implicit.
+					if (child.Name != "br")
+						Console.WriteLine("WARNING: UNEXPECTED ELEMENT IN EPUB PAGE: {0} / \"{1}\"", child.NodeType.ToString(), child.OuterXml);
+					continue;
+				}
+				rawNodes.Add(child);
+			}
+		}
+
+		private string FixInnerXml(string innerXml)
+		{
+			var plain = RemoveXmlnsAttribsFromXmlString(innerXml);
+			plain = Regex.Replace(plain, "<br */*>", Environment.NewLine).Trim();
+			plain = Regex.Replace(plain, @"<(b|i|strong|em)>\s+", " <$1>");
+			plain = Regex.Replace(plain, @"  +<(b|i|strong|em)>", " <$1>");
+			plain = Regex.Replace(plain, @"\s+</(b|i|strong|em)>", "</$1> ");	// allow for nesting <b></b> three times
+			plain = Regex.Replace(plain, @"\s+</(b|i|strong|em)>", "</$1> ");
+			plain = Regex.Replace(plain, @"\s+</(b|i|strong|em)>", "</$1> ");
+			plain = Regex.Replace(plain, @"</(b|i|strong|em)>  +", "</$1> ");
+			return plain.Trim();
 		}
 
 		private void StoreImage(int imageIdx, List<XmlElement> images, XmlElement img)
@@ -1274,14 +1311,26 @@ namespace RoseGarden
 			var match = Regex.Match(credit, kMatchRawPrathamIllustrationCredit);
 			if (match.Success)
 			{
-				var creator = match.Groups[1].Value.Trim(' ', '.');
-				var copyright = match.Groups[2].Value.Trim(' ', '.');
+				var creator = MakeSafeForXhtml(match.Groups[1].Value.Trim(' ', '.'));
+				var copyright = MakeSafeForXhtml(match.Groups[2].Value.Trim(' ', '.'));
 				var license = match.Groups[3].Value.Trim();
 				if (copyright.StartsWith("Copyright", StringComparison.InvariantCulture))
 					copyright = copyright.Substring(9).Trim();
 				return String.Format("by {0}. Copyright {1}. Some rights reserved. Released under the {2} license.", creator, copyright, license);
 			}
 			return credit;	// stick with what we have...
+		}
+
+		private string MakeSafeForXhtml(string raw)
+		{
+			if (raw.IndexOfAny(new[] { '<', '>', '&' }) < 0 ||
+				raw.IndexOf("&amp;", StringComparison.InvariantCulture) >= 0 ||
+				raw.IndexOf("&lt;", StringComparison.InvariantCulture) >= 0 ||
+				raw.IndexOf("&gt;", StringComparison.InvariantCulture) >= 0)
+			{
+				return raw;
+			}
+			return raw.Replace("&", "&amp;").Replace("<", "&lt;").Replace(">", "&gt;");
 		}
 
 		private string ConvertIntListToPageString(List<int> pageList)

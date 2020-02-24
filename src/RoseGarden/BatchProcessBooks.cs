@@ -269,10 +269,11 @@ namespace RoseGarden
 				VeryVerbose = _options.VeryVerbose,
 				SingleBookshelfLevel = true,
 				BloomExe = _options.BloomExe,
-				BookShelfContainer = TrimBookShelfContainerToBaseFolder()
-				// TODO: add --user and --password to batch options so we can set them here?
+				BookShelfContainer = TrimBookShelfContainerToBaseFolder(),
+				UploadUser = _options.UploadUser,
+				UploadPassword = _options.UploadPassword
 			};
-			if (_options.DryRun)
+			if (_options.DryRun || _options.DoNotUpload)
 			{
 				var command = new StringBuilder();
 				command.Append("RoseGarden upload -s");

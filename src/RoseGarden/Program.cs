@@ -147,6 +147,9 @@ namespace RoseGarden
 		[Option('P', "password", Required = false, HelpText = "Password for the given Bloomlibrary user")]
 		public string UploadPassword { get; set; }
 
+		[Option('N', "noupload", Required = false, HelpText = "Do not upload after fetching and converting.")]
+		public bool DoNotUpload { get; set; }
+
 		[Value(0, Required = true, HelpText = "Folder containing a bookshelf folder structure.  The directory level containing the separate bookshelves (which are based on publisher) is marked $publisher$, and replaced by each book's publisher.  Under that directory may be an additional level marked $language$ which is replaced by each book's language.  For example, /home/steve/BloomImport/$publisher$/$language$ could be replaced by /home/steve/BloomImport/Pratham/English for storing one book, but by /home/steve/BloomImport/African StoryBook/French for another book.  For conciseness, Pratham Books is replaced by Pratham, and African Storybook Initiative/Project is replaced by African Storybook.  Other publishers are passed verbatim.")]
 		public string BookShelfContainer { get; set; }
 	}
