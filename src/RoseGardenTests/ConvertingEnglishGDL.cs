@@ -61,7 +61,7 @@ namespace RoseGardenTests
 					"www.africanstorybook.org" });
 		}
 
-		public const string _goatOpfXml = @"<?xml version=""1.0"" encoding=""UTF-8""?>
+		const string _goatOpfXml = @"<?xml version=""1.0"" encoding=""UTF-8""?>
 <package xmlns=""http://www.idpf.org/2007/opf"" version=""3.0"" unique-identifier=""uid"">
 	<metadata xmlns:dc=""http://purl.org/dc/elements/1.1/"">
 		<dc:identifier id=""uid"">4f513a80-8f36-46c5-a73f-3169420c5c24</dc:identifier>

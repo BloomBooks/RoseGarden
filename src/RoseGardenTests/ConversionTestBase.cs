@@ -162,7 +162,8 @@ namespace RoseGardenTests
 		/// before any end pages.
 		/// </summary>
 		protected static void CheckTwoPageBookAfterEndPages(ConvertFromEpub convert, XmlElement coverImg, XmlElement coverImageData, XmlElement firstPageImage, XmlElement secondPageImage,
-			string imageCopyright, string imageLicense, string imageCreator, string bookCopyright, string bookLicense, string contribInnerXml, string[] insideCoverFragments)
+			string imageCopyright, string imageLicense, string imageCreator, string bookCopyright, string bookLicense, string contribInnerXml, string[] insideCoverFragments,
+			string lang="en")
 		{
 			var pages = convert._bloomDoc.SelectNodes("/html/body/div[contains(@class,'bloom-page')]").Cast<XmlElement>().ToList();
 			Assert.That(pages.Count, Is.EqualTo(3), "Three pages should exist after converting the cover page, two content pages, and any end pages. (list has three pages)");
@@ -173,13 +174,13 @@ namespace RoseGardenTests
 			var licenseUrlData = convert._bloomDoc.SelectSingleNode("/html/body/div[@id='bloomDataDiv']/div[@data-book='copyrightUrl' and @lang='*']") as XmlElement;
 			Assert.That(licenseUrlData, Is.Not.Null, "End page sets copyrightUrl in data div");
 			Assert.That(licenseUrlData.InnerXml, Is.EqualTo(bookLicense));
-			var originalContribData = convert._bloomDoc.SelectSingleNode($"/html/body/div[@id='bloomDataDiv']/div[@data-book='originalContributions' and @lang='en']") as XmlElement;
+			var originalContribData = convert._bloomDoc.SelectSingleNode($"/html/body/div[@id='bloomDataDiv']/div[@data-book='originalContributions' and @lang='{lang}']") as XmlElement;
 			Assert.That(originalContribData, Is.Not.Null, "End page sets originalContributions in data div");
 			Assert.That(originalContribData.InnerXml, Is.EqualTo(contribInnerXml));
 			var copyrightData = convert._bloomDoc.SelectSingleNode("/html/body/div[@id='bloomDataDiv']/div[@data-book='copyright' and @lang='*']") as XmlElement;
 			Assert.That(copyrightData, Is.Not.Null, "End page sets copyright in data div");
 			Assert.That(copyrightData.InnerXml, Is.EqualTo(bookCopyright));
-			var insideBackCoverData = convert._bloomDoc.SelectSingleNode($"/html/body/div[@id='bloomDataDiv']/div[@data-book='insideBackCover' and @lang='en']") as XmlElement;
+			var insideBackCoverData = convert._bloomDoc.SelectSingleNode($"/html/body/div[@id='bloomDataDiv']/div[@data-book='insideBackCover' and @lang='{lang}']") as XmlElement;
 			Assert.That(insideBackCoverData, Is.Not.Null, "End page sets the inside back cover in the data div");
 			Assert.That(insideBackCoverData.InnerXml, Does.StartWith(insideCoverFragments[0]));
 			Assert.That(insideBackCoverData.InnerXml.Trim(), Does.EndWith(insideCoverFragments[1]));

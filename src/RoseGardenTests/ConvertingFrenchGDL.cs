@@ -1,5 +1,4 @@
-﻿using System;
-using System.Linq;
+﻿using System.Linq;
 using System.Xml;
 using NUnit.Framework;
 using RoseGarden;
@@ -594,6 +593,208 @@ Disclaimer:
 <img src=""d710444fa4fa11e970eed00fa1977069.png"" />
 Pratham Books goes digital to weave a whole new chapter in the realm of multilingual children's stories. Knitting together children, authors, illustrators and publishers. Folding in teachers, and translators. To create a rich fabric of openly licensed multilingual stories for the children of India ­­ and the world. Our unique online platform, StoryWeaver, is a playground where children, parents, teachers and librarians can get creative. Come, start weaving today, and help us get a book in every child's hand!
 </body>
+</html>";
+
+		/// <summary>
+		/// This tests converting the Global Digital Library version of "Se brosser n’est pas amusant!" published by Pratham Books.
+		/// It has these distinctive features:
+		/// * French, not English
+		/// * French end pages of credits, not English
+		/// * 3 images on front cover page
+		/// </summary>
+		[Test]
+		public void TestConvertingSeBrosser_GDL()
+		{
+			// SUT (UsePortrait or UseLandscape must be true to avoid invalid file access)
+			var convert = InitializeForConversions(new ConvertOptions() { LanguageName = "French", UsePortrait = true }, _seBrosserOpfXml, _seBrosserOpdsXml);
+			var dataDiv0 = CheckInitialBookSetup(convert, "Se brosser n’est pas amusant\u00a0!");
+
+			// SUT
+			convert.ConvertCoverPage(_seBrosserPage1Xhtml);
+			var coverImg = CheckCoverPageImport(convert, dataDiv0, "Se brosser n’est pas amusant\u00a0!", "dd541023c3504420869a526e4ca3cddc.jpg",
+				"<p> Auteure\u00a0: Srividhya Venkat </p><p> Illustratrice\u00a0: Anupama Ajinkya Apte </p>", out XmlElement coverImageData, "fr");
+			// This book has two extra images on the front cover page.  We save this information even though it doesn't do any good.
+			CheckExtraCoverImages(convert._bloomDoc, "61fd7e1fd7a0b699c82eb4f089a455f7.png", "95e805cc9f03ab235937124ab44755fa.png");
+
+			// SUT
+			var result = convert.ConvertContentPage(1, _seBrosserPage2Xhtml);
+			Assert.That(result, Is.True, "converting Se brosser n’est pas amusant! chapter 2 succeeded");
+			var page1Img = CheckTrueContentPageImport(convert._bloomDoc, "1", 2, "4594ef062d29d28a1a316e4877288d1b.jpg",
+				 @"<p>Quand Rohan se réveilla, il commença à jouer avec Jimmy, son chien.</p>
+<p>«"+"\u00a0"+@"Il y a quelque chose que tu devrais faire en premier"+"\u00a0"+@"!"+"\u00a0"+@"», lui dit Riya, sa grande sœur. «"+"\u00a0"+@"BROSSE-TOI LES DENTS"+"\u00a0"+@"!"+"\u00a0"+@"»</p>
+<p><b>OUAF"+"\u00a0"+@"!</b></p>", "fr");
+
+			// SUT
+			result = convert.ConvertContentPage(2, _seBrosserPage14Xhtml);
+			Assert.That(result, Is.True, "converting Se brosser n’est pas amusant! chapter 14 succeeded");
+			var page2Img = CheckTrueContentPageImport(convert._bloomDoc, "2", 3, "d15743d01c55f04032656151f1c9b618.jpg",
+				@"<p><i>Les microbes disent"+"\u00a0"+@": dégoûtant, crasseux et sale, c’est AMUSANT"+"\u00a0"+@"!</i><br /><i>Je dis, je brosse et je lave et je sais que j’ai gagné"+"\u00a0"+@"!</i><br /><i>Les germes disent, ne te baigne jamais, c’est une perte de temps"+"\u00a0"+@"!</i><br /><i>Je dis, sentir bon avec du savon est si agréable.</i><br /><i>Un vilain germe dit"+"\u00a0"+@": ne ramasse pas tes affaires,</i><br /><i>La maison a meilleure apparence de cette façon.</i><br /><i>Je dis, je range parce que j’aime mes affaires</i><br /><i>C’est un bon moyen de terminer ma journée"+"\u00a0"+@"!</i><br /><i>Et je me sens mieux à tous points de vue</i><br /><i>Je me sens mieux à tous points de vue"+"\u00a0"+@"!</i><br /><i>JE ME SENS MIEUX À TOUS POINTS DE VUE"+"\u00a0"+@"!</i></p>
+<p>Maintenant, compose ta chanson secrète et fredonne-la<br />lorsque tu fais des choses ennuyeuses"+"\u00a0"+@"!</p>", "fr");
+
+			// SUT
+			result = convert.ConvertContentPage(3, _seBrosserPage15Xhtml);
+			Assert.That(result, Is.True, "converting Se brosser n’est pas amusant! chapter 15 (end page 1/3) succeeded");
+			var pages = convert._bloomDoc.SelectNodes("/html/body/div[contains(@class,'bloom-page')]").Cast<XmlElement>().ToList();
+			Assert.That(pages.Count, Is.EqualTo(3), "Three pages should exist after converting the cover page, two content pages, and one end page.");
+
+			// SUT
+			result = convert.ConvertContentPage(4, _seBrosserPage16Xhtml);
+			Assert.That(result, Is.True, "converting Se brosser n’est pas amusant! chapter 16 (end page 2/3) succeeded");
+			pages = convert._bloomDoc.SelectNodes("/html/body/div[contains(@class,'bloom-page')]").Cast<XmlElement>().ToList();
+			Assert.That(pages.Count, Is.EqualTo(3), "Three pages should exist after converting the cover page, two content pages, and two end pages.");
+
+			// SUT
+			result = convert.ConvertContentPage(5, _seBrosserPage17Xhtml);
+			Assert.That(result, Is.True, "converting Se brosser n’est pas amusant! chapter 17 (end page 3/3) succeeded");
+			CheckTwoPageBookAfterEndPages(convert, coverImg, coverImageData, page1Img, page2Img,
+				// Don't bother adding words for "Copyright" when it's not English.
+				"© Pratham Books, 2016", "CC\u00a0BY\u00a04.0", "Anupama Ajinkya Apte",
+				"© Pratham Books, 2016", "http://creativecommons.org/licenses/by/4.0/",
+				"<p>«\u00a0Se brosser n’est pas amusant\u00a0!\u00a0» a été publié sur StoryWeaver par Pratham Books. "+ @"Le développement de ce livre a été soutenu par Fortis Charitable Foundation. www.prathambooks.org</p>
+<p>Toutes les images de Anupama Ajinkya Apte. © Pratham Books, 2016. Certains droits réservés. Publié sous licence "+ "CC\u00a0BY\u00a04.0.</p>",
+				new string[] {
+					"<p> Se brosser n’est pas amusant\u00a0! (Français) </p>",
+					"Venez, commencez à tisser aujourd’hui et aidez-nous à mettre un livre dans la main de chaque enfant\u00a0!",
+					"<p> Rohan n’aime ni se brosser les dents ni prendre de bain. Mais sa sœur Riya lui révèle un secret qui le fait changer d’avis\u00a0! </p>",
+					"<p> C’est un livre de niveau\u00a02 pour les enfants qui ",
+					"<img src=\"d710444fa4fa11e970eed00fa1977069.png\" /> Pratham Books passe"
+				}, "fr");
+		}
+
+		const string _seBrosserOpfXml = @"<?xml version=""1.0"" encoding=""UTF-8""?>
+<package xmlns=""http://www.idpf.org/2007/opf"" version=""3.0"" unique-identifier=""uid"">
+	<metadata xmlns:dc=""http://purl.org/dc/elements/1.1/"">
+		<dc:identifier id=""uid"">8ef2dfe0-8ffc-439b-87c7-44cff15b5791</dc:identifier>
+		<dc:title>Se brosser n’est pas amusant"+"\u00a0"+@"!</dc:title>
+		<dc:language>fr</dc:language>
+		<meta property=""dcterms:modified"">2020-02-21T10:41:33Z</meta>
+		<dc:description>Rohan n’aime ni se brosser les dents ni prendre de bain. Mais sa sœur Riya lui révèle un secret qui le fait changer d’avis !</dc:description>
+		<dc:creator id=""contributor_1"">Srividhya Venkat</dc:creator>
+		<meta refines=""#contributor_1"" property=""role"" scheme=""marc:relators"">aut</meta>
+		<dc:contributor id=""contributor_2"">Anupama Ajinkya Apte</dc:contributor>
+		<meta refines=""#contributor_2"" property=""role"" scheme=""marc:relators"">ill</meta>
+	</metadata>
+	<manifest>
+		<item href=""toc.xhtml"" id=""toc"" media-type=""application/xhtml+xml"" properties=""nav"" />
+		<item href=""epub.css"" id=""css"" media-type=""text/css"" />
+		<item href=""dd541023c3504420869a526e4ca3cddc.jpg"" id=""cover"" media-type=""image/jpeg"" properties=""cover-image"" />
+		<item href=""61fd7e1fd7a0b699c82eb4f089a455f7.png"" id=""image-9936-1"" media-type=""image/png"" />
+		<item href=""95e805cc9f03ab235937124ab44755fa.png"" id=""image-9937-2"" media-type=""image/png"" />
+		<item href=""4594ef062d29d28a1a316e4877288d1b.jpg"" id=""image-9938-3"" media-type=""image/jpeg"" />
+		<item href=""9a933d774adb971cea685e868efd0b5a.jpg"" id=""image-9939-4"" media-type=""image/jpeg"" />
+		<item href=""45cca845a39ed43b1517736ce5e99c9b.jpg"" id=""image-9940-5"" media-type=""image/jpeg"" />
+		<item href=""a91bc92265480053ef73f2c159b08e20.jpg"" id=""image-9941-6"" media-type=""image/jpeg"" />
+		<item href=""827cf3d4915332f25204d1e336cff093.jpg"" id=""image-9942-7"" media-type=""image/jpeg"" />
+		<item href=""3ac62bb27770284b5cf6d290e16fc061.jpg"" id=""image-9943-8"" media-type=""image/jpeg"" />
+		<item href=""c04c33e207d481f781dc7f195d9c5e7f.jpg"" id=""image-9944-9"" media-type=""image/jpeg"" />
+		<item href=""d462b1a2950baa89d19f15e7279c999d.jpg"" id=""image-9945-10"" media-type=""image/jpeg"" />
+		<item href=""5c10c20b32181557c791ded7707a0144.jpg"" id=""image-9946-11"" media-type=""image/jpeg"" />
+		<item href=""4a9a97c59b2aabe5925269ea02953c40.jpg"" id=""image-9947-12"" media-type=""image/jpeg"" />
+		<item href=""6bce421010dadea78c0758610ad8acea.jpg"" id=""image-9948-13"" media-type=""image/jpeg"" />
+		<item href=""d15743d01c55f04032656151f1c9b618.jpg"" id=""image-9949-14"" media-type=""image/jpeg"" />
+		<item href=""d710444fa4fa11e970eed00fa1977069.png"" id=""image-9950-15"" media-type=""image/png"" />
+		<item href=""a5c66ea0438e97ee66266fcc2890dcfd.png"" id=""image-9951-16"" media-type=""image/png"" />
+		<item href=""chapter-1.xhtml"" id=""chapter-1"" media-type=""application/xhtml+xml"" />
+		<item href=""chapter-2.xhtml"" id=""chapter-2"" media-type=""application/xhtml+xml"" />
+		<item href=""chapter-14.xhtml"" id=""chapter-14"" media-type=""application/xhtml+xml"" />
+		<item href=""chapter-15.xhtml"" id=""chapter-15"" media-type=""application/xhtml+xml"" />
+		<item href=""chapter-16.xhtml"" id=""chapter-16"" media-type=""application/xhtml+xml"" />
+		<item href=""chapter-17.xhtml"" id=""chapter-17"" media-type=""application/xhtml+xml"" />
+	</manifest>
+</package>";
+		const string _seBrosserOpdsXml = @"<feed xmlns='http://www.w3.org/2005/Atom' xmlns:lrmi='http://purl.org/dcx/lrmi-terms/' xmlns:dc='http://purl.org/dc/terms/' xmlns:dcterms='http://purl.org/dc/terms/' xmlns:opds='http://opds-spec.org/2010/catalog'>
+<title>Global Digital Library - Book Catalog [extract]</title>
+<entry>
+<id>urn:uuid:8ef2dfe0-8ffc-439b-87c7-44cff15b5791</id>
+<title>Se brosser n’est pas amusant !</title>
+<author>
+<name>Srividhya Venkat</name>
+</author>
+<contributor type=""Illustrator"">
+<name>Anupama Ajinkya Apte</name>
+</contributor>
+<dc:license>Creative Commons Attribution 4.0 International</dc:license>
+<dc:publisher>Pratham books</dc:publisher>
+<updated>2017-11-10T00:00:00Z</updated>
+<dc:created>2017-11-10T00:00:00Z</dc:created>
+<published>2017-11-10T00:00:00Z</published>
+<lrmi:educationalAlignment alignmentType=""readingLevel"" targetName=""Level 2"" />
+<summary>Rohan n’aime ni se brosser les dents ni prendre de bain. Mais sa sœur Riya lui révèle un secret qui le fait changer d’avis !</summary>
+<link href=""https://res.cloudinary.com/dwqxoowxi/f_auto,q_auto/dd541023c3504420869a526e4ca3cddc"" type=""image/jpeg"" rel=""http://opds-spec.org/image"" />
+<link href=""https://res.cloudinary.com/dwqxoowxi/f_auto,q_auto/dd541023c3504420869a526e4ca3cddc?width=200"" type=""image/png"" rel=""http://opds-spec.org/image/thumbnail"" />
+<link href=""https://books.digitallibrary.io/epub/fr/8ef2dfe0-8ffc-439b-87c7-44cff15b5791.epub"" type=""application/epub+zip"" rel=""http://opds-spec.org/acquisition/open-access"" />
+<link href=""https://books.digitallibrary.io/pdf/fr/8ef2dfe0-8ffc-439b-87c7-44cff15b5791.pdf"" type=""application/pdf"" rel=""http://opds-spec.org/acquisition/open-access"" />
+<dcterms:language>French</dcterms:language>
+</entry>
+</feed>";
+		const string _seBrosserPage1Xhtml = @"<html xmlns=""http://www.w3.org/1999/xhtml"">
+<head>
+    <title>Chapter 1</title>
+    <link href=""epub.css"" rel=""stylesheet"" type=""text/css""/>
+</head>
+<body><img src=""dd541023c3504420869a526e4ca3cddc.jpg"" /> 
+<img src=""61fd7e1fd7a0b699c82eb4f089a455f7.png"" /> 
+<img src=""95e805cc9f03ab235937124ab44755fa.png"" /> 
+<p> <b> Se brosser n’est pas amusant&#xa0;! </b> </p> 
+<p> Auteure&#xa0;: Srividhya Venkat </p> 
+<p> Illustratrice&#xa0;: Anupama Ajinkya Apte </p></body>
+</html>";
+		const string _seBrosserPage2Xhtml = @"<html xmlns=""http://www.w3.org/1999/xhtml"">
+<head>
+    <title>Chapter 2</title>
+    <link href=""epub.css"" rel=""stylesheet"" type=""text/css""/>
+</head>
+<body><img src=""4594ef062d29d28a1a316e4877288d1b.jpg"" /> 
+<p> Quand Rohan se réveilla, il commença à jouer avec Jimmy, son chien. <br /> </p> 
+<p> <br /> </p> 
+<p> «&#xa0;Il y a quelque chose que tu devrais faire en premier&#xa0;!&#xa0;», lui dit Riya, sa grande sœur. «&#xa0;BROSSE-TOI LES DENTS&#xa0;!&#xa0;» <br /> </p> 
+<p> <br /> </p> 
+<p> <b> OUAF&#xa0;! </b> <br /> </p></body>
+</html>";
+		const string _seBrosserPage14Xhtml = @"<html xmlns=""http://www.w3.org/1999/xhtml"">
+<head>
+    <title>Chapter 14</title>
+    <link href=""epub.css"" rel=""stylesheet"" type=""text/css""/>
+</head>
+<body><img src=""d15743d01c55f04032656151f1c9b618.jpg"" /> 
+<p> <i> Les microbes disent&#xa0;: dégoûtant, crasseux et sale, c’est AMUSANT&#xa0;! </i> <br /> <i> Je dis, je brosse et je lave et je sais que j’ai gagné&#xa0;! </i> <br /> <i> Les germes disent, ne te baigne jamais, c’est une perte de temps&#xa0;! </i> <br /> <i> Je dis, sentir bon avec du savon est si agréable. </i> <br /> <i> Un vilain germe dit&#xa0;: ne ramasse pas tes affaires, </i> <br /> <i> La maison a meilleure apparence de cette façon. </i> <br /> <i> Je dis, je range parce que j’aime mes affaires </i> <br /> <i> C’est un bon moyen de terminer ma journée&#xa0;! </i> <br /> <i> Et je me sens mieux à tous points de vue </i> <br /> <i> Je me sens mieux à tous points de vue&#xa0;! </i> <br /> <i> JE ME SENS MIEUX À TOUS POINTS DE VUE&#xa0;! </i> </p> 
+<p> <br /> </p> 
+<p> Maintenant, compose ta chanson secrète et fredonne-la <br /> lorsque tu fais des choses ennuyeuses&#xa0;! </p> 
+<p> <br /> <br /> </p></body>
+</html>";
+		const string _seBrosserPage15Xhtml = @"<html xmlns=""http://www.w3.org/1999/xhtml"">
+<head>
+    <title>Chapter 15</title>
+    <link href=""epub.css"" rel=""stylesheet"" type=""text/css""/>
+</head>
+<body><img src=""d710444fa4fa11e970eed00fa1977069.png"" /> 
+<p> Ce livre a été rendu possible grâce à la plate-forme StoryWeaver de Pratham Books. Le contenu sous licence Creative Commons peut être téléchargé, traduit et peut même être utilisé pour créer de nouvelles histoires à condition que vous donniez le crédit approprié, et indiquiez si des modifications ont été apportées. Pour en savoir plus à ce sujet, ainsi que sur les conditions d’utilisation et d’attribution complètes, veuillez consulter le lien suivant. </p> 
+<p> Attribution de l’histoire&#xa0;: </p> Cette histoire, «&#xa0;Se brosser n’est pas amusant&#xa0;!&#xa0;» est écrite par Srividhya Venkat . © Pratham Books, 2016. Certains droits réservés. Publié sous licence CC&#xa0;BY&#xa0;4.0. 
+<p> Autres crédits&#xa0;: </p> «&#xa0;Se brosser n’est pas amusant&#xa0;!&#xa0;» a été publié sur StoryWeaver par Pratham Books. Le développement de ce livre a été soutenu par Fortis Charitable Foundation. www.prathambooks.org 
+<p> Attributions de l’illustration&#xa0;: </p> Page de couverture&#xa0;: Enfants faisant des grimaces et se brossant les dents en s’amusant , de Anupama Ajinkya Apte © Pratham Books, 2016. Certains droits réservés. Publié sous licence CC&#xa0;BY&#xa0;4.0. Page&#xa0;2&#xa0;: Fille appliquant la pâte sur la brosse à dents pour un garçon , de Anupama Ajinkya Apte © Pratham Books, 2016. Certains droits réservés. Publié sous licence CC&#xa0;BY&#xa0;4.0. Déni de responsabilité&#xa0;: https://www.storyweaver.org.in/terms_and_conditions 
+<img src=""a5c66ea0438e97ee66266fcc2890dcfd.png"" /> 
+<p> Certains droits réservés. Ce livre est sous licence CC-BY-4.0. Vous pouvez copier, modifier, distribuer et exécuter la publication même à des fins commerciales, sans demander la permission. Pour les conditions d’utilisation et d’attribution complètes, allez sur http://creativecommons.org/licenses/by/4.0/. </p> Le développement de ce livre a été soutenu par Fortis Charitable Foundation.</body>
+</html>";
+		const string _seBrosserPage16Xhtml = @"<html xmlns=""http://www.w3.org/1999/xhtml"">
+<head>
+    <title>Chapter 16</title>
+    <link href=""epub.css"" rel=""stylesheet"" type=""text/css""/>
+</head>
+<body><img src=""d710444fa4fa11e970eed00fa1977069.png"" /> 
+<p> Ce livre a été rendu possible grâce à la plate-forme StoryWeaver de Pratham Books. Le contenu sous licence Creative Commons peut être téléchargé, traduit et peut même être utilisé pour créer de nouvelles histoires à condition que vous donniez le crédit approprié, et indiquiez si des modifications ont été apportées. Pour en savoir plus à ce sujet, ainsi que sur les conditions d’utilisation et d’attribution complètes, veuillez consulter le lien suivant. </p> 
+<p> Attributions de l’illustration&#xa0;: </p> Page&#xa0;3&#xa0;: Enfants chantant pour rendre amusantes les tâches ennuyeuses, comme se brosser les dents , de Anupama Ajinkya Apte © Pratham Books, 2016. Certains droits réservés. Publié sous licence CC&#xa0;BY&#xa0;4.0. Déni de responsabilité&#xa0;: https://www.storyweaver.org.in/terms_and_conditions 
+<img src=""a5c66ea0438e97ee66266fcc2890dcfd.png"" /> 
+<p> Certains droits réservés. Ce livre est sous licence CC-BY-4.0. Vous pouvez copier, modifier, distribuer et exécuter la publication même à des fins commerciales, sans demander la permission. Pour les conditions d’utilisation et d’attribution complètes, allez sur http://creativecommons.org/licenses/by/4.0/. </p> Le développement de ce livre a été soutenu par Fortis Charitable Foundation.</body>
+</html>";
+		const string _seBrosserPage17Xhtml = @"<html xmlns=""http://www.w3.org/1999/xhtml"">
+<head>
+    <title>Chapter 17</title>
+    <link href=""epub.css"" rel=""stylesheet"" type=""text/css""/>
+</head>
+<body><p> Se brosser n’est pas amusant&#xa0;! (Français) </p> 
+<p> Rohan n’aime ni se brosser les dents ni prendre de bain. Mais sa sœur Riya lui révèle un secret qui le fait changer d’avis&#xa0;! </p> 
+<p> C’est un livre de niveau&#xa0;2 pour les enfants qui reconnaissent des mots familiers et peuvent lire de nouveaux mots avec de l’aide. </p> 
+<img src=""d710444fa4fa11e970eed00fa1977069.png"" /> Pratham Books passe au numérique pour tisser un nouveau chapitre dans le domaine des histoires multilingues pour enfants. Rapprocher les enfants, les auteurs, les illustrateurs et des éditeurs. Rassembler enseignants et traducteurs. Créer un riche tissu d’histoires multilingues sous licence ouverte pour les enfants de l’Inde et du monde. Notre plate-forme en ligne unique, StoryWeaver, est un terrain de jeu où les enfants, les parents, les enseignants et les bibliothécaires peuvent faire preuve de créativité. Venez, commencez à tisser aujourd’hui et aidez-nous à mettre un livre dans la main de chaque enfant&#xa0;!</body>
 </html>";
 	}
 }

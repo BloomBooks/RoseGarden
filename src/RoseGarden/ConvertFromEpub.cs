@@ -35,10 +35,31 @@ namespace RoseGarden
 		internal readonly LanguageData _languageData = new LanguageData();
 		internal BookMetaData _bookMetaData;
 		internal string _publisher;
+		internal string _creditsLang = "en";	// default assumption until proven otherwise (and true more often than for any other value)
 
 		private int _endCreditsStart = Int32.MaxValue;  // Assume no end credits pages to begin with.
 		private int _endCreditsPageCount = 0;
-		private const string kMatchRawPrathamIllustrationCredit = "([^©]*)(©.*[12][09][0-9][0-9]\\.?).*Released under[ a]* (CC[ A-Z0-9.-]+) license";
+
+		const string kStoryAttribution = "Story Attribution:";
+		const string kOtherCredits = "Other Credits:";
+		const string kIllustrationAttribs = "Illustration Attributions:";
+		const string kImagesAttribs = "Images Attributions:";   // alternative to kIllustrationAttribs
+		const string kDisclaimer = "Disclaimer:";
+		const string kMatchCreditString = @"(©[^0-9]*, [12][09][0-9][0-9]).* (CC\sBY[A-Z0-9-.\s]*) license";
+		const string kMatchPageString = "(Cover [Pp]age:|Page [0-9]+:)";
+		const string kMatchPageNumber = "Page ([0-9]+):";
+		const string kMatchRawPrathamIllustrationCredit = @"([^©]*)(©.*[12][09][0-9][0-9]\.?).*Released under[ a]* (CC[\sA-Z0-9.-]+) license";
+
+		const string kFrenchStoryAttribution = "Attribution de l’histoire\u00a0:";
+		const string kFrenchOtherCredits = "Autres crédits\u00a0:";
+		const string kFrenchIllustrationAttribs = "Attributions de l’illustration\u00a0:";
+		const string kFrenchDisclaimer = "Déni de responsabilité\u00a0:";
+		const string kFrenchMatchCreditString = @"(©[^0-9]*, [12][09][0-9][0-9]).* licence\s(CC\sBY[A-Z0-9-.\s]*)";
+		const string kFrenchMatchPageString = @"(Page de couverture\s*:|Page\s[0-9]+\s*:)";
+		const string kFrenchMatchPageNumber = @"Page\s([0-9]+)\s*:";
+		const string kFrenchMatchRawPrathamIllustrationCredit = @"([^©]*)(©.*[12][09][0-9][0-9]\.?).*Publié sous licence\s(CC\s[\sA-Z0-9.-]+)\.";
+
+
 		internal StringBuilder _contributionsXmlBldr = new StringBuilder();
 		Dictionary<string, List<int>> _creditsAndPages;
 		Dictionary<string, Book> _bloomlibraryBooks;
@@ -529,15 +550,6 @@ namespace RoseGarden
 		{
 			if (_options.UsePortrait || _options.UseLandscape)
 				return;     // user specifically demanded a particular layout
-			// African Storybook Project books should be landscape by default instead of portrait.
-			//if (_publisher != null && _publisher.ToLowerInvariant().StartsWith("african storybook", StringComparison.InvariantCulture))
-			//{
-			//	if (_options.Verbose)
-			//		Console.WriteLine("INFO: setting book layout to landscape for {0}", _epubMetaData.Title);
-			//	_options.UseLandscape = true;
-			//	ChangePagesToLandscape();
-			//	return;
-			//}
 			for (int pageNumber = 1; pageNumber < _epubMetaData.PageFiles.Count; ++pageNumber)
 				ScanPageForMetrics(pageNumber);
 			_endCreditsStart = Int32.MaxValue;	// reset credits page marker
@@ -595,7 +607,7 @@ namespace RoseGarden
 			var copyright = Regex.Match(attributionText, "\\((©.*, [12][09][0-9][0-9])\\)", RegexOptions.CultureInvariant);
 			if (copyright.Success)
 			{
-				SetBookCopyright(copyright.Groups[1].Value);
+				SetBookCopyright(copyright.Groups[1].Value, "en");
 			}
 			var license = Regex.Match(attributionText, "under a* *(CC.*) license", RegexOptions.CultureInvariant);
 			if (license.Success)
@@ -607,6 +619,7 @@ namespace RoseGarden
 		internal void SetBookLicense(string licenseAbbreviation)
 		{
 			var url = "";
+			licenseAbbreviation = licenseAbbreviation.Replace("\u00a0", " ").Trim('.', ' ');
 			switch (licenseAbbreviation)
 			{
 				case "CC BY":
@@ -653,9 +666,19 @@ namespace RoseGarden
 			}
 		}
 
-		private void SetBookCopyright(string matchedCopyright)
+		private void SetBookCopyright(string matchedCopyright, string lang)
 		{
-			var text = "Copyright " + matchedCopyright.Trim();
+			string preface;
+			switch (lang)
+			{
+				case "en":
+					preface = "Copyright ";
+					break;
+				default:
+					preface = "";
+					break;
+			}
+			var text = preface + matchedCopyright.Trim();
 			_bookMetaData.Copyright = text;
 			SetDataDivTextValue("copyright", text);
 		}
@@ -1104,17 +1127,25 @@ namespace RoseGarden
 			}
 		}
 
+		/// <summary>
+		/// Start by removing the xmlns attribute added gratuitously by the C# library code.  Then
+		/// remove &lt;br/&gt; at the beginning or end of a paragraph and adjust whitespace around other
+		/// markers (like &lt;b&gt; or &lt;/b&gt;) to minimize extra spaces.
+		/// </summary>
 		private string FixInnerXml(string innerXml)
 		{
-			var plain = RemoveXmlnsAttribsFromXmlString(innerXml);
-			plain = Regex.Replace(plain, "<br */*>", Environment.NewLine).Trim();
-			plain = Regex.Replace(plain, @"<(b|i|strong|em)>\s+", " <$1>");
-			plain = Regex.Replace(plain, @"  +<(b|i|strong|em)>", " <$1>");
-			plain = Regex.Replace(plain, @"\s+</(b|i|strong|em)>", "</$1> ");	// allow for nesting <b></b> three times
-			plain = Regex.Replace(plain, @"\s+</(b|i|strong|em)>", "</$1> ");
-			plain = Regex.Replace(plain, @"\s+</(b|i|strong|em)>", "</$1> ");
-			plain = Regex.Replace(plain, @"</(b|i|strong|em)>  +", "</$1> ");
-			return plain.Trim();
+			// using multiple variables is to aid in debugging...
+			var plain0 = RemoveXmlnsAttribsFromXmlString(innerXml);
+			var plain1 = Regex.Replace(plain0, @"\s*<br />\s*((</(b|i|strong|em)>)*\s*)$", "$2");
+			var plain2 = Regex.Replace(plain1, @"^\s*<br />\s*", "");
+			var plain3 = Regex.Replace(plain2, @"<(b|i|strong|em)>\s+", " <$1>");
+			var plain4 = Regex.Replace(plain3, @"  +<(b|i|strong|em)>", " <$1>");
+			var plain5 = Regex.Replace(plain4, @"\s+</(b|i|strong|em)>", "</$1> ");	// allow for nesting <b></b> three times
+			var plain6 = Regex.Replace(plain5, @"\s+</(b|i|strong|em)>", "</$1> ");
+			var plain7 = Regex.Replace(plain6, @"\s+</(b|i|strong|em)>", "</$1> ");
+			var plain8 = Regex.Replace(plain7, @"</(b|i|strong|em)>  +", "</$1> ");
+			var plain9 = Regex.Replace(plain8, @"\s*<br />\s*", "<br />");
+			return plain9.Trim();
 		}
 
 		private void StoreImage(int imageIdx, List<XmlElement> images, XmlElement img)
@@ -1251,16 +1282,16 @@ namespace RoseGarden
 				var divs = body.SelectNodes(".//div[@class='back-cover-top' or @class='back-cover-bottom']").Cast<XmlElement>().ToList();
 				if (divs.Count == 0)
 				{
-					// The inside back cover is better because it usually allows more space than the outside back cover, which
-					// may have some branding taking up space.  It also isn't enforcing centering of lines, which distorts the
-					// original appearance.
-					var insideBackCoverDiv = GetOrCreateDataDivElement("insideBackCover", "en");
-					var backCoverXml = RemoveXmlnsAttribsFromXmlString(body.InnerXml);
-					insideBackCoverDiv.InnerXml = backCoverXml;
 					if (NeedCopyrightInformation())
 					{
 						ProcessRawCreditsPageForCopyrights(body, pageNumber);
 					}
+					// The inside back cover is better because it usually allows more space than the outside back cover, which
+					// may have some branding taking up space.  It also isn't enforcing centering of lines, which distorts the
+					// original appearance.
+					var insideBackCoverDiv = GetOrCreateDataDivElement("insideBackCover", _creditsLang);
+					var backCoverXml = RemoveXmlnsAttribsFromXmlString(body.InnerXml);
+					insideBackCoverDiv.InnerXml = backCoverXml;
 					WriteAccumulatedImageAndOtherCredits();
 					return true;
 				}
@@ -1281,7 +1312,7 @@ namespace RoseGarden
 		{
 			if (_creditsAndPages.Count > 0 || _contributionsXmlBldr.Length > 0)
 			{
-				var contributions = GetOrCreateDataDivElement("originalContributions", "en");
+				var contributions = GetOrCreateDataDivElement("originalContributions", _creditsLang);
 				if (!String.IsNullOrWhiteSpace(contributions.InnerText))
 				{
 					_contributionsXmlBldr.Insert(0, Environment.NewLine);
@@ -1291,7 +1322,10 @@ namespace RoseGarden
 				if (_creditsAndPages.Count == 1)
 				{
 					var creditText = FormatIllustrationCredit(_creditsAndPages.Keys.First());
-					_contributionsXmlBldr.AppendLine($"<p>All images {creditText}</p>");
+					if (_creditsLang == "fr")
+						_contributionsXmlBldr.AppendLine($"<p>Toutes les images {creditText}</p>");
+					else
+						_contributionsXmlBldr.AppendLine($"<p>All images {creditText}</p>");
 				}
 				else if (_creditsAndPages.Count > 1)
 				{
@@ -1308,7 +1342,10 @@ namespace RoseGarden
 
 		private string FormatIllustrationCredit(string credit)
 		{
-			var match = Regex.Match(credit, kMatchRawPrathamIllustrationCredit);
+			var matchCredits = kMatchRawPrathamIllustrationCredit;
+			if (_creditsLang == "fr")
+				matchCredits = kFrenchMatchRawPrathamIllustrationCredit;
+			var match = Regex.Match(credit, matchCredits);
 			if (match.Success)
 			{
 				var creator = MakeSafeForXhtml(match.Groups[1].Value.Trim(' ', '.'));
@@ -1316,7 +1353,10 @@ namespace RoseGarden
 				var license = match.Groups[3].Value.Trim();
 				if (copyright.StartsWith("Copyright", StringComparison.InvariantCulture))
 					copyright = copyright.Substring(9).Trim();
-				return String.Format("by {0}. Copyright {1}. Some rights reserved. Released under the {2} license.", creator, copyright, license);
+				if (_creditsLang == "fr")
+					return string.Format("de {0}. {1}. Certains droits réservés. Publié sous licence {2}.", creator, copyright, license);
+				else
+					return String.Format("by {0}. Copyright {1}. Some rights reserved. Released under the {2} license.", creator, copyright, license);
 			}
 			return credit;	// stick with what we have...
 		}
@@ -1407,7 +1447,14 @@ namespace RoseGarden
 			if (bodyText.Contains("Pratham Books") && bodyText.Contains("©") &&
 				(bodyText.Contains(kStoryAttribution) || bodyText.Contains(kIllustrationAttribs) || bodyText.Contains(kImagesAttribs)))
 			{
-				ProcessRawPrathamCreditsPage(bodyText, pageNumber);
+				ProcessRawPrathamCreditsPage(bodyText, pageNumber, "en");
+				return;
+			}
+			if (bodyText.Contains("Pratham Books") && bodyText.Contains("Creative Commons") &&
+				(bodyText.Contains(kFrenchStoryAttribution) || bodyText.Contains(kFrenchIllustrationAttribs)))
+			{
+				_creditsLang = "fr";
+				ProcessRawPrathamCreditsPage(bodyText, pageNumber, "fr");
 				return;
 			}
 			var artCopyright = "";
@@ -1434,7 +1481,7 @@ namespace RoseGarden
 					{
 						bookCopyright = copyrightMatch;
 					}
-					SetBookCopyright(bookCopyright);
+					SetBookCopyright(bookCopyright, "en");
 				}
 				else
 				{
@@ -1469,7 +1516,7 @@ namespace RoseGarden
 						if (year == null)
 							year = DateTime.Now.Year.ToString();
 						bookCopyright = String.Format("© Book Dash, {0}", year);
-						SetBookCopyright(bookCopyright);
+						SetBookCopyright(bookCopyright, "en");
 					}
 				}
 			}
@@ -1505,7 +1552,7 @@ namespace RoseGarden
 				else
 					artCopyrightAndLicense = $"All illustrations by {artCreator}. Copyright {artCopyrightAndLicense}";
 				_contributionsXmlBldr.AppendLine($"<p>{artCopyrightAndLicense}</p>");
-				var contributions = GetOrCreateDataDivElement("originalContributions", "en");
+				var contributions = GetOrCreateDataDivElement("originalContributions", _creditsLang);
 				if (!String.IsNullOrWhiteSpace(contributions.InnerText))
 				{
 					_contributionsXmlBldr.Insert(0, Environment.NewLine);
@@ -1616,22 +1663,43 @@ namespace RoseGarden
 			return abbrev;
 		}
 
-		const string kStoryAttribution = "Story Attribution:";
-		const string kOtherCredits = "Other Credits:";
-		const string kIllustrationAttribs = "Illustration Attributions:";
-		const string kImagesAttribs = "Images Attributions:";	// alternative to kIllustrationAttribs
-		const string kDisclaimer = "Disclaimer:";
-
-		private void ProcessRawPrathamCreditsPage(string bodyText, int pageNumber)
+		private void ProcessRawPrathamCreditsPage(string bodyText, int pageNumber, string lang)
 		{
+			string storyAttributionHeader;
+			string otherCreditsHeader;
+			string illustrationAttribsHeader;
+			string disclaimerHeader;
+			string matchCreditString;
+			string matchPageString;
+			switch (lang)
+			{
+				case "fr":
+					storyAttributionHeader = kFrenchStoryAttribution;//.Replace("\u00a0", "");
+					otherCreditsHeader = kFrenchOtherCredits;//.Replace("\u00a0", "");
+					illustrationAttribsHeader = kFrenchIllustrationAttribs;//.Replace("\u00a0", "");
+					disclaimerHeader = kFrenchDisclaimer;//.Replace("\u00a0", "");
+					matchCreditString = kFrenchMatchCreditString;
+					matchPageString = kFrenchMatchPageString;
+					break;
+				default:
+					storyAttributionHeader = kStoryAttribution;
+					otherCreditsHeader = kOtherCredits;
+					illustrationAttribsHeader = kIllustrationAttribs;
+					disclaimerHeader = kDisclaimer;
+					matchCreditString = kMatchCreditString;
+					matchPageString = kMatchPageString;
+					break;
+			}
+			bodyText = bodyText.Replace("\u00a0", "&#xa0;");
 			bodyText = Regex.Replace(bodyText, "\\s+", " ");
+			bodyText = bodyText.Replace("&#xa0;", "\u00a0");
 			bodyText = Regex.Replace(bodyText, " ([,;:!?.])", "$1").Replace(":'", ": '");
-			var beginStoryAttrib = bodyText.IndexOf(kStoryAttribution, StringComparison.InvariantCulture);
-			var beginOtherCredits = bodyText.IndexOf(kOtherCredits, StringComparison.InvariantCulture);
-			var beginIllustration = bodyText.IndexOf(kIllustrationAttribs, StringComparison.InvariantCulture);
+			var beginStoryAttrib = bodyText.IndexOf(storyAttributionHeader, StringComparison.InvariantCulture);
+			var beginOtherCredits = bodyText.IndexOf(otherCreditsHeader, StringComparison.InvariantCulture);
+			var beginIllustration = bodyText.IndexOf(illustrationAttribsHeader, StringComparison.InvariantCulture);
 			if (beginIllustration < 0)
 				beginIllustration = bodyText.IndexOf(kImagesAttribs, StringComparison.InvariantCulture);
-			var beginDisclaimer = bodyText.IndexOf(kDisclaimer, StringComparison.InvariantCulture);
+			var beginDisclaimer = bodyText.IndexOf(disclaimerHeader, StringComparison.InvariantCulture);
 			var copyright = GetOrCreateDataDivElement("copyright", "*");
 			if (String.IsNullOrWhiteSpace(copyright.InnerText) && beginStoryAttrib >= 0)
 			{
@@ -1643,10 +1711,10 @@ namespace RoseGarden
 				else if (beginDisclaimer > beginStoryAttrib)
 					endStoryAttrib = beginDisclaimer;
 				var storyAttrib = bodyText.Substring(beginStoryAttrib, endStoryAttrib - beginStoryAttrib);
-				var match = Regex.Match(storyAttrib, "(©[^0-9]*, [12][09][0-9][0-9]).* (CC BY[A-Z0-9-. ]*) license", RegexOptions.CultureInvariant);
+				var match = Regex.Match(storyAttrib, matchCreditString, RegexOptions.CultureInvariant);
 				if (match.Success)
 				{
-					SetBookCopyright(match.Groups[1].Value);
+					SetBookCopyright(match.Groups[1].Value, lang);
 					SetBookLicense(match.Groups[2].Value.Trim());
 				}
 			}
@@ -1657,7 +1725,7 @@ namespace RoseGarden
 					endOtherCredits = beginIllustration;
 				else if (beginDisclaimer > 0)
 					endOtherCredits = beginDisclaimer;
-				var begin = beginOtherCredits + kOtherCredits.Length;
+				var begin = beginOtherCredits + otherCreditsHeader.Length;
 				var otherCreditsText = bodyText.Substring(begin, endOtherCredits - begin).Trim();
 				if (otherCreditsText.Length > 0)
 				{
@@ -1672,7 +1740,7 @@ namespace RoseGarden
 				if (beginDisclaimer > 0)
 					endIllustration = beginDisclaimer;
 				var illustrationAttributions = bodyText.Substring(beginIllustration, endIllustration - beginIllustration);
-				var matches = Regex.Matches(illustrationAttributions, "(Cover [Pp]age:|Page [0-9]+:)", RegexOptions.CultureInvariant);
+				var matches = Regex.Matches(illustrationAttributions, matchPageString, RegexOptions.CultureInvariant);
 				for (int i = 0; i < matches.Count; ++i)
 				{
 					int idxBegin = matches[i].Index;
@@ -1681,25 +1749,38 @@ namespace RoseGarden
 						idxEnd = matches[i + 1].Index;
 					var credit = illustrationAttributions.Substring(idxBegin, idxEnd - idxBegin).Trim();
 					var pageText = matches[i].Groups[1].Value;
-					ProcessIllustrationAttribution(pageText, credit);
+					ProcessIllustrationAttribution(pageText, credit, lang);
 				}
 			}
 		}
 
-		private void ProcessIllustrationAttribution(string pageText, string credit)
+		private void ProcessIllustrationAttribution(string pageText, string credit, string lang)
 		{
+			string byWithSpaces;
+			string byWithoutSpaceAfter;
+			switch (lang)
+			{
+				case "fr":
+					byWithSpaces = " de ";
+					byWithoutSpaceAfter = ", de";
+					break;
+				default:
+					byWithSpaces = " by ";
+					byWithoutSpaceAfter = ", by";
+					break;
+			}
 			var creditText = credit.Substring(pageText.Length).Trim();
-			var beginCredit = creditText.IndexOf(" by ", StringComparison.InvariantCulture);
+			var beginCredit = creditText.LastIndexOf(byWithSpaces, StringComparison.InvariantCulture);
 			if (beginCredit < 0)
 			{
 				// Some books omit the space between "by" and the author's name.
-				beginCredit = creditText.IndexOf(", by", StringComparison.InvariantCulture);
+				beginCredit = creditText.LastIndexOf(byWithoutSpaceAfter, StringComparison.InvariantCulture);
 				if (beginCredit > 0)
-					beginCredit += 4;	// move past the ", by"
+					beginCredit += byWithoutSpaceAfter.Length;	// move past the ", by"
 			}
 			else
 			{
-				beginCredit += 4;	// move past the " by "
+				beginCredit += byWithSpaces.Length;	// move past the " by "
 			}
 			if (beginCredit > 0)
 				creditText = creditText.Substring(beginCredit).Trim();
@@ -1709,10 +1790,10 @@ namespace RoseGarden
 				_creditsAndPages.Add(creditText, pages);
 			}
 			int pageNumber;
-			if (pageText.ToLowerInvariant() == "cover page:")
+			if (pageText.ToLowerInvariant() == "cover page:" || pageText.ToLowerInvariant() == "page de couverture\u00a0:")
 				pageNumber = 0;
 			else
-				pageNumber = GetPageNumber(pageText) - 1;   // Content starts at page 2 for Pratham, but page 1 for Bloom.
+				pageNumber = GetPageNumber(pageText, lang) - 1;   // Content starts at page 2 for Pratham, but page 1 for Bloom.
 			pages.Add(pageNumber);
 
 			var beginDesc = pageText.Length;
@@ -1720,14 +1801,28 @@ namespace RoseGarden
 			string description = "";
 			if (beginDesc < endDesc)
 				description = credit.Substring(beginDesc, endDesc - beginDesc).Trim();
-			SetImageMetaData(pageNumber, description, creditText);
+			SetImageMetaData(pageNumber, description, creditText, lang);
 		}
 
-		private int GetPageNumber(string pageText)
+		private int GetPageNumber(string pageText, string lang)
 		{
-			int result;
-			if (int.TryParse(pageText.Substring(5, pageText.Length - 6), out result))
-				return result;
+			string matchNumber;
+			switch (lang)
+			{
+				case "fr":
+					matchNumber = kFrenchMatchPageNumber;
+					break;
+				default:
+					matchNumber = kMatchPageNumber;
+					break;
+			}
+			var match = Regex.Match(pageText, matchNumber);
+			if (match.Success)
+			{
+				int result;
+				if (int.TryParse(match.Groups[1].Value, out result))
+					return result;
+			}
 			return -1;
 		}
 
@@ -1789,19 +1884,25 @@ namespace RoseGarden
 			}
 		}
 
-		private void SetImageMetaData(int pageNumber, string description, string creditText)
+		private void SetImageMetaData(int pageNumber, string description, string creditText, string lang)
 		{
+			string matchCredit = kMatchRawPrathamIllustrationCredit;
+			if (lang == "fr")
+				matchCredit = kFrenchMatchRawPrathamIllustrationCredit;
+			string copyrightPreface = "";
+			if (lang == "en")
+				copyrightPreface = "Copyright ";
 			XmlElement img = null;
 			string creator = null;
 			string copyright = null;
 			string license = null;
-			var match = Regex.Match(creditText, kMatchRawPrathamIllustrationCredit);
+			var match = Regex.Match(creditText, matchCredit);
 			if (match.Success)
 			{
 				creator = match.Groups[1].Value.Trim(' ', '.');
 				copyright = match.Groups[2].Value.Trim(' ', '.');
 				if (copyright.StartsWith("©", StringComparison.InvariantCulture) && !copyright.ToLowerInvariant().Contains("copyright"))
-					copyright = "Copyright " + copyright;
+					copyright = copyrightPreface + copyright;
 				license = match.Groups[3].Value.Trim();
 			}
 			if (pageNumber == 0)
