@@ -35,6 +35,11 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="ConversionTests.cs" />
+    <Compile Include="ConversionTestBase.cs" />
+    <Compile Include="ConvertingEnglishGDL.cs" />
+    <Compile Include="ConvertingIndonesianGDL.cs" />
+    <Compile Include="ConvertingFrenchGDL.cs" />
+    <Compile Include="ConvertingBengaliGDL.cs" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\RoseGarden\RoseGarden.csproj">
