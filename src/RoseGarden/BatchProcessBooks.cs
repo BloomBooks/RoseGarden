@@ -230,7 +230,7 @@ namespace RoseGarden
 
 		private string GetPublisherFromOpdsEntry(XmlElement entry)
 		{
-			var publisher = "$publisher$";
+			var publisher = "PUBLISHER";
 			var divPublisher = entry.SelectSingleNode("./dc:publisher", _nsmgr) as XmlElement;
 			if (divPublisher == null)
 				divPublisher = entry.SelectSingleNode("./dcterms:publisher", _nsmgr) as XmlElement;
@@ -258,7 +258,7 @@ namespace RoseGarden
 				divLanguage = entry.SelectSingleNode("./dcterms:language", _nsmgr) as XmlElement;
 			if (divLanguage != null)
 				return divLanguage.InnerText.Trim();
-			return "$language$";
+			return "LANGUAGE";
 		}
 
 		private void UploadBooks()
@@ -416,7 +416,7 @@ namespace RoseGarden
 					allValid = false;
 				}
 			}
-			var container = _options.BookShelfContainer;
+			var container = TrimBookShelfContainerToBaseFolder();
 			if (!Directory.Exists(container))
 			{
 				if (!_options.DryRun)
