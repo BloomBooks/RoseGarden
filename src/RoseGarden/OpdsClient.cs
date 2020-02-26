@@ -317,7 +317,12 @@ namespace RoseGarden
 			if (_options.Verbose)
 				Console.WriteLine("INFO: downloading {0} into {1}", url, path);
 			if (!_options.DryRun)
+			{
+				var folder = Path.GetDirectoryName(path);
+				if (!Directory.Exists(folder))
+					Directory.CreateDirectory(folder);
 				File.WriteAllBytes(path, bytes);
+			}
 			return 0;
 		}
 

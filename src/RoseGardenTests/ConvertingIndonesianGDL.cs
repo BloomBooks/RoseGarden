@@ -42,7 +42,7 @@ namespace RoseGardenTests
 			var firstPageImage = CheckTrueContentPageImport(convert._bloomDoc, "1", 2, "d0b65a163a77bbe4caf7a8c5664e0e7d.jpg", @"<p>Namaku Shyam. Usiaku 10 tahun.
  Badanku kurus, tapi aku pemberani!
  Aku tidak suka bangun pagi untuk bersekolah.
- Aku ngantuk sekali,  sampai rasanya mau jatuh.</p>", "id");
+ Aku ngantuk sekali, sampai rasanya mau jatuh.</p>", "id");
 
 			// SUT
 			result = convert.ConvertContentPage(10, _bagaimanaPage11Xhtml);

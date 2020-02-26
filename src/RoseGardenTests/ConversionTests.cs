@@ -183,7 +183,30 @@ namespace RoseGardenTests
 </package>
 ";
 
+		/// <summary>
+		/// Test the FixInnerXml method with examples from actual books.
+		/// Each of the test strings was the content of a paragraph in the book.
+		/// </summary>
+		[Test]
+		public void TestFixInnerXml()
+		{
+			//SUT - "Une souris dans la maison"
+			var fixedXml = ConvertFromEpub.FixInnerXml("<b> «\u00a0Où\u00a0?\u00a0» , demanda papa montant sur la fenêtre. Il baissa les rideaux. <b> «\u00a0Là\u00a0!\u00a0» , s’écria maman en sautant sur la table. Les assiettes tombèrent avec fracas. <b> </b> <br /> </b></b>");
+			Assert.That(fixedXml, Is.EqualTo("<b>«\u00a0Où\u00a0?\u00a0» , demanda papa montant sur la fenêtre. Il baissa les rideaux. <b>«\u00a0Là\u00a0!\u00a0» , s’écria maman en sautant sur la table. Les assiettes tombèrent avec fracas.</b></b>"));
 
+			//SUT - "À l’intérieur du World Wide Web"
+			fixedXml = ConvertFromEpub.FixInnerXml("<b> <i> </i> </b> <i> <b> </b> </i> <i> <b> </b> </i> <b> Donc, Nettikutti, voici ce que tout le monde veut savoir\u00a0: qu’est-ce qu’Internet\u00a0? </b> <i> </i> <i> </i> <b> </b>");
+			Assert.That(fixedXml, Is.EqualTo("<b>Donc, Nettikutti, voici ce que tout le monde veut savoir\u00a0: qu’est-ce qu’Internet\u00a0?</b>"));
 
+			//SUT - "Le garçon et le tambour"
+			fixedXml = ConvertFromEpub.FixInnerXml("<i>Les</i> <i>membres du chœur</i> <i>peuvent</i> <i>bouger</i> <i>leurs</i> <i>mains</i> <i>tous</i> <i> ensemble, </i> <i>pour symboliser</i> <i>la </i> <i>rivière</i> <i>qui coule. </i> <i>Le </i> <i>blanchisseur</i> <i>et</i> <i>sa</i> <i>femme</i> <i>se dégagent</i> <i>du</i> <i></i> <i>chœur, <i>en mimant</i> <i>une</i> <i>dispute. </i> <i>Leurs </i> <i>actions</i> <i>sont</i> <i>exagérées,</i> <i>mais</i> <i>on</i> <i>n’entend <i>pas</i> <i> leurs</i> <i>voix. </i> <br /> </i></i>");
+			Assert.That(fixedXml, Is.EqualTo("<i>Les membres du chœur peuvent bouger leurs mains tous ensemble, pour symboliser la rivière qui coule. Le blanchisseur et sa femme se dégagent du chœur, <i>en mimant une dispute. Leurs actions sont exagérées, mais on n’entend <i>pas leurs voix.</i></i></i>"));
+
+			//SUT - "PLONGÉE!"
+			fixedXml = ConvertFromEpub.FixInnerXml("Les <b>poissons-perroquets ont des dents robustes qui forment un bec semblable à celui des perroquets, qu’ils utilisent pour racler les algues du corail dur. Certaines espèces ne se gênent pas pour manger des morceaux de corail également, et elles défèquent ensuite un sable fin qui finit sur la terre pour former de magnifiques plages de sable blanc. <br /> </b>");
+			Assert.That(fixedXml, Is.EqualTo("Les <b>poissons-perroquets ont des dents robustes qui forment un bec semblable à celui des perroquets, qu’ils utilisent pour racler les algues du corail dur. Certaines espèces ne se gênent pas pour manger des morceaux de corail également, et elles défèquent ensuite un sable fin qui finit sur la terre pour former de magnifiques plages de sable blanc.</b>"));
+			fixedXml = ConvertFromEpub.FixInnerXml("<b>Les poissons-clowns et les <b>anémones de mer vivent ensemble et s’entraident. Les poissons-clowns aident les anémones en nettoyant leurs tentacules et en attirant d’autres poissons pour que l’anémone les mange. Les anémones, à leur tour, permettent aux poissons-clowns de se cacher parmi leurs tentacules venimeux sans les piquer. <br /> </b></b>");
+			Assert.That(fixedXml, Is.EqualTo("<b>Les poissons-clowns et les <b>anémones de mer vivent ensemble et s’entraident. Les poissons-clowns aident les anémones en nettoyant leurs tentacules et en attirant d’autres poissons pour que l’anémone les mange. Les anémones, à leur tour, permettent aux poissons-clowns de se cacher parmi leurs tentacules venimeux sans les piquer.</b></b>"));
+		}
 	}
 }

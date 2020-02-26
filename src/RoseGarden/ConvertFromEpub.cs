@@ -195,7 +195,7 @@ namespace RoseGarden
 				if (!_options.ReplaceExistingBook)
 				{
 					Console.WriteLine("WARNING: {0} already exists.", newBookFolder);
-					Console.WriteLine("Use -F (--force) if you want to overwrite it.");
+					Console.WriteLine("Use -R (--replace) if you want to overwrite it.");
 					return;
 				}
 				if (oldBookId == null)
@@ -1129,23 +1129,68 @@ namespace RoseGarden
 
 		/// <summary>
 		/// Start by removing the xmlns attribute added gratuitously by the C# library code.  Then
-		/// remove &lt;br/&gt; at the beginning or end of a paragraph and adjust whitespace around other
+		/// remove remove unwanted <br/> markers and empty format markers and try to minimize
 		/// markers (like &lt;b&gt; or &lt;/b&gt;) to minimize extra spaces.
 		/// </summary>
-		private string FixInnerXml(string innerXml)
+		/// <remarks>
+		/// using multiple variables is to aid in debugging...
+		/// Each step should have a comment describing its intended effect.
+		/// </remarks>
+		static internal string FixInnerXml(string innerXml)
 		{
-			// using multiple variables is to aid in debugging...
-			var plain0 = RemoveXmlnsAttribsFromXmlString(innerXml);
-			var plain1 = Regex.Replace(plain0, @"\s*<br />\s*((</(b|i|strong|em)>)*\s*)$", "$2");
-			var plain2 = Regex.Replace(plain1, @"^\s*<br />\s*", "");
-			var plain3 = Regex.Replace(plain2, @"<(b|i|strong|em)>\s+", " <$1>");
-			var plain4 = Regex.Replace(plain3, @"  +<(b|i|strong|em)>", " <$1>");
-			var plain5 = Regex.Replace(plain4, @"\s+</(b|i|strong|em)>", "</$1> ");	// allow for nesting <b></b> three times
-			var plain6 = Regex.Replace(plain5, @"\s+</(b|i|strong|em)>", "</$1> ");
-			var plain7 = Regex.Replace(plain6, @"\s+</(b|i|strong|em)>", "</$1> ");
-			var plain8 = Regex.Replace(plain7, @"</(b|i|strong|em)>  +", "</$1> ");
-			var plain9 = Regex.Replace(plain8, @"\s*<br />\s*", "<br />");
-			return plain9.Trim();
+			var plain00 = RemoveXmlnsAttribsFromXmlString(innerXml);
+			//Console.WriteLine("DEBUG FixInnerXml: 00=\"{0}\"", plain00);
+			// remove any empty format marker pairs, handling any possible nesting
+			var plain01 = RegexReplaceAsNeeded(plain00, @"<(b|i|strong|em)>(\s*)</\1>", "$2");
+			//Console.WriteLine("DEBUG FixInnerXml: 01=\"{0}\"", plain01);
+			// remove any format close marker followed by space and the same format open marker
+			var plain02 = Regex.Replace(plain01, @"</(b|i|strong|em)>(\s*)<\1>", "$2");
+			//Console.WriteLine("DEBUG FixInnerXml: 02=\"{0}\"", plain02);
+			// move <br/> past any number ofclosing format markers
+			var plain03 = Regex.Replace(plain02, @"\s*<br />\s*((</(b|i|strong|em)>)*\s*)$", "$1<br />");
+			//Console.WriteLine("DEBUG FixInnerXml: 03=\"{0}\"", plain03);
+			// remove any trailing <br/> (with surrounding whitespace)
+			var plain04 = Regex.Replace(plain03, @"(\s*<br />\s*)+$", "");
+			//Console.WriteLine("DEBUG FixInnerXml: 04=\"{0}\"", plain04);
+			// move <br/> before any number of opening format markers
+			var plain05 = Regex.Replace(plain04, @"((<(b|i|strong|em)>)*\s*)\s*<br />\s*", "<br />$1");
+			//Console.WriteLine("DEBUG FixInnerXml: 05=\"{0}\"", plain05);
+			// remove leading <br/>
+			var plain06 = Regex.Replace(plain05, @"^(\s*<br />\s*)+", "");
+			//Console.WriteLine("DEBUG FixInnerXml: 06=\"{0}\"", plain06);
+			// move whitespace before opening format marker (3x for nesting)
+			var plain07 = RegexReplaceAsNeeded(plain06, @"<(b|i|strong|em)>(\s+)", "$2<$1>");
+			//Console.WriteLine("DEBUG FixInnerXml: 07=\"{0}\"", plain07);
+			// move whitespace after closing format marker (3x for nesting)
+			var plain08 = RegexReplaceAsNeeded(plain07, @"(\s+)</(b|i|strong|em)>", "</$2>$1");
+			//Console.WriteLine("DEBUG FixInnerXml: 08=\"{0}\"", plain08);
+			// remove whitespace around any remaining <br/>
+			var plain09 = Regex.Replace(plain08, @"\s*<br />\s*", "<br />");
+			//Console.WriteLine("DEBUG FixInnerXml: 09=\"{0}\"", plain09);
+			// collapse multiple spaces into one space
+			var plain10 = Regex.Replace(plain09, @"  +", " ");
+			//Console.WriteLine("DEBUG FixInnerXml: 10=\"{0}\"", plain10);
+			//Console.WriteLine("DEBUG FixInnerXml: Final=\"{0}\"", plain10.Trim());
+			return plain10.Trim();
+		}
+
+		private static string RegexReplaceAsNeeded(string input, string match, string replace)
+		{
+			var inValue = input;
+			var outValue = input;
+			int count = 0;
+			do
+			{
+				if (++count > 10)
+				{
+					Console.WriteLine("WARNING: RegexReplaceAsNeeded has looped 10 times without terminating!");
+					Console.WriteLine("  RegexReplaceAsNeeded(\"{0}\", \"{1}\", \"{2}\") => \"{3}\"", input, match, replace, outValue);
+					return outValue;
+				}
+				inValue = outValue;
+				outValue = Regex.Replace(inValue, match, replace);
+			} while (outValue != inValue);
+			return outValue;
 		}
 
 		private void StoreImage(int imageIdx, List<XmlElement> images, XmlElement img)
@@ -1267,7 +1312,7 @@ namespace RoseGarden
 			return false;
 		}
 
-		public string RemoveXmlnsAttribsFromXmlString(string xml)
+		static public string RemoveXmlnsAttribsFromXmlString(string xml)
 		{
 			return Regex.Replace(xml, " xmlns[:a-z]*=[\"'][^\"']*[\"']", "", RegexOptions.CultureInvariant, Regex.InfiniteMatchTimeout);
 		}
