@@ -272,9 +272,9 @@ http://ugcla.org
 			Assert.That(result, Is.True, "converting Dogs chapter 14 (end page 3/3) succeeded");
 			CheckTwoPageBookAfterEndPages(convert, coverImg, coverImageData, firstPageImage, secondPageImage,
 				"Copyright © Room to Read, 2013", "CC BY 4.0", "Vusi Malindi",
-				"Copyright © for this translation lies with Room to Read, 2013", "http://creativecommons.org/licenses/by/4.0/",
+				"Copyright © Room to Read, 2013", "http://creativecommons.org/licenses/by/4.0/",
 				@"<p>This story 'Dogs versus Cats' has been published on StoryWeaver by Room to Read.</p>
-<p>All images by Vusi Malindi. Copyright © Room to Read, 2013. Some rights reserved. Released under the CC BY 4.0 license.</p>");
+<p>Images by Vusi Malindi. © Room to Read, 2013. CC BY 4.0.</p>");
 		}
 
 		const string _dogsOpfXml = @"<?xml version=""1.0"" encoding=""UTF-8""?>
@@ -541,8 +541,8 @@ Pratham Books goes digital to weave a whole new chapter in the realm of multilin
 			CheckTwoPageBookAfterEndPages(convert, coverImg, coverImageData, firstPageImage, secondPageImage,
 				"Copyright © Pratham Books, 2015", "CC BY 4.0", "Hari Kumar Nair",
 				"Copyright © Pratham Books, 2015", "http://creativecommons.org/licenses/by/4.0/",
-				@"<p>This book has been published on StoryWeaver by Pratham Books. The development of this book has been supported by HDFC Asset Management Company Limited (A joint venture with Standard Life Investments).This book was part of the Pratham Books lab conducted in collaboration with Srishti School of Art, Design and Technology, Bangalore. www.prathambooks.org</p>
-<p>All images by Hari Kumar Nair. Copyright © Pratham Books, 2015. Some rights reserved. Released under the CC BY 4.0 license.</p>");
+				@"<p>The development of this book has been supported by HDFC Asset Management Company Limited (A joint venture with Standard Life Investments).This book was part of the Pratham Books lab conducted in collaboration with Srishti School of Art, Design and Technology, Bangalore.</p>
+<p>Images by Hari Kumar Nair. © Pratham Books, 2015. CC BY 4.0.</p>");
 		}
 
 		const string _whatIfOpfXml = @"<?xml version=""1.0"" encoding=""UTF-8""?>
@@ -860,8 +860,8 @@ Pratham Books goes digital to weave a whole new chapter in the realm of multilin
 			Assert.That(licenseUrlData.InnerXml, Is.EqualTo("http://creativecommons.org/licenses/by/4.0/"));
 			var originalContribData = convert._bloomDoc.SelectSingleNode($"/html/body/div[@id='bloomDataDiv']/div[@data-book='originalContributions' and @lang='en']") as XmlElement;
 			Assert.That(originalContribData, Is.Not.Null, "End page sets originalContributions in data div");
-			Assert.That(originalContribData.InnerXml, Is.EqualTo(@"<p>Images on Front Cover, page 3 by Megha Vishwanath. Copyright © Pratham Books, 2015. Some rights reserved. Released under the CC BY 4.0 license.</p>
-<p>Images on pages 1-2, 4-7 by Megha Vishwanath. Copyright © Megha Vishwanath, 2015. Some rights reserved. Released under the CC BY 4.0 license.</p>"));
+			Assert.That(originalContribData.InnerXml, Is.EqualTo(@"<p>Images on Front Cover, page 3 by Megha Vishwanath. © Pratham Books, 2015. CC BY 4.0.</p>
+<p>Images on pages 1-2, 4-7 by Megha Vishwanath. © Megha Vishwanath, 2015. CC BY 4.0.</p>"));
 			var copyrightData = convert._bloomDoc.SelectSingleNode("/html/body/div[@id='bloomDataDiv']/div[@data-book='copyright' and @lang='*']") as XmlElement;
 			Assert.That(copyrightData, Is.Not.Null, "End page sets copyright in data div");
 			Assert.That(copyrightData.InnerXml, Is.EqualTo("Copyright © Pratham Books, 2015"));

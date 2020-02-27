@@ -262,8 +262,8 @@ namespace RoseGardenTests
 			var originalContribData = convert._bloomDoc.SelectSingleNode($"/html/body/div[@id='bloomDataDiv']/div[@data-book='originalContributions' and @lang='en']") as XmlElement;
 			Assert.That(originalContribData, Is.Not.Null, "End page sets originalContributions in data div");
 			Assert.That(originalContribData.InnerXml, Is.EqualTo(
-				@"<p>This book has been published on StoryWeaver by Pratham Books. The author of this book, Rohini Nilekani used to earlier write under the pseudonym 'Noni'. The print version of 'Too Many Bananas' has been published by Pratham Books with the support by Nikki Gulati. Pratham Books is a not-for-profit organization that publishes books in multiple Indian languages to promote reading among children. www.prathambooks.org</p>
-<p>All images by Angie &amp; Upesh. Copyright © Pratham Books, 2010. Some rights reserved. Released under the CC BY 4.0 license.</p>"));
+				@"<p>The author of this book, Rohini Nilekani used to earlier write under the pseudonym 'Noni'. The print version of 'Too Many Bananas' has been published by Pratham Books with the support by Nikki Gulati.</p>
+<p>Images by Angie &amp; Upesh. © Pratham Books, 2010. CC BY 4.0.</p>"));
 			var copyrightData = convert._bloomDoc.SelectSingleNode("/html/body/div[@id='bloomDataDiv']/div[@data-book='copyright' and @lang='*']") as XmlElement;
 			Assert.That(copyrightData, Is.Not.Null, "End page sets copyright in data div");
 			Assert.That(copyrightData.InnerXml, Is.EqualTo("Copyright © Pratham Books, 2010"));
@@ -630,8 +630,8 @@ Pratham Books goes digital to weave a whole new chapter in the realm of multilin
 				// Don't bother adding words for "Copyright" when it's not English.
 				"© Pratham Books, 2016", "CC\u00a0BY\u00a04.0", "Anupama Ajinkya Apte",
 				"© Pratham Books, 2016", "http://creativecommons.org/licenses/by/4.0/",
-				"<p>«\u00a0Se brosser n’est pas amusant\u00a0!\u00a0» a été publié sur StoryWeaver par Pratham Books. "+ @"Le développement de ce livre a été soutenu par Fortis Charitable Foundation. www.prathambooks.org</p>
-<p>Toutes les images de Anupama Ajinkya Apte. © Pratham Books, 2016. Certains droits réservés. Publié sous licence "+ "CC\u00a0BY\u00a04.0.</p>",
+				@"<p>Le développement de ce livre a été soutenu par Fortis Charitable Foundation.</p>
+<p>Images de Anupama Ajinkya Apte. © Pratham Books, 2016. " + "CC\u00a0BY\u00a04.0.</p>",
 				"fr");
 		}
 

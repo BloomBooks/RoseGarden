@@ -293,6 +293,24 @@ namespace RoseGardenTests
 			Assert.That(copyright, Is.EqualTo("© Pratham Books, 2004"));
 			Assert.That(license, Is.EqualTo("CC BY 4.0"));
 			Assert.That(originalAck, Is.EqualTo("Basée sur l’histoire originale : «  तरंगत तरंगत  », de Vidya Tiware. © Pratham Books, 2004. Certains droits réservés. Publié sous licence CC BY 4.0."));
+
+			// SUT - "L’heure du bain pour Chunnu et Munnu"
+			okay = ConvertFromEpub.ExtractInfoFromPrathamStoryAttribution("Attribution de l’histoire\u00a0: Cette histoire, «\u00a0L’heure du bain pour Chunnu et Munnu\u00a0» est traduite par Rohini Nilekani. Le © de cette traduction appartient à Pratham Books, 2015. Certains droits réservés. Publié sous licence CC\u00a0BY\u00a04.0. Inspiré de l’histoire originale\u00a0: «\u00a0 चुन्नु-मुन्नु का नहाना \u00a0», de Rohini Nilekani. © Storyweaver, Pratham Books, 2015. Certains droits réservés. Publié sous licence CC\u00a0BY\u00a04.0.",
+				"fr", out author, out copyright, out license, out originalAck);
+			Assert.That(okay, Is.True, "Extracting from story attribution for \"Voler haut\" succeeded");
+			Assert.That(author, Is.EqualTo("Rohini Nilekani"));
+			Assert.That(copyright, Is.EqualTo("© Pratham Books, 2015"));
+			Assert.That(license, Is.EqualTo("CC BY 4.0"));
+			Assert.That(originalAck, Is.EqualTo("Inspiré de l’histoire originale\u00a0: «\u00a0 चुन्नु-मुन्नु का नहाना \u00a0», de Rohini Nilekani. © Storyweaver, Pratham Books, 2015. Certains droits réservés. Publié sous licence CC\u00a0BY\u00a04.0."));
+
+			// SUT - "Dogs versus Cats" (this mess really is verbatim from the epub)
+			okay = ConvertFromEpub.ExtractInfoFromPrathamStoryAttribution("Story Attribution: This story:Dogs versus Catsis translated byAlisha Berger. The © for this translation lies with Room to Read, 2013. Some rights reserved. Released under CC BY 4.0 license.Based on Original story: 'Akwatiwa lokwacabanisa inja nelikati', byNomkhosi Cynthia Thabethe. © Room to Read, 2013. Some rights reserved. Released under CC BY 4.0 license.",
+				"en", out author, out copyright, out license, out originalAck);
+			Assert.That(okay, Is.True, "Extracting from story attribution for \"Dogs versus Cats\" succeeded");
+			Assert.That(author, Is.EqualTo("Alisha Berger"));
+			Assert.That(copyright, Is.EqualTo("© Room to Read, 2013"));
+			Assert.That(license, Is.EqualTo("CC BY 4.0"));
+			Assert.That(originalAck, Is.EqualTo("Based on Original story: 'Akwatiwa lokwacabanisa inja nelikati', byNomkhosi Cynthia Thabethe. © Room to Read, 2013. Some rights reserved. Released under CC BY 4.0 license."));
 		}
 	}
 }

@@ -481,7 +481,7 @@ namespace RoseGarden
 			{
 				ConvertPage(pageNumber, _epubMetaData.PageFiles[pageNumber]);
 			}
-			if (_endCreditsPageCount > 3 || _endCreditsPageCount == 0)
+			if ((_endCreditsPageCount > 3 && _endCreditsPageCount > _epubMetaData.PageFiles.Count / 7) || _endCreditsPageCount == 0)
 				Console.WriteLine("WARNING: found {0} end credit pages in the book", _endCreditsPageCount);
 
 			if (!String.IsNullOrWhiteSpace(_options.AttributionFile) && File.Exists(_options.AttributionFile))
@@ -817,6 +817,11 @@ namespace RoseGarden
 						AddCoverContributor(childXml);
 						authorEtcSet = true;
 					}
+				}
+				else if (child is XmlComment)
+				{
+					// Ignore comments: we don't expect them but they don't hurt anything either.
+					continue;
 				}
 				else
 				{
@@ -1850,11 +1855,11 @@ namespace RoseGarden
 			{
 				case "fr":
 					matchAuthorCredits = @" est écrite par (.*)\. (©[^0-9]*, [12][09][0-9][0-9]).* licence\s(CC\sBY[A-Z0-9-.\s]*)";
-					matchTranslatorCredits = @" est traduite par (.*)\. Le © de cette traduction appartient à (.*, [12][09][0-9][0-9]).* licence (CC\sBY[A-Z0-9-.\s]*)\. (Basée sur l’histoire originale\s: .* licence .*\.)";
+					matchTranslatorCredits = @" est traduite par (.*)\. Le © de cette traduction appartient à (.*, [12][09][0-9][0-9]).* licence (CC\sBY[A-Z0-9-.\s]*)\. ([BaséeInspir]+ [surde]+ l’histoire originale\s: .* licence .*\.)";
 					break;
 				default:
-					matchAuthorCredits = @" is written by (.*)\. (©[^0-9]*, [12][09][0-9][0-9]).* (CC\sBY[A-Z0-9-.\s]*) license";
-					matchTranslatorCredits = @" is translated by (.*)\. The © for this translation lies with ([^0-9]*, [12][09][0-9][0-9]).* (CC\sBY[A-Z0-9-.\s]*) license\. (Based on Original story: .* license\.)";
+					matchAuthorCredits = @"is written by ?(.*)\. (©[^0-9]*, [12][09][0-9][0-9]).* (CC\sBY[A-Z0-9-.\s]*) license";
+					matchTranslatorCredits = @"is translated by ?(.*)\. The © for this translation lies with ([^0-9]*, [12][09][0-9][0-9]).* (CC\sBY[A-Z0-9-.\s]*) license\. ?(Based on Original story: .* license\.)";
 					break;
 			}
 			var match = Regex.Match(storyAttrib, matchAuthorCredits, RegexOptions.CultureInvariant);
@@ -1867,6 +1872,8 @@ namespace RoseGarden
 				if (!copyright.StartsWith("© ", StringComparison.InvariantCulture))
 					copyright = "© " + copyright;
 				license = match.Groups[3].Value.Trim(' ', '.');
+				if (license.Contains("\u00a0"))
+					license = license.Replace("\u00a0", " ");	// change non-breaking space to plain space inside license
 				if (match.Groups.Count > 4)
 					originalAttrib = match.Groups[4].Value;
 			}
@@ -1959,7 +1966,7 @@ namespace RoseGarden
 				_creditsAndPages.Add(creditText, pages);
 			}
 			int pageNumber;
-			if (pageText.ToLowerInvariant() == "cover page:" || pageText.ToLowerInvariant() == "page de couverture\u00a0:")
+			if (pageText.ToLowerInvariant() == "cover page:" || Regex.IsMatch(pageText.ToLowerInvariant(), "page de couverture\u00a0?:"))
 				pageNumber = 0;
 			else
 				pageNumber = GetPageNumber(pageText, lang) - 1;   // Content starts at page 2 for Pratham, but page 1 for Bloom.
