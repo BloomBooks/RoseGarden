@@ -45,7 +45,6 @@ namespace RoseGarden
 		const string kIllustrationAttribs = "Illustration Attributions:";
 		const string kImagesAttribs = "Images Attributions:";   // alternative to kIllustrationAttribs
 		const string kDisclaimer = "Disclaimer:";
-		const string kMatchCreditString = @"(©[^0-9]*, [12][09][0-9][0-9]).* (CC\sBY[A-Z0-9-.\s]*) license";
 		const string kMatchPageString = "(Cover [Pp]age:|Page [0-9]+:)";
 		const string kMatchPageNumber = "Page ([0-9]+):";
 		const string kMatchRawPrathamIllustrationCredit = @"([^©]*)(©.*[12][09][0-9][0-9]\.?).*Released under[ a]* (CC[\sA-Z0-9.-]+) license";
@@ -54,7 +53,6 @@ namespace RoseGarden
 		const string kFrenchOtherCredits = "Autres crédits\u00a0:";
 		const string kFrenchIllustrationAttribs = "Attributions de l’illustration\u00a0:";
 		const string kFrenchDisclaimer = "Déni de responsabilité\u00a0:";
-		const string kFrenchMatchCreditString = @"(©[^0-9]*, [12][09][0-9][0-9]).* licence\s(CC\sBY[A-Z0-9-.\s]*)";
 		const string kFrenchMatchPageString = @"(Page de couverture\s*:|Page\s[0-9]+\s*:)";
 		const string kFrenchMatchPageNumber = @"Page\s([0-9]+)\s*:";
 		const string kFrenchMatchRawPrathamIllustrationCredit = @"([^©]*)(©.*[12][09][0-9][0-9]\.?).*Publié sous licence\s(CC\s[\sA-Z0-9.-]+)\.";
@@ -543,7 +541,11 @@ namespace RoseGarden
 			if (divPublisher == null)
 				divPublisher = _opdsEntry.SelectSingleNode("/a:feed/a:entry/dcterms:publisher", _opdsNsmgr) as XmlElement;
 			if (divPublisher != null)
+			{
 				_publisher = divPublisher.InnerText.Trim();
+				if (_publisher == "ew")
+					_publisher = "EW Nigeria";
+			}
 		}
 
 		private void AdjustLayoutIfNeeded()
@@ -681,6 +683,13 @@ namespace RoseGarden
 			var text = preface + matchedCopyright.Trim();
 			_bookMetaData.Copyright = text;
 			SetDataDivTextValue("copyright", text);
+		}
+
+		private void SetOriginalAcknowledgements(string originalAck, string lang)
+		{
+			// QUESTION: Do we need to append to the current value (if any), or just set it?
+			// Do we need to set the classes I can see on existing books?
+			SetDataDivParaValue("originalAcknowledgments", lang, originalAck);
 		}
 
 		private void FillInBookMetaData()
@@ -1331,12 +1340,6 @@ namespace RoseGarden
 					{
 						ProcessRawCreditsPageForCopyrights(body, pageNumber);
 					}
-					// The inside back cover is better because it usually allows more space than the outside back cover, which
-					// may have some branding taking up space.  It also isn't enforcing centering of lines, which distorts the
-					// original appearance.
-					var insideBackCoverDiv = GetOrCreateDataDivElement("insideBackCover", _creditsLang);
-					var backCoverXml = RemoveXmlnsAttribsFromXmlString(body.InnerXml);
-					insideBackCoverDiv.InnerXml = backCoverXml;
 					WriteAccumulatedImageAndOtherCredits();
 					return true;
 				}
@@ -1367,10 +1370,7 @@ namespace RoseGarden
 				if (_creditsAndPages.Count == 1)
 				{
 					var creditText = FormatIllustrationCredit(_creditsAndPages.Keys.First());
-					if (_creditsLang == "fr")
-						_contributionsXmlBldr.AppendLine($"<p>Toutes les images {creditText}</p>");
-					else
-						_contributionsXmlBldr.AppendLine($"<p>All images {creditText}</p>");
+					_contributionsXmlBldr.AppendLine($"<p>Images {creditText}</p>");
 				}
 				else if (_creditsAndPages.Count > 1)
 				{
@@ -1399,9 +1399,9 @@ namespace RoseGarden
 				if (copyright.StartsWith("Copyright", StringComparison.InvariantCulture))
 					copyright = copyright.Substring(9).Trim();
 				if (_creditsLang == "fr")
-					return string.Format("de {0}. {1}. Certains droits réservés. Publié sous licence {2}.", creator, copyright, license);
+					return string.Format("de {0}. {1}. {2}.", creator, copyright, license);
 				else
-					return String.Format("by {0}. Copyright {1}. Some rights reserved. Released under the {2} license.", creator, copyright, license);
+					return String.Format("by {0}. {1}. {2}.", creator, copyright, license);
 			}
 			return credit;	// stick with what we have...
 		}
@@ -1420,29 +1420,55 @@ namespace RoseGarden
 
 		private string ConvertIntListToPageString(List<int> pageList)
 		{
-			// Images on pages Front Cover, 1–2 by 
-			// Image on page 4, 7 by 
+			// Image on page 37
+			// Images on front cover, pages 1-2
+			// Images on pages 1–2 by 
+			// Images on pages 4, 7 by 
 			if (pageList.Count == 1)
 			{
-				if (pageList[0] == 0)
-					return "Image on Front Cover by ";
+				if (_creditsLang == "fr")
+				{
+					if (pageList[0] == 0)
+						return "Image sur la couverture avant";
+					else
+						return $"Image à la page {pageList[0]}";
+				}
 				else
-					return $"Image on page {pageList[0]} by ";
+				{
+					if (pageList[0] == 0)
+						return "Image on front cover";
+					else
+						return $"Image on page {pageList[0]}";
+				}
 			}
 			var bldr = new StringBuilder();
 			int firstPageIndex = 0;
 			if (pageList[0] == 0)
 			{
-				bldr.Append("Images on Front Cover, ");
-				if (pageList.Count == 2)
-					bldr.Append("page ");
+				if (_creditsLang == "fr")
+				{
+					bldr.Append("Images sur la couverture avant, ");
+					if (pageList.Count == 2)
+						bldr.Append("page ");
+					else
+						bldr.Append("pages ");
+				}
 				else
-					bldr.Append("pages ");
+				{
+					bldr.Append("Images on Front Cover, ");
+					if (pageList.Count == 2)
+						bldr.Append("page ");
+					else
+						bldr.Append("pages ");
+				}
 				++firstPageIndex;
 			}
 			else
 			{
-				bldr.Append("Images on pages ");
+				if (_creditsLang == "fr")
+					bldr.Append("Images aux pages ");
+				else
+					bldr.Append("Images on pages ");
 			}
 			bldr.AppendFormat("{0}", pageList[firstPageIndex]);
 			int lastPageShowing = pageList[firstPageIndex];
@@ -1714,7 +1740,6 @@ namespace RoseGarden
 			string otherCreditsHeader;
 			string illustrationAttribsHeader;
 			string disclaimerHeader;
-			string matchCreditString;
 			string matchPageString;
 			switch (lang)
 			{
@@ -1723,7 +1748,6 @@ namespace RoseGarden
 					otherCreditsHeader = kFrenchOtherCredits;//.Replace("\u00a0", "");
 					illustrationAttribsHeader = kFrenchIllustrationAttribs;//.Replace("\u00a0", "");
 					disclaimerHeader = kFrenchDisclaimer;//.Replace("\u00a0", "");
-					matchCreditString = kFrenchMatchCreditString;
 					matchPageString = kFrenchMatchPageString;
 					break;
 				default:
@@ -1731,7 +1755,6 @@ namespace RoseGarden
 					otherCreditsHeader = kOtherCredits;
 					illustrationAttribsHeader = kIllustrationAttribs;
 					disclaimerHeader = kDisclaimer;
-					matchCreditString = kMatchCreditString;
 					matchPageString = kMatchPageString;
 					break;
 			}
@@ -1755,13 +1778,9 @@ namespace RoseGarden
 					endStoryAttrib = beginIllustration;
 				else if (beginDisclaimer > beginStoryAttrib)
 					endStoryAttrib = beginDisclaimer;
-				var storyAttrib = bodyText.Substring(beginStoryAttrib, endStoryAttrib - beginStoryAttrib);
-				var match = Regex.Match(storyAttrib, matchCreditString, RegexOptions.CultureInvariant);
-				if (match.Success)
-				{
-					SetBookCopyright(match.Groups[1].Value, lang);
-					SetBookLicense(match.Groups[2].Value.Trim());
-				}
+				var storyAttrib = bodyText.Substring(beginStoryAttrib, endStoryAttrib - beginStoryAttrib).Trim();
+				if (storyAttrib.Length > 0)
+					ProcessPrathamStoryAttribution(storyAttrib, lang);
 			}
 			if (beginOtherCredits > 0)
 			{
@@ -1773,11 +1792,7 @@ namespace RoseGarden
 				var begin = beginOtherCredits + otherCreditsHeader.Length;
 				var otherCreditsText = bodyText.Substring(begin, endOtherCredits - begin).Trim();
 				if (otherCreditsText.Length > 0)
-				{
-					_contributionsXmlBldr.Append("<p>");
-					_contributionsXmlBldr.Append(otherCreditsText);
-					_contributionsXmlBldr.AppendLine("</p>");
-				}
+					ProcessOtherCredits(otherCreditsText, lang);
 			}
 			if (beginIllustration > 0)
 			{
@@ -1797,6 +1812,115 @@ namespace RoseGarden
 					ProcessIllustrationAttribution(pageText, credit, lang);
 				}
 			}
+		}
+
+		private void ProcessPrathamStoryAttribution(string storyAttrib, string lang)
+		{
+			/*
+			 * Story Attribution: This story: Too Many Bananas is written by Rohini Nilekani. © Pratham Books, 2010. Some rights reserved. Released under CC BY 4.0 license.
+			 * Story Attribution: This story: The Generous Crow is translated by Divaspathy Hegde. The © for this translation lies with Pratham Books, 2004. Some rights reserved. Released under CC BY 4.0 license. Based on Original story: ' ಕಾಗೆ ಬಳಗವ ಕರೆಯಿತು ', by Venkatramana Gowda. © Pratham Books, 2004. Some rights reserved. Released under CC BY 4.0 license.
+			 * Attribution de l’histoire : Cette histoire, « Les fourmis affairées » est écrite par Kanchan Bannerjee. © Pratham Books, 2015. Certains droits réservés. Publié sous licence CC BY 4.0.
+			 * Attribution de l’histoire : Cette histoire, « Voler haut » est traduite par Rohini Nilekani. Le © de cette traduction appartient à Pratham Books, 2004. Certains droits réservés. Publié sous licence CC BY 4.0. Basée sur l’histoire originale : «  तरंगत तरंगत  », de Vidya Tiware. © Pratham Books, 2004. Certains droits réservés. Publié sous licence CC BY 4.0.
+			 */
+			var success = ExtractInfoFromPrathamStoryAttribution(storyAttrib, lang,
+				out string author, out string copyright, out string license, out string originalAttrib);
+			if (!success || String.IsNullOrWhiteSpace(copyright) || String.IsNullOrWhiteSpace(license))
+			{
+				Console.WriteLine("WARNING: Cannot extract copyright and license information in ProcessPrathamStoryAttribution()!");
+				Console.WriteLine("Story Attribution=\"{0}\"", storyAttrib);
+				return;
+			}
+			SetBookCopyright(copyright, lang);
+			SetBookLicense(license);
+			if (!String.IsNullOrWhiteSpace(originalAttrib))
+				SetOriginalAcknowledgements(originalAttrib, lang);
+		}
+
+		// This method is static internal to facilitate unit testing.
+		static internal bool ExtractInfoFromPrathamStoryAttribution(string storyAttrib, string lang,
+			out string author, out string copyright, out string license, out string originalAttrib)
+		{
+			author = null;
+			copyright = null;
+			license = null;
+			originalAttrib = null;
+			string matchAuthorCredits;
+			string matchTranslatorCredits;
+			switch (lang)
+			{
+				case "fr":
+					matchAuthorCredits = @" est écrite par (.*)\. (©[^0-9]*, [12][09][0-9][0-9]).* licence\s(CC\sBY[A-Z0-9-.\s]*)";
+					matchTranslatorCredits = @" est traduite par (.*)\. Le © de cette traduction appartient à (.*, [12][09][0-9][0-9]).* licence (CC\sBY[A-Z0-9-.\s]*)\. (Basée sur l’histoire originale\s: .* licence .*\.)";
+					break;
+				default:
+					matchAuthorCredits = @" is written by (.*)\. (©[^0-9]*, [12][09][0-9][0-9]).* (CC\sBY[A-Z0-9-.\s]*) license";
+					matchTranslatorCredits = @" is translated by (.*)\. The © for this translation lies with ([^0-9]*, [12][09][0-9][0-9]).* (CC\sBY[A-Z0-9-.\s]*) license\. (Based on Original story: .* license\.)";
+					break;
+			}
+			var match = Regex.Match(storyAttrib, matchAuthorCredits, RegexOptions.CultureInvariant);
+			if (!match.Success)
+				match = Regex.Match(storyAttrib, matchTranslatorCredits, RegexOptions.CultureInvariant);
+			if (match.Success)
+			{
+				author = match.Groups[1].Value.Trim();
+				copyright = match.Groups[2].Value.Trim();
+				if (!copyright.StartsWith("© ", StringComparison.InvariantCulture))
+					copyright = "© " + copyright;
+				license = match.Groups[3].Value.Trim(' ', '.');
+				if (match.Groups.Count > 4)
+					originalAttrib = match.Groups[4].Value;
+			}
+			return match.Success;
+		}
+
+		private void ProcessOtherCredits(string otherCredits, string lang)
+		{
+			var credits = RemovePrathamCreditBoilerplate(otherCredits, lang);
+			if (!String.IsNullOrWhiteSpace(credits))
+			{
+				_contributionsXmlBldr.Append("<p>");
+				_contributionsXmlBldr.Append(credits);
+				_contributionsXmlBldr.AppendLine("</p>");
+			}
+		}
+
+		// This method is static internal to facilitate unit testing.
+		static internal string RemovePrathamCreditBoilerplate(string otherCreditsText, string lang)
+		{
+			string[] boilerPlatesEnglish = {
+				@"This book [a-z ]+ published on StoryWeaver[,a-z ]+ Pratham Books\.",
+				@"^'[^']+' has been published on StoryWeaver by Pratham Books\.",
+				@"Pratham Books is a not-for-profit organization that publishes books in multiple Indian languages to promote reading among children\.",
+			};
+			string[] boilerPlatesFrench =
+			{
+				@"Ce livre a été publié sur StoryWeaver par Pratham Books\.",
+				@"^«[^»]+» a été publié sur StoryWeaver par Pratham Books\.",
+				@"Pratham Books est une? organis[meation]+ à but non lucratif qui publie des livres dans plusieurs langues indiennes afin de promouvoir la lecture chez les enfants\.",
+			};
+			var credits = otherCreditsText;
+			string[] boilerPlates;
+			switch (lang)
+			{
+				case "fr":	boilerPlates = boilerPlatesFrench;	break;
+				case "en":	boilerPlates = boilerPlatesEnglish;	break;
+				default:	boilerPlates = new string[0];		break;
+			}
+			foreach (var match in boilerPlates)
+				credits = Regex.Replace(credits, match, "");
+			credits = Regex.Replace(credits, @" *www.prathambooks.org *$", "");
+			credits = Regex.Replace(credits, @"  +", " ");
+			credits = credits.Trim();
+			switch (lang)
+			{
+				case "en":
+					if (credits.StartsWith("It ", StringComparison.InvariantCulture))
+						credits = "This book" + credits.Substring(2);
+					break;
+				case "fr":
+					break;
+			}
+			return credits;
 		}
 
 		private void ProcessIllustrationAttribution(string pageText, string credit, string lang)
@@ -2003,6 +2127,8 @@ namespace RoseGarden
 			var path = Path.Combine(_bookFolder, filename);
 			if (File.Exists(path))
 			{
+				if (!String.IsNullOrEmpty(licenseAbbrev))
+					licenseAbbrev = Regex.Replace(licenseAbbrev, @"\s", " ");	// ensure actual space characters, not non-breaking space or the like
 				var metadata = ImageUtility.GetImageMetadata(path);
 				if (!String.IsNullOrWhiteSpace(creator) && String.IsNullOrWhiteSpace(metadata.Creator))
 					metadata.Creator = creator;
@@ -2031,7 +2157,78 @@ namespace RoseGarden
 						version = "1.0";
 					metadata.License = new CreativeCommonsLicense(true, commercialUseOK, derivativeRule, version);
 				}
+				// Setting "collection" information should prevent Bloom users from changing the copyright.
+				SetImageCollectionMetadata(metadata);
 				ImageUtility.SetImageMetadata(path, metadata);
+			}
+		}
+
+		private void SetImageCollectionMetadata(Metadata metadata)
+		{
+			metadata.CollectionName = $"{_publisher} / {_epubMetaData.Title}";
+			// An alternative for the CollectionUri would be the link to the epub from the opds catalog entry.
+			switch (_publisher.ToLowerInvariant())
+			{
+				case "3asafeer":	// not in StoryWeaver
+					metadata.CollectionUri = "https://3asafeer.com/";
+					break;
+				case "african storybook initiative":
+				case "african storybook project":
+					metadata.CollectionUri = "https://www.africanstorybook.org/";
+					break;
+				case "biblionef":   // not in StoryWeaver
+					metadata.CollectionUri = "http://www.biblionefsa.org.za/";
+					break;
+				case "bookbox": // not in StoryWeaver
+					metadata.CollectionUri = "https://bookbox.com/";
+					break;
+				case "book dash":
+					metadata.CollectionUri = "https://bookdash.org/";
+					break;
+				case "pratham books":
+					metadata.CollectionUri = "https://prathambooks.org/";
+					break;
+				case "room to read":
+					metadata.CollectionUri = "https://www.roomtoread.org/";
+					break;
+				case "seru setiap saat":    // not in StoryWeaver
+					metadata.CollectionUri = "https://serusetiapsaat.com/";
+					break;
+				case "the asia foundation":
+					metadata.CollectionUri = "https://asiafoundation.org/";
+					break;
+				case "usaid":	// not in StoryWeaver
+					metadata.CollectionUri = "https://www.usaid.gov/";
+					break;
+				// I don't know how to interpret these publisher codes from GDL.
+				case "canvas":	// not in StoryWeaver
+				case "ew nigeria":		// not in StoryWeaver
+					metadata.CollectionUri = "https://unknown url/";
+					break;
+/*  using StoryWeaver as a source would add these additional publishers:
+	AfLIA
+	Azad India Foundation
+	CGnet Swara
+	Darakht-e Danesh Library
+	Dastkari Haat Samiti
+	Jala
+	Konkani Bhasha Mandal
+	Little Readers' Nook
+	Manjushri Educational Services
+	Ms Moochie
+	North East Educational Trust
+	REHMA
+	Right To Play
+	Sns Foundation
+	StoryWeaver
+	Sub-Saharan Publishers
+	Suchana Uttorchandipur Community Society
+	The District Administration, Ranchi District
+	The Rosetta Foundation
+	Uganda Christian University
+	Unnati ISEC
+	World Konkani Centre
+ */
 			}
 		}
 

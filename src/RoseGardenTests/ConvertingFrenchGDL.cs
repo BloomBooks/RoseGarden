@@ -49,13 +49,7 @@ namespace RoseGardenTests
 			CheckTwoPageBookAfterEndPages(convert, coverImg, coverImageData, firstPageImage, secondPageImage,
 				"Copyright © Book Dash, 2018", "CC BY 4.0", "",
 				"Copyright © Book Dash, 2018", "http://creativecommons.org/licenses/by/4.0/",
-				"<p>All illustrations copyright © Book Dash, 2018. Some rights reserved. Released under the CC BY 4.0 license.</p>",
-				new[] { @"<blockquote> 
- <img src=""787fb029b87454ff3ba0549f59f0ad0d.png"" />",
-					"</blockquote>",
-					"<p> <em> Une maison pour la souris </em> </p>",
-					"<p> Créé par Michele Fry, Amy Uzzell, Jennifer Jacobs </p>",
-					"<p> Cette publication est distribuée sous licence internationale Creative Commons Attribution\u00a04.0."});
+				"<p>All illustrations copyright © Book Dash, 2018. Some rights reserved. Released under the CC BY 4.0 license.</p>");
 		}
 
 		const string _uneMaisonOpfXml = @"<?xml version=""1.0"" encoding=""UTF-8""?>
@@ -273,20 +267,6 @@ namespace RoseGardenTests
 			var copyrightData = convert._bloomDoc.SelectSingleNode("/html/body/div[@id='bloomDataDiv']/div[@data-book='copyright' and @lang='*']") as XmlElement;
 			Assert.That(copyrightData, Is.Not.Null, "End page sets copyright in data div");
 			Assert.That(copyrightData.InnerXml, Is.EqualTo("Copyright © Pratham Books, 2010"));
-			var insideBackCoverData = convert._bloomDoc.SelectSingleNode($"/html/body/div[@id='bloomDataDiv']/div[@data-book='insideBackCover' and @lang='en']") as XmlElement;
-			Assert.That(insideBackCoverData, Is.Not.Null, "End page sets the inside back cover in the data div");
-			Assert.That(insideBackCoverData.InnerXml, Does.StartWith(@"<p>
- Too Many Bananas
- (English)
-</p>"));
-			Assert.That(insideBackCoverData.InnerXml.Trim(), Does.EndWith(@"Come, start weaving today, and help us get a book in every child's hand!"));
-			Assert.That(insideBackCoverData.InnerXml, Does.Contain(@"<p>
- No one wanted to buy the sweet bananas that Sringeri Srinivas grew on his farm. Find out what he did with them in this cute story.
-</p>"));
-			Assert.That(insideBackCoverData.InnerXml, Does.Contain(@"<p>
- This is a Level 2 book for children who recognize familiar words and can read new words with help.
-</p>"));
-			Assert.That(insideBackCoverData.InnerXml, Does.Contain(@"<img src=""d710444fa4fa11e970eed00fa1977069.png"" />"));
 		}
 
 		const string _bananasOpfXml = @"<?xml version=""1.0"" encoding=""UTF-8""?>
@@ -652,13 +632,7 @@ Pratham Books goes digital to weave a whole new chapter in the realm of multilin
 				"© Pratham Books, 2016", "http://creativecommons.org/licenses/by/4.0/",
 				"<p>«\u00a0Se brosser n’est pas amusant\u00a0!\u00a0» a été publié sur StoryWeaver par Pratham Books. "+ @"Le développement de ce livre a été soutenu par Fortis Charitable Foundation. www.prathambooks.org</p>
 <p>Toutes les images de Anupama Ajinkya Apte. © Pratham Books, 2016. Certains droits réservés. Publié sous licence "+ "CC\u00a0BY\u00a04.0.</p>",
-				new string[] {
-					"<p> Se brosser n’est pas amusant\u00a0! (Français) </p>",
-					"Venez, commencez à tisser aujourd’hui et aidez-nous à mettre un livre dans la main de chaque enfant\u00a0!",
-					"<p> Rohan n’aime ni se brosser les dents ni prendre de bain. Mais sa sœur Riya lui révèle un secret qui le fait changer d’avis\u00a0! </p>",
-					"<p> C’est un livre de niveau\u00a02 pour les enfants qui ",
-					"<img src=\"d710444fa4fa11e970eed00fa1977069.png\" /> Pratham Books passe"
-				}, "fr");
+				"fr");
 		}
 
 		const string _seBrosserOpfXml = @"<?xml version=""1.0"" encoding=""UTF-8""?>

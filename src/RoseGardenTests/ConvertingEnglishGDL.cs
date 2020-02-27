@@ -53,12 +53,7 @@ namespace RoseGardenTests
 			CheckTwoPageBookAfterEndPages(convert, coverImg, coverImageData, firstPageImage, secondPageImage,
 				"Copyright © African Storybook Initiative 2015", "CC BY 4.0", "Marleen Visser",
 				"Copyright © Uganda Community Libraries Association (Ugcla) 2015", "http://creativecommons.org/licenses/by/4.0/",
-				"<p>All illustrations by Marleen Visser. Copyright © African Storybook Initiative 2015. Some rights reserved. Released under the CC BY 4.0 license.</p>",
-				new[] { "You are free to download, copy, translate or adapt this story and use the illustrations as long as you attribute in the following way:",
-					"/>",
-					"Cornelius Wambi Gulere",
-					"© Text: Uganda Community Libraries Association (Ugcla) Artwork: African Storybook Initiative 2015",
-					"www.africanstorybook.org" });
+				"<p>All illustrations by Marleen Visser. Copyright © African Storybook Initiative 2015. Some rights reserved. Released under the CC BY 4.0 license.</p>");
 		}
 
 		const string _goatOpfXml = @"<?xml version=""1.0"" encoding=""UTF-8""?>
@@ -279,16 +274,7 @@ http://ugcla.org
 				"Copyright © Room to Read, 2013", "CC BY 4.0", "Vusi Malindi",
 				"Copyright © for this translation lies with Room to Read, 2013", "http://creativecommons.org/licenses/by/4.0/",
 				@"<p>This story 'Dogs versus Cats' has been published on StoryWeaver by Room to Read.</p>
-<p>All images by Vusi Malindi. Copyright © Room to Read, 2013. Some rights reserved. Released under the CC BY 4.0 license.</p>",
-				new string[] { @"<p>
- Dogs versus Cats (English)
-</p>",
-					"Come, start weaving today, and help us get a book in every child's hand!",
-					"Dogs Versus Cats is the story of an uncommon friendship between a dog and a cat.",
-					@"<p>
- This is a Level 2 book for children who recognize familiar words and can read new words with help.
-</p>",
-					"<img src=\"1ce0e999d2f96c6d254c2de8d763318a.png\"" });
+<p>All images by Vusi Malindi. Copyright © Room to Read, 2013. Some rights reserved. Released under the CC BY 4.0 license.</p>");
 		}
 
 		const string _dogsOpfXml = @"<?xml version=""1.0"" encoding=""UTF-8""?>
@@ -556,19 +542,7 @@ Pratham Books goes digital to weave a whole new chapter in the realm of multilin
 				"Copyright © Pratham Books, 2015", "CC BY 4.0", "Hari Kumar Nair",
 				"Copyright © Pratham Books, 2015", "http://creativecommons.org/licenses/by/4.0/",
 				@"<p>This book has been published on StoryWeaver by Pratham Books. The development of this book has been supported by HDFC Asset Management Company Limited (A joint venture with Standard Life Investments).This book was part of the Pratham Books lab conducted in collaboration with Srishti School of Art, Design and Technology, Bangalore. www.prathambooks.org</p>
-<p>All images by Hari Kumar Nair. Copyright © Pratham Books, 2015. Some rights reserved. Released under the CC BY 4.0 license.</p>",
-				new[] { @"<p>
- What If?
- (English)
-</p>",
-					"Come, start weaving today, and help us get a book in every child's hand!",
-					@"<p>
- When Shyam is sleepy he has trouble brushing his teeth. But dreaming big is no trouble at all.
-</p>",
-					@"<p>
- This is a Level 1 book for children who are eager to begin reading.
-</p>",
-					"<img src=\"d710444fa4fa11e970eed00fa1977069.png\" />" });
+<p>All images by Hari Kumar Nair. Copyright © Pratham Books, 2015. Some rights reserved. Released under the CC BY 4.0 license.</p>");
 		}
 
 		const string _whatIfOpfXml = @"<?xml version=""1.0"" encoding=""UTF-8""?>
@@ -892,17 +866,7 @@ Pratham Books goes digital to weave a whole new chapter in the realm of multilin
 			Assert.That(copyrightData, Is.Not.Null, "End page sets copyright in data div");
 			Assert.That(copyrightData.InnerXml, Is.EqualTo("Copyright © Pratham Books, 2015"));
 			var insideBackCoverData = convert._bloomDoc.SelectSingleNode($"/html/body/div[@id='bloomDataDiv']/div[@data-book='insideBackCover' and @lang='en']") as XmlElement;
-			Assert.That(insideBackCoverData, Is.Not.Null, "End page sets the inside back cover in the data div");
-			Assert.That(insideBackCoverData.InnerXml, Does.StartWith(@"<p>
- The Birthday Party
- (English)
-</p>"));
-			Assert.That(insideBackCoverData.InnerXml.Trim(), Does.EndWith(@"Come, start weaving today, and help us get a book in every child's hand!"));
-			Assert.That(insideBackCoverData.InnerXml, Does.Contain(@"After his birthday party, the boy in the story opens his gifts and is thrilled to find a camera."));
-			Assert.That(insideBackCoverData.InnerXml, Does.Contain(@"<p>
- This is a Level 1 book for children who are eager to begin reading.
-</p>"));
-			Assert.That(insideBackCoverData.InnerXml, Does.Contain(@"<img src=""d710444fa4fa11e970eed00fa1977069.png"" />"));
+			Assert.That(insideBackCoverData, Is.Null, "The inside back cover in the data div should not be set.");
 		}
 
 		const string _birthdayOpfXml = @"<?xml version=""1.0"" encoding=""UTF-8""?>

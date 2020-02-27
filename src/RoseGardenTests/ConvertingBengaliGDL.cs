@@ -60,25 +60,7 @@ namespace RoseGardenTests
 			CheckTwoPageBookAfterEndPages(convert, coverImg, coverImageData, firstPageImage, secondPageImage,
 				"Copyright © The Asia Foundation, 2018", "CC BY-NC 4.0", "Mrigaja Bajracharya",
 				"Copyright © The Asia Foundation, 2018", "http://creativecommons.org/licenses/by-nc/4.0/",
-				"<p>All illustrations by Mrigaja Bajracharya. Copyright © The Asia Foundation, 2018. Some rights reserved. Released under the CC BY-NC 4.0 license.</p>",
-				new[] { @"<p>
- Brought to you by
-</p>",
-					@"http://creativecommons.org/licenses/by-nc/4.0/
-</p>",
-					"Let's Read! is an initiative of The Asia Foundation's Books for Asia program that fosters young readers in Asia.",
-					@"<p>
- Original Story
- आज के खाने?,
- author: रोचक दाहाल
- .
- illustrator: मृगजा बज्राचार्य.
- Published by The Asia Foundation,
- https://www.letsreadasia.org
- © The Asia Foundation.
- Released under CC BY-NC 4.0.
-</p>",
-					"This work is a modified version of the original story. © The Asia Foundation, 2018. Some rights reserved. Released under CC BY-NC 4.0."});
+				"<p>All illustrations by Mrigaja Bajracharya. Copyright © The Asia Foundation, 2018. Some rights reserved. Released under the CC BY-NC 4.0 license.</p>");
 		}
 
 		const string _bengaliOpfXml = @"<?xml version=""1.0"" encoding=""UTF-8""?>

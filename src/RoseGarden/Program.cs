@@ -6,6 +6,7 @@ using CommandLine;
 
 namespace RoseGarden
 {
+#region Command line option classes
 	public class OpdsOptions
 	{
 		[Option('c', "catalog", Required = false, HelpText = "Catalog file: output if either -u or -s is provided, input if neither is given.")]
@@ -169,9 +170,11 @@ namespace RoseGarden
 		[Option('V', "veryverbose", Required = false, HelpText = "Write very verbose progress messages to the console.")]
 		public bool VeryVerbose { get; set; }
 	}
+#endregion
 
 	class Program
 	{
+#region Main program methods
 		static int Main(string[] args)
 		{
 			return Parser.Default.ParseArguments<BatchOptions, ConvertOptions, FetchOptions, FixTableOptions, UploadOptions>(args)
@@ -205,7 +208,9 @@ namespace RoseGarden
 		{
 			return new FixTable(opts).RunFix();
 		}
+#endregion
 
+#region Utility methods
 		/// <summary>
 		/// Utility method to sanitize a string for use in a filename or directory name.
 		/// </summary>
@@ -285,5 +290,6 @@ namespace RoseGarden
 			majorVersion = version.Major;
 			minorVersion = version.Minor;
 		}
+#endregion
 	}
 }

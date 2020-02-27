@@ -208,5 +208,91 @@ namespace RoseGardenTests
 			fixedXml = ConvertFromEpub.FixInnerXml("<b>Les poissons-clowns et les <b>anémones de mer vivent ensemble et s’entraident. Les poissons-clowns aident les anémones en nettoyant leurs tentacules et en attirant d’autres poissons pour que l’anémone les mange. Les anémones, à leur tour, permettent aux poissons-clowns de se cacher parmi leurs tentacules venimeux sans les piquer. <br /> </b></b>");
 			Assert.That(fixedXml, Is.EqualTo("<b>Les poissons-clowns et les <b>anémones de mer vivent ensemble et s’entraident. Les poissons-clowns aident les anémones en nettoyant leurs tentacules et en attirant d’autres poissons pour que l’anémone les mange. Les anémones, à leur tour, permettent aux poissons-clowns de se cacher parmi leurs tentacules venimeux sans les piquer.</b></b>"));
 		}
+
+		[Test]
+		public void TestExtractMeaningfulCredits()
+		{
+			// SUT - "À l’intérieur du World Wide Web"
+			var credits = ConvertFromEpub.RemovePrathamCreditBoilerplate("This book was first published on StoryWeaver, Pratham Books. The development of this book has been supported by Oracle Giving Initiative.", "en");
+			Assert.That(credits, Is.EqualTo("The development of this book has been supported by Oracle Giving Initiative."));
+
+			// SUT - "Aller acheter un livre"
+			credits = ConvertFromEpub.RemovePrathamCreditBoilerplate("This book has been published on StoryWeaver by Pratham Books. The development of the print version of this book was supported by Dubai Creek Round Table, Dubai .U.A.E. Pratham Books is a not-for-profit organization that publishes books in multiple Indian languages to promote reading among children. www.prathambooks.org", "en");
+			Assert.That(credits, Is.EqualTo("The development of the print version of this book was supported by Dubai Creek Round Table, Dubai .U.A.E."));
+
+			// SUT - "M. Anand a une aventure"
+			credits = ConvertFromEpub.RemovePrathamCreditBoilerplate("'Mr. Anand has an Adventure' has been published on StoryWeaver by Pratham Books. It was created for #6FrameStoryChallenge, an illustration campaign organized by Pratham Books. www.prathambooks.org", "en");
+			Assert.That(credits, Is.EqualTo("This book was created for #6FrameStoryChallenge, an illustration campaign organized by Pratham Books."));
+
+			// SUT - "Trop de bananes"
+			credits = ConvertFromEpub.RemovePrathamCreditBoilerplate("This book has been published on StoryWeaver by Pratham Books. The author of this book, Rohini Nilekani used to earlier write under the pseudonym 'Noni'. The print version of 'Too Many Bananas' has been published by Pratham Books with the support by Nikki Gulati. Pratham Books is a not-for-profit organization that publishes books in multiple Indian languages to promote reading among children. www.prathambooks.org", "en");
+			Assert.That(credits, Is.EqualTo("The author of this book, Rohini Nilekani used to earlier write under the pseudonym 'Noni'. The print version of 'Too Many Bananas' has been published by Pratham Books with the support by Nikki Gulati."));
+
+			// SUT - "Le corbeau généreux"
+			credits = ConvertFromEpub.RemovePrathamCreditBoilerplate("This book has been published on StoryWeaver by Pratham Books. Pratham Books is a not-for-profit organization that publishes books in multiple Indian languages to promote reading among children. www.prathambooks.org", "en");
+			Assert.That(credits, Is.EqualTo(""));
+
+			// SUT - "ससा आणि कासव"
+			credits = ConvertFromEpub.RemovePrathamCreditBoilerplate("This book has been published on StoryWeaver by Pratham Books.'The Hare and The Tortoise (Again!)' has been published by Pratham Books in partnership with the Rajiv Gandhi Foundation. Pratham Books is a not-for-profit organization that publishes books in multiple Indian languages to promote reading among children. www.prathambooks.org", "en");
+			Assert.That(credits, Is.EqualTo("'The Hare and The Tortoise (Again!)' has been published by Pratham Books in partnership with the Rajiv Gandhi Foundation."));
+
+			// SUT - "Fourmis affairées"
+			credits = ConvertFromEpub.RemovePrathamCreditBoilerplate("Ce livre a été publié sur StoryWeaver par Pratham Books. Le développement de la version imprimée de ce livre a reçu le soutien de HDFC Asset Management Company Limited (une coentreprise avec Standard Life Investments). www.prathambooks.org ", "fr");
+			Assert.That(credits, Is.EqualTo("Le développement de la version imprimée de ce livre a reçu le soutien de HDFC Asset Management Company Limited (une coentreprise avec Standard Life Investments)."));
+
+			// SUT - "Les petits peintres"
+			credits = ConvertFromEpub.RemovePrathamCreditBoilerplate("Ce livre a été publié sur StoryWeaver par Pratham Books. Pratham Books est un organisme à but non lucratif qui publie des livres dans plusieurs langues indiennes afin de promouvoir la lecture chez les enfants. www.prathambooks.org ", "fr");
+			Assert.That(credits, Is.EqualTo(""));
+
+			// SUT - "Se brosser n’est pas amusant !"
+			credits = ConvertFromEpub.RemovePrathamCreditBoilerplate("«&#xa0;Se brosser n’est pas amusant&#xa0;!&#xa0;» a été publié sur StoryWeaver par Pratham Books. Le développement de ce livre a été soutenu par Fortis Charitable Foundation. www.prathambooks.org ", "fr");
+			Assert.That(credits, Is.EqualTo("Le développement de ce livre a été soutenu par Fortis Charitable Foundation."));
+
+			// SUT - "Voler haut"
+			credits = ConvertFromEpub.RemovePrathamCreditBoilerplate("Ce livre a été publié sur StoryWeaver par Pratham Books. Le développement de la version imprimée de ce livre a été soutenu par Dubai Creek Round Table, Dubaï, EAU Pratham Books Pratham Books est une organisation à but non lucratif qui publie des livres dans plusieurs langues indiennes afin de promouvoir la lecture chez les enfants. www.prathambooks.org ", "fr");
+			Assert.That(credits, Is.EqualTo("Le développement de la version imprimée de ce livre a été soutenu par Dubai Creek Round Table, Dubaï, EAU Pratham Books"));
+		}
+
+		[Test]
+		public void TestExtractInfoFromPrathamStoryAttribution()
+		{
+			string author, copyright, license, originalAck;
+			// SUT - "Trop de bananes"
+			var okay = ConvertFromEpub.ExtractInfoFromPrathamStoryAttribution("Story Attribution: This story: Too Many Bananas is written by Rohini Nilekani. © Pratham Books, 2010. Some rights reserved. Released under CC BY 4.0 license.",
+				"en", out author, out copyright, out license, out originalAck);
+			Assert.That(okay, Is.True, "Extracting from story attribution for \"Trop de bananes\" succeeded");
+			Assert.That(author, Is.EqualTo("Rohini Nilekani"));
+			Assert.That(copyright, Is.EqualTo("© Pratham Books, 2010"));
+			Assert.That(license, Is.EqualTo("CC BY 4.0"));
+			Assert.That(originalAck, Is.Null, "\"Trop de bananes\" is not a translation!");
+
+			// SUT - "Le corbeau généreux"
+			okay = ConvertFromEpub.ExtractInfoFromPrathamStoryAttribution("Story Attribution: This story: The Generous Crow is translated by Divaspathy Hegde. The © for this translation lies with Pratham Books, 2004. Some rights reserved. Released under CC BY 4.0 license. Based on Original story: ' ಕಾಗೆ ಬಳಗವ ಕರೆಯಿತು ', by Venkatramana Gowda. © Pratham Books, 2004. Some rights reserved. Released under CC BY 4.0 license.",
+				"en", out author, out copyright, out license, out originalAck);
+			Assert.That(okay, Is.True, "Extracting from story attribution for \"Le corbeau généreux\" succeeded");
+			Assert.That(author, Is.EqualTo("Divaspathy Hegde"));
+			Assert.That(copyright, Is.EqualTo("© Pratham Books, 2004"));
+			Assert.That(license, Is.EqualTo("CC BY 4.0"));
+			Assert.That(originalAck, Is.EqualTo("Based on Original story: ' ಕಾಗೆ ಬಳಗವ ಕರೆಯಿತು ', by Venkatramana Gowda. © Pratham Books, 2004. Some rights reserved. Released under CC BY 4.0 license."));
+
+			// SUT - "Fourmis affairées"
+			okay = ConvertFromEpub.ExtractInfoFromPrathamStoryAttribution("Attribution de l’histoire : Cette histoire, « Les fourmis affairées » est écrite par Kanchan Bannerjee. © Pratham Books, 2015. Certains droits réservés. Publié sous licence CC BY 4.0.",
+				"fr", out author, out copyright, out license, out originalAck);
+
+			Assert.That(okay, Is.True, "Extracting from story attribution for \"Fourmis affairées\" succeeded");
+			Assert.That(author, Is.EqualTo("Kanchan Bannerjee"));
+			Assert.That(copyright, Is.EqualTo("© Pratham Books, 2015"));
+			Assert.That(license, Is.EqualTo("CC BY 4.0"));
+			Assert.That(originalAck, Is.Null, "\"Fourmis affairées\" is not a translation!");
+
+			// SUT - "Voler haut"
+			okay = ConvertFromEpub.ExtractInfoFromPrathamStoryAttribution("Attribution de l’histoire : Cette histoire, « Voler haut » est traduite par Rohini Nilekani. Le © de cette traduction appartient à Pratham Books, 2004. Certains droits réservés. Publié sous licence CC BY 4.0. Basée sur l’histoire originale : «  तरंगत तरंगत  », de Vidya Tiware. © Pratham Books, 2004. Certains droits réservés. Publié sous licence CC BY 4.0.",
+				"fr", out author, out copyright, out license, out originalAck);
+			Assert.That(okay, Is.True, "Extracting from story attribution for \"Voler haut\" succeeded");
+			Assert.That(author, Is.EqualTo("Rohini Nilekani"));
+			Assert.That(copyright, Is.EqualTo("© Pratham Books, 2004"));
+			Assert.That(license, Is.EqualTo("CC BY 4.0"));
+			Assert.That(originalAck, Is.EqualTo("Basée sur l’histoire originale : «  तरंगत तरंगत  », de Vidya Tiware. © Pratham Books, 2004. Certains droits réservés. Publié sous licence CC BY 4.0."));
+		}
 	}
 }
