@@ -39,6 +39,7 @@ namespace RoseGarden
 
 		private int _endCreditsStart = Int32.MaxValue;  // Assume no end credits pages to begin with.
 		private int _endCreditsPageCount = 0;
+		private string _attributionFile;
 
 		const string kStoryAttribution = "Story Attribution:";
 		const string kOtherCredits = "Other Credits:";
@@ -403,8 +404,8 @@ namespace RoseGarden
 			{
 				if (filepath.EndsWith(".epub", StringComparison.InvariantCulture))
 					epubName = filepath;
-				else if (filepath.EndsWith(".txt", StringComparison.InvariantCulture) && filepath.Contains("StoryWeaverAttribution") && String.IsNullOrWhiteSpace(_options.AttributionFile))
-					_options.AttributionFile = filepath;
+				else if (filepath.EndsWith(".txt", StringComparison.InvariantCulture) && filepath.Contains("StoryWeaverAttribution"))
+					_attributionFile = filepath;
 			}
 			if (String.IsNullOrWhiteSpace(epubName))
 				Console.Write("WARNING: could not find unzipped epub file from {0}!", _options.EpubFile);
@@ -484,9 +485,9 @@ namespace RoseGarden
 			if ((_endCreditsPageCount > 3 && _endCreditsPageCount > _epubMetaData.PageFiles.Count / 7) || _endCreditsPageCount == 0)
 				Console.WriteLine("WARNING: found {0} end credit pages in the book", _endCreditsPageCount);
 
-			if (!String.IsNullOrWhiteSpace(_options.AttributionFile) && File.Exists(_options.AttributionFile))
+			if (!String.IsNullOrWhiteSpace(_attributionFile) && File.Exists(_attributionFile))
 			{
-				var attributionText = File.ReadAllText(_options.AttributionFile);
+				var attributionText = File.ReadAllText(_attributionFile);
 				attributionText = ProcessAttributionFileText(attributionText);
 			}
 			if (_options.Verbose)

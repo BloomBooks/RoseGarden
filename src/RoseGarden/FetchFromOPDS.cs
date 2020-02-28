@@ -15,7 +15,7 @@ namespace RoseGarden
 		private HttpClient _client = new HttpClient();
 		private OpdsClient _opdsClient;
 		private XmlDocument _rootCatalog;
-		private XmlDocument _langCatalog = new XmlDocument();
+		private XmlDocument _filteredCatalog = new XmlDocument();
 		private XmlNamespaceManager _nsmgr;
 		private FetchOptions _options;
 		private string _feedTitle;
@@ -25,7 +25,7 @@ namespace RoseGarden
 			_options = opts;
 			if (_options.VeryVerbose)
 				_options.Verbose = true;
-			_langCatalog.PreserveWhitespace = true;
+			_filteredCatalog.PreserveWhitespace = true;
 			_opdsClient = new OpdsClient(opts);
 		}
 
@@ -38,20 +38,22 @@ namespace RoseGarden
 				Console.WriteLine("DRY RUN MESSAGES");
 			_rootCatalog = _opdsClient.GetRootPage(out _nsmgr, out _feedTitle);
 			// Fill in the language specific catalog if the language name is given.
-			if (!String.IsNullOrWhiteSpace(_options.LanguageName))
-				_opdsClient.GetCatalogForLanguage(_rootCatalog, out _langCatalog);
+			if (!String.IsNullOrWhiteSpace(_options.LanguageName) || !String.IsNullOrWhiteSpace(_options.Publisher))
+				_filteredCatalog = _opdsClient.GetFilteredCatalog(_rootCatalog);	// also applies Publisher if set
+			if (_filteredCatalog == null)
+				return 2;
 			// Don't overwrite an input catalog file.
 			if (!String.IsNullOrWhiteSpace(_options.Url) || !String.IsNullOrWhiteSpace(_options.Source))
 			{
-				// Write the catalog file if the catalog filename is given.  If the language name is given,
-				// write out the language specific catalog.  Otherwise write out whatever catalog was loaded
-				// from the original root url.
+				// Write the catalog file if the catalog filename is given.  If either the language name or the
+				// publisher is given, write out the filtered catalog.  Otherwise write out whatever catalog was
+				// loaded from the original root url.
 				if (!String.IsNullOrEmpty(_options.CatalogFile))
 				{
-					if (String.IsNullOrEmpty(_options.LanguageName))
+					if (String.IsNullOrEmpty(_options.LanguageName) && String.IsNullOrEmpty(_options.Publisher))
 						File.WriteAllText(_options.CatalogFile, _rootCatalog.OuterXml);
 					else
-						File.WriteAllText(_options.CatalogFile, _langCatalog.OuterXml);
+						File.WriteAllText(_options.CatalogFile, _filteredCatalog.OuterXml);
 				}
 			}
 			// Retrieve and save a book if the title is provided.  The author and output filepath may optionally
@@ -144,7 +146,7 @@ namespace RoseGarden
 
 		private int FetchAndSaveBook()
 		{
-			var catalog = String.IsNullOrWhiteSpace(_options.LanguageName) ? _rootCatalog : _langCatalog;
+			var catalog = (String.IsNullOrWhiteSpace(_options.LanguageName) && String.IsNullOrWhiteSpace(_options.Publisher)) ? _rootCatalog : _filteredCatalog;
 			var entries = catalog.DocumentElement.SelectNodes($"/a:feed/a:entry/a:title[text()='{_options.BookTitle}']", _nsmgr);
 			if (entries.Count == 0)
 			{

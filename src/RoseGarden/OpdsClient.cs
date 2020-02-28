@@ -39,78 +39,125 @@ namespace RoseGarden
 
 		}
 
-		public int GetCatalogForLanguage(XmlDocument rootCatalog, out XmlDocument langCatalog)
+		public XmlDocument GetFilteredCatalog(XmlDocument rootCatalog)
 		{
 			if (_options.Verbose)
-				Console.WriteLine("Extracting a catalog specifically for {0}", _options.LanguageName);
-			langCatalog = new XmlDocument();
-			langCatalog.PreserveWhitespace = true;
-			langCatalog.LoadXml("<feed xmlns='http://www.w3.org/2005/Atom' xmlns:lrmi='http://purl.org/dcx/lrmi-terms/'" +
+			{
+				if (String.IsNullOrEmpty(_options.Publisher))
+					Console.WriteLine("INFO: Extracting a catalog specifically for {0}", _options.LanguageName);
+				else if (String.IsNullOrEmpty(_options.LanguageName))
+					Console.WriteLine("INFO: Extracting a catalog for books published by {0}", _options.Publisher);
+				else
+					Console.WriteLine("INFO: Extracting a catalog specifically for {0} published by {1}", _options.LanguageName, _options.Publisher);
+			}
+			var filteredCatalog = CreateNewCatalogDocument();
+			int entryCount = 0;
+			int filteredEntryCount = 0;
+			// Some OPDS catalogs are monolithic (StoryWeaver).  Others are split into multiple pages and by language (Global Digital Library).
+			// The wonderful thing about some standards are that they allow you so many different options for implementing them!
+			var catLinks = rootCatalog.DocumentElement.SelectNodes($"/a:feed/a:link[@rel='http://opds-spec.org/facet' and @opds:facetGroup='Languages']", _nsmgr).Cast<XmlElement>().ToList();
+			if (catLinks.Count > 0)
+			{
+				// This must be a catalog split by language, possibly with multiple pages per language.
+				foreach (var link in catLinks)
+				{
+					var language = link.GetAttribute("title");
+					if (!String.IsNullOrWhiteSpace(_options.LanguageName) && !language.ToLowerInvariant().Contains(_options.LanguageName.ToLowerInvariant()))
+						continue;
+					XmlDocument firstPageOfCatalog;
+					var hrefLink = link.GetAttribute("href");
+					if (link.GetAttribute("activeFacet", "opds") == "true")
+					{
+						firstPageOfCatalog = rootCatalog;
+					}
+					else
+					{
+						var data = GetOpdsPage(hrefLink);
+						firstPageOfCatalog = new XmlDocument();
+						firstPageOfCatalog.PreserveWhitespace = true;
+						firstPageOfCatalog.LoadXml(data);
+					}
+					LoadCatalogFromRootPage(firstPageOfCatalog, filteredCatalog, "/a:feed/a:entry", ref entryCount, ref filteredEntryCount);
+				}
+			}
+			else
+			{
+				// This must be a linguistically monolithic catalog: all languages bundled together.
+				// We still allow for the catalog to be split into multiple pages, however.
+				var pageOfCatalog = rootCatalog;
+				var xpath = $"/a:feed/a:entry/dcterms:language[text()='{_options.LanguageName}']";
+				if (String.IsNullOrEmpty(_options.LanguageName))
+					xpath = "/a:feed/a:entry";
+				LoadCatalogFromRootPage(rootCatalog, filteredCatalog, xpath, ref entryCount, ref filteredEntryCount);
+			}
+			if (entryCount == 0)
+			{
+				if (_options.DryRun)
+					return filteredCatalog;
+				Console.WriteLine("WARNING: Could not find any entries for {0}", _options.LanguageName);
+				return null;
+			}
+			if (_options.Verbose)
+			{
+
+				if (filteredEntryCount == entryCount)
+					Console.WriteLine("INFO: {0} entries found for {1}", entryCount, _options.LanguageName);
+				else
+					Console.WriteLine("INFO: {0} entries found for {1} published by {2}", filteredEntryCount, _options.LanguageName, _options.Publisher);
+			}
+
+			return RemoveXmnlsAttributesFromCatalogEntries(filteredCatalog);
+		}
+
+		private XmlDocument CreateNewCatalogDocument()
+		{
+			XmlDocument catalog = new XmlDocument();
+			catalog.PreserveWhitespace = true;
+			catalog.LoadXml("<feed xmlns='http://www.w3.org/2005/Atom' xmlns:lrmi='http://purl.org/dcx/lrmi-terms/'" +
 				" xmlns:dc='http://purl.org/dc/terms/' xmlns:dcterms='http://purl.org/dc/terms/'" +
 				" xmlns:opds='http://opds-spec.org/2010/catalog'>" + Environment.NewLine + "</feed>");
 			if (!String.IsNullOrWhiteSpace(FeedTitle))
 			{
-				var title = langCatalog.CreateElement("title", "http://www.w3.org/2005/Atom");
+				var title = catalog.CreateElement("title", "http://www.w3.org/2005/Atom");
 				title.InnerText = $"{FeedTitle} (extract for {_options.LanguageName})";
-				langCatalog.DocumentElement.AppendChild(title);
+				catalog.DocumentElement.AppendChild(title);
 			}
-			XmlElement selfLink;
-			XmlElement nextLink;
-			XmlElement lastLink;
-			var xpath = $"//a:entry/dcterms:language[text()='{_options.LanguageName}']";  // actually gets child of entry...
-			var entries = rootCatalog.DocumentElement.SelectNodes(xpath, _nsmgr);
-			int entryCount = 0;
-			XmlDocument pageOfCatalog;
-			string hrefLink = null;
-			if (entries.Count == 0)
+			return catalog;
+		}
+
+		/// <summary>
+		/// Clean up the extraneous, unnecessary xmlns attributes that InnerXml gratuitously inserts.
+		/// This may or may not result in a new XmlDocument.
+		/// </summary>
+		private static XmlDocument RemoveXmnlsAttributesFromCatalogEntries(XmlDocument catalog)
+		{
+			// 
+			var outerXml = catalog.OuterXml;
+			var idxFirst = outerXml.IndexOf("<entry", StringComparison.InvariantCulture);
+			if (idxFirst > 0)
 			{
-				entries = null;
-				// may need to pull a different root OPDS page: look for a link for the language
-				var link = rootCatalog.DocumentElement.SelectSingleNode($"/a:feed/a:link[@rel='http://opds-spec.org/facet' and @opds:facetGroup='Languages' and contains(@title,'{_options.LanguageName}')]", _nsmgr) as XmlElement;
-				if (link == null)
-				{
-					if (_options.DryRun)
-						return 0;
-					Console.WriteLine("WARNING: Could not find any entries or a link for {0}", _options.LanguageName);
-					return 2;
-				}
-				hrefLink = link.GetAttribute("href");
-				if (link.GetAttribute("activeFacet", "opds") == "true")
-				{
-					pageOfCatalog = rootCatalog;
-				}
-				else
-				{
-					var data = GetOpdsPage(hrefLink);
-					pageOfCatalog = new XmlDocument();
-					pageOfCatalog.PreserveWhitespace = true;
-					pageOfCatalog.LoadXml(data);
-				}
-				// In this type of catalog, the entire file has entries for one (implied) language.
-				xpath = "/a:feed/a:entry";
+				var head = outerXml.Substring(0, idxFirst);
+				var tail = outerXml.Substring(idxFirst).Replace(" xmlns=\"\"", "")
+					.Replace(" xmlns:dc=\"http://purl.org/dc/terms/\"", "")
+					.Replace(" xmlns:dcterms=\"http://purl.org/dc/terms/\"", "")
+					.Replace(" xmlns:lrmi=\"http://purl.org/dcx/lrmi-terms/\"", "")
+					.Replace(" xmlns:opds=\"http://opds-spec.org/2010/catalog\"", "");
+				catalog = new XmlDocument();
+				catalog.PreserveWhitespace = true;
+				catalog.LoadXml(head + tail);
 			}
-			else
+			return catalog;
+		}
+
+		private void LoadCatalogFromRootPage(XmlDocument firstPageOfCatalog, XmlDocument filteredCatalog, string xpath, ref int entryCount, ref int filteredEntryCount)
+		{
+			var pageOfCatalog = firstPageOfCatalog;
+			while (!_options.DryRun)
 			{
-				// In this type of catalog, each entry tells you its language.
-				pageOfCatalog = rootCatalog;
-			}
-			while (true)
-			{
-				if (_options.DryRun)
-					break;
-				selfLink = pageOfCatalog.DocumentElement.SelectSingleNode("/a:feed/a:link[@rel='self']", _nsmgr) as XmlElement;
-				nextLink = pageOfCatalog.DocumentElement.SelectSingleNode("/a:feed/a:link[@rel='next']", _nsmgr) as XmlElement;
-				lastLink = pageOfCatalog.DocumentElement.SelectSingleNode("/a:feed/a:link[@rel='last']", _nsmgr) as XmlElement;
-				if (entries == null)
-				{
-					entryCount += AddEntriesToLangCatalog(pageOfCatalog, xpath, _nsmgr, langCatalog);
-				}
-				else
-				{
-					AddEntriesToLangCatalog(entries, langCatalog);
-					entryCount += entries.Count;
-					entries = null;
-				}
+				var selfLink = pageOfCatalog.DocumentElement.SelectSingleNode("/a:feed/a:link[@rel='self']", _nsmgr) as XmlElement;
+				var nextLink = pageOfCatalog.DocumentElement.SelectSingleNode("/a:feed/a:link[@rel='next']", _nsmgr) as XmlElement;
+				var lastLink = pageOfCatalog.DocumentElement.SelectSingleNode("/a:feed/a:link[@rel='last']", _nsmgr) as XmlElement;
+				entryCount += AddEntriesToFilteredCatalog(pageOfCatalog, xpath, _nsmgr, filteredCatalog, ref filteredEntryCount);
 				if (selfLink == null || nextLink == null || lastLink == null)
 					break;
 				var hrefNext = nextLink.GetAttribute("href");
@@ -121,32 +168,6 @@ namespace RoseGarden
 				pageOfCatalog.PreserveWhitespace = true;
 				pageOfCatalog.LoadXml(data);
 			}
-			if (entryCount == 0)
-			{
-				if (_options.DryRun)
-					return 0;
-				Console.WriteLine("WARNING: Could not find any entries for {0} (href={1})", _options.LanguageName, hrefLink);
-				return 2;
-			}
-			if (_options.Verbose)
-				Console.WriteLine("INFO: {0} entries found for {1}", entryCount, _options.LanguageName);
-
-			// Clean up the extraneous, unnecessary xmlns attributes that InnerXml gratuitously inserts.
-			var outerXml = langCatalog.OuterXml;
-			var idxFirst = outerXml.IndexOf("<entry", StringComparison.InvariantCulture);
-			if (idxFirst > 0)
-			{
-				var head = outerXml.Substring(0, idxFirst);
-				var tail = outerXml.Substring(idxFirst).Replace(" xmlns=\"\"", "")
-					.Replace(" xmlns:dc=\"http://purl.org/dc/terms/\"", "")
-					.Replace(" xmlns:dcterms=\"http://purl.org/dc/terms/\"", "")
-					.Replace(" xmlns:lrmi=\"http://purl.org/dcx/lrmi-terms/\"", "")
-					.Replace(" xmlns:opds=\"http://opds-spec.org/2010/catalog\"", "");
-				langCatalog = new XmlDocument();
-				langCatalog.PreserveWhitespace = true;
-				langCatalog.LoadXml(head + tail);
-			}
-			return 0;
 		}
 
 		public string GetOpdsPage(string urlPath)
@@ -203,31 +224,57 @@ namespace RoseGarden
 			return doc;
 		}
 
-		private int AddEntriesToLangCatalog(XmlDocument catalogPage, string xpath, XmlNamespaceManager nsmgr, XmlDocument langCatalog)
+		private int AddEntriesToFilteredCatalog(XmlDocument catalogPage, string xpath, XmlNamespaceManager nsmgr, XmlDocument langCatalog,
+			ref int filteredCount)
 		{
 			var entries = catalogPage.DocumentElement.SelectNodes(xpath, nsmgr);
-			AddEntriesToLangCatalog(entries, langCatalog);
+			filteredCount += AddEntriesToFilteredCatalog(entries, langCatalog);
 			return entries.Count;
 		}
 
-		private void AddEntriesToLangCatalog(XmlNodeList entries, XmlDocument langCatalog)
+		private int AddEntriesToFilteredCatalog(XmlNodeList entries, XmlDocument filteredCatalog)
 		{
 			var newline = Environment.NewLine;
+			int addedEntries = 0;
 			foreach (var entry in entries.Cast<XmlElement>())
 			{
+				if (FilterForPublisher(entry))
+					continue;
 				// If entry is actually the language element, use the parent element.  Otherwise, add a language element to the end of the inner XML.
 				string innerXml;
 				if (entry.LocalName == "language")
 					innerXml = entry.ParentNode.InnerXml;
 				else
 					innerXml = $"{newline}{entry.InnerXml}{newline}<dcterms:language xmlns:dcterms='http://purl.org/dc/terms/'>{_options.LanguageName}</dcterms:language>{newline}";
-				var newEntry = langCatalog.CreateElement("entry", "http://www.w3.org/2005/Atom");
+				var newEntry = filteredCatalog.CreateElement("entry", "http://www.w3.org/2005/Atom");
 				innerXml = innerXml.Replace(" xmlns=\"http://www.w3.org/2005/Atom\"", "");
 				innerXml = innerXml.Replace("><", ">" + Environment.NewLine + "<");
 				newEntry.InnerXml = innerXml;
-				langCatalog.DocumentElement.AppendChild(newEntry);
-				langCatalog.DocumentElement.AppendChild(langCatalog.CreateTextNode(Environment.NewLine));
+				filteredCatalog.DocumentElement.AppendChild(newEntry);
+				filteredCatalog.DocumentElement.AppendChild(filteredCatalog.CreateTextNode(Environment.NewLine));
+				++addedEntries;
 			}
+			if (_options.VeryVerbose && !String.IsNullOrWhiteSpace(_options.Publisher))
+				Console.WriteLine("DEBUG: added {0} of {1} entries for {2}", addedEntries, entries.Count, _options.Publisher);
+			return addedEntries;
+		}
+
+		private bool FilterForPublisher(XmlElement entry)
+		{
+			if (String.IsNullOrWhiteSpace(_options.Publisher))
+				return false;
+			if (entry.LocalName == "language")
+				entry = entry.ParentNode as XmlElement;
+			var publisherNode = entry.SelectSingleNode("./dc:publisher", _nsmgr);
+			if (publisherNode == null)
+				publisherNode = entry.SelectSingleNode("./dcterms:publisher", _nsmgr);
+			if (publisherNode == null)
+			{
+				Console.WriteLine("WARNING: cannot find publisher for catalog entry!");
+				Console.WriteLine(entry.OuterXml);
+				return true;
+			}
+			return publisherNode.InnerText.ToLowerInvariant() != _options.Publisher.ToLowerInvariant();
 		}
 
 		public void WriteCatalogEntryFile(XmlDocument rootCatalog, XmlElement bookEntry, string path)

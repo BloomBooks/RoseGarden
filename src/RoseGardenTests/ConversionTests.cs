@@ -210,7 +210,7 @@ namespace RoseGardenTests
 		}
 
 		[Test]
-		public void TestExtractMeaningfulCredits()
+		public void TestRemovePrathamCreditBoilerplate()
 		{
 			// SUT - "À l’intérieur du World Wide Web"
 			var credits = ConvertFromEpub.RemovePrathamCreditBoilerplate("This book was first published on StoryWeaver, Pratham Books. The development of this book has been supported by Oracle Giving Initiative.", "en");

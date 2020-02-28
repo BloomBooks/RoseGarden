@@ -35,7 +35,7 @@ namespace RoseGarden
 				StartInfo = new ProcessStartInfo()
 				{
 					FileName = _options.BloomExe,
-					Arguments = $"upload {(_options.SingleBookshelfLevel?"-s":"")} -u \"{_options.UploadUser}\" -p \"{_options.UploadPassword}\" \"{_options.BookShelfContainer}\"",
+					Arguments = $"upload {(_options.SingleBookshelfLevel? "--singleBookshelfLevel" : "")} --preserveThumbnails -u \"{_options.UploadUser}\" -p \"{_options.UploadPassword}\" \"{_options.BookShelfContainer}\"",
 					UseShellExecute = false,
 					CreateNoWindow = false,
 					RedirectStandardOutput = true,

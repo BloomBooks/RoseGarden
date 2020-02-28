@@ -21,6 +21,9 @@ namespace RoseGarden
 		[Option('l', "language", Required = false, HelpText = "Name of desired language: limits catalog output and book title searches")]
 		public string LanguageName { get; set; }
 
+		[Option('p', "publisher", Required = false, HelpText = "Name of desired publisher: limits catalog output and book title searches")]
+		public string Publisher { get; set; }
+
 		[Option('s', "source", Required = false, HelpText = "Fetch from a known OPDS source (for example, gdl or sw)")]
 		public string Source { get; set; }
 
@@ -43,7 +46,7 @@ namespace RoseGarden
 		[Option('o', "output", Required = false, HelpText = "Output file path for downloaded book")]
 		public string OutputFile { get; set; }
 
-		[Option('p', "pdf", Required = false, HelpText = "Download the PDF file as well as the ePUB file.")]
+		[Option("pdf", Required = false, HelpText = "Download the PDF file as well as the ePUB file.")]
 		public bool DownloadPDF { get; set; }
 
 		[Option('t', "title", Required = false, HelpText = "Title of desired book to download")]
@@ -59,9 +62,6 @@ namespace RoseGarden
 	[Verb("convert", HelpText = "Convert a book from epub to Bloom source.")]
 	public class ConvertOptions
 	{
-		[Option('a', "attribution", Required = false, HelpText = "Input attribution text file as provided by Story Weaver")]
-		public string AttributionFile { get; set; }
-
 		[Option('b', "bloomfolder", Required = true, HelpText = "Folder where Bloom is installed locally.")]
 		public string BloomFolder { get; set; }
 
@@ -108,14 +108,14 @@ namespace RoseGarden
 		[Option('b', "bloomexe", Required = true, HelpText = "Path of the Bloom executable.  This is probably a shell script on Linux but the actual Bloom.exe file on Windows.")]
 		public string BloomExe { get; set; }
 
+		[Option('s', "singlelevel", HelpText = "Restrict bookshelf name to only the top level under the path.  (default limit is 2 levels)", Required = false)]
+		public bool SingleBookshelfLevel { get; set; }
+
 		[Option('U', "user", Required = false, HelpText = "Bloomlibrary user for the upload")]
 		public string UploadUser { get; set; }
 
 		[Option('P', "password", Required = false, HelpText = "Password for the given Bloomlibrary user")]
 		public string UploadPassword { get; set; }
-
-		[Option('s', "singlelevel", HelpText = "Restrict bookshelf name to only the top level under the path.  (default limit is 2 levels)", Required = false)]
-		public bool SingleBookshelfLevel { get; set; }
 
 		[Option('v', "verbose", Required = false, HelpText = "Write verbose progress messages to the console.")]
 		public bool Verbose { get; set; }
@@ -139,6 +139,9 @@ namespace RoseGarden
 		[Option('I', "image", Required = false, HelpText = "Download the fullsize image file as well as the ePUB file.")]
 		public bool DownloadImage { get; set; }
 
+		[Option('N', "noupload", Required = false, HelpText = "Do not upload after fetching and converting.")]
+		public bool DoNotUpload { get; set; }
+
 		[Option('R', "replace", Required = false, HelpText = "Force replacing the Bloom book source if it already exists in the local destination folder.")]
 		public bool ReplaceExistingBook { get; set; }
 
@@ -147,9 +150,6 @@ namespace RoseGarden
 
 		[Option('P', "password", Required = false, HelpText = "Password for the given Bloomlibrary user")]
 		public string UploadPassword { get; set; }
-
-		[Option('N', "noupload", Required = false, HelpText = "Do not upload after fetching and converting.")]
-		public bool DoNotUpload { get; set; }
 
 		[Value(0, Required = true, HelpText = "Folder containing a bookshelf folder structure.  The directory level containing the separate bookshelves (which are based on publisher) is marked $publisher$, and replaced by each book's publisher.  Under that directory may be an additional level marked $language$ which is replaced by each book's language.  For example, /home/steve/BloomImport/$publisher$/$language$ could be replaced by /home/steve/BloomImport/Pratham/English for storing one book, but by /home/steve/BloomImport/African StoryBook/French for another book.  For conciseness, Pratham Books is replaced by Pratham, and African Storybook Initiative/Project is replaced by African Storybook.  Other publishers are passed verbatim.")]
 		public string BookShelfContainer { get; set; }

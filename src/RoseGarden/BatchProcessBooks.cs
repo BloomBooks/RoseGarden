@@ -30,7 +30,7 @@ namespace RoseGarden
 		private Dictionary<string, Book> _bloomlibraryBooks = new Dictionary<string, Book>();
 		private OpdsClient _opdsClient;
 		private XmlDocument _rootCatalog;
-		private XmlDocument _langCatalog;
+		private XmlDocument _filteredCatalog;
 		private XmlNamespaceManager _nsmgr;
 		private string _feedTitle;
 
@@ -305,7 +305,7 @@ namespace RoseGarden
 
 		private List<XmlElement> GetEntriesToProcess()
 		{
-			var catalog = String.IsNullOrWhiteSpace(_options.LanguageName) ? _rootCatalog : _langCatalog;
+			var catalog = (String.IsNullOrWhiteSpace(_options.LanguageName) && String.IsNullOrWhiteSpace(_options.Publisher)) ? _rootCatalog : _filteredCatalog;
 			_nsmgr = OpdsClient.CreateNameSpaceManagerForOpdsDocument(catalog);
 			var allEntries = catalog.DocumentElement.SelectNodes($"/a:feed/a:entry", _nsmgr).Cast<XmlElement>().ToList();
 			int majorVersion;
@@ -371,13 +371,13 @@ namespace RoseGarden
 		private void LoadCatalog()
 		{
 			_rootCatalog = _opdsClient.GetRootPage(out _nsmgr, out _feedTitle);
-			if (!String.IsNullOrWhiteSpace(_options.LanguageName))
+			if (!String.IsNullOrWhiteSpace(_options.LanguageName) || !String.IsNullOrEmpty(_options.Publisher))
 			{
-				int res = _opdsClient.GetCatalogForLanguage(_rootCatalog, out _langCatalog);
-				if (res != 0)
+				_filteredCatalog = _opdsClient.GetFilteredCatalog(_rootCatalog);
+				if (_filteredCatalog == null)
 				{
-					Console.WriteLine("ERROR: creating the language specific catalog failed!");
-					Environment.Exit(res);
+					Console.WriteLine("ERROR: creating the filtered catalog failed!");
+					Environment.Exit(2);
 				}
 			}
 		}
