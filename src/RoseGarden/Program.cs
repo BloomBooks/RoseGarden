@@ -136,9 +136,6 @@ namespace RoseGarden
 		[Option('B', "bloomfolder", Required = false, HelpText = "Folder where Bloom is installed locally.  If not given, the folder portion of --bloomexe is used.  (This default probably works only on Windows.)")]
 		public string BloomFolder { get; set; }
 
-		[Option('I', "image", Required = false, HelpText = "Download the fullsize image file as well as the ePUB file.")]
-		public bool DownloadImage { get; set; }
-
 		[Option('N', "noupload", Required = false, HelpText = "Do not upload after fetching and converting.")]
 		public bool DoNotUpload { get; set; }
 
