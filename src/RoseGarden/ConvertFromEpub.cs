@@ -35,7 +35,10 @@ namespace RoseGarden
 		internal readonly LanguageData _languageData = new LanguageData();
 		internal BookMetaData _bookMetaData;
 		internal string _publisher;
-		internal string _creditsLang = "en";	// default assumption until proven otherwise (and true more often than for any other value)
+		internal string _creditsLang = "en";    // default assumption until proven otherwise (and true more often than for any other value)
+		// Special case for publisher 3Asafeer since it doesn't do end credit pages.
+		string _asafeerCopyright;
+		string _asafeerLicense;
 
 		private int _endCreditsStart = Int32.MaxValue;  // Assume no end credits pages to begin with.
 		private int _endCreditsPageCount = 0;
@@ -439,7 +442,7 @@ namespace RoseGarden
 			}
 			// Find related files that may have been downloaded or created for this book.
 			var pathPDF = Path.ChangeExtension(_options.EpubFile, "pdf");
-			var pathThumb = Path.ChangeExtension(_options.EpubFile, "jpg");
+			var pathThumb = Path.ChangeExtension(_options.EpubFile, "thumb.jpg");
 			var pathOPDS = Path.ChangeExtension(_options.EpubFile, "opds");
 			if (_options.EpubFile.EndsWith(".epub.zip", StringComparison.InvariantCulture))
 			{
@@ -475,6 +478,10 @@ namespace RoseGarden
 				if (!String.IsNullOrWhiteSpace(_options.UploadUser) && !String.IsNullOrWhiteSpace(_options.UploadPassword))
 					_bloomlibraryBooks = ParseClient.LoadBloomLibraryInfo(_options.UploadUser, _options.UploadPassword);
 			}
+			else
+			{
+				Console.WriteLine("WARNING: could not load OPDS file {0}: the import may lack important information.", pathOPDS);
+			}
 
 			SetHeadMetaAndBookLanguage();
 
@@ -482,6 +489,8 @@ namespace RoseGarden
 			{
 				ConvertPage(pageNumber, _epubMetaData.PageFiles[pageNumber]);
 			}
+			if (_publisher == "3Asafeer")
+				SetAsafeerImageCredits();
 			if ((_endCreditsPageCount > 3 && _endCreditsPageCount > _epubMetaData.PageFiles.Count / 7) || _endCreditsPageCount == 0)
 				Console.WriteLine("WARNING: found {0} end credit pages in the book", _endCreditsPageCount);
 
@@ -546,6 +555,8 @@ namespace RoseGarden
 				_publisher = divPublisher.InnerText.Trim();
 				if (_publisher == "ew")
 					_publisher = "EW Nigeria";
+				else if (_publisher == "Pratham books")
+					_publisher = "Pratham Books";	// consistent capitalization!
 			}
 		}
 
@@ -582,6 +593,8 @@ namespace RoseGarden
 
 		private void ScanPageForMetrics(int pageNumber)
 		{
+			if (_publisher == "3Asafeer" && pageNumber == 1)
+				return;		// actually a disclaimer/credits page, not a content page.
 			var pageDoc = new XmlDocument();
 			pageDoc.Load(_epubMetaData.PageFiles[pageNumber]);
 			var nsmgr = new XmlNamespaceManager(pageDoc.NameTable);
@@ -755,11 +768,16 @@ namespace RoseGarden
 			{
 				ConvertFrontCoverPage(pageFilePath);
 			}
+			else if (pageNumber == 1 && _publisher == "3Asafeer")
+			{
+				ConvertAsafeerCreditPage(pageFilePath, pageNumber);
+			}
 			else if (!ConvertContentPage(pageFilePath, pageNumber))
 			{
 				Console.WriteLine("WARNING: {0} did not convert successfully.", pageFilePath);
 			}
 		}
+
 		private void ConvertFrontCoverPage(string pageFilePath)
 		{
 			var coverPageXhtml = File.ReadAllText(pageFilePath);
@@ -779,6 +797,7 @@ namespace RoseGarden
 			bool titleSet = false;
 			bool authorEtcSet = false;
 			int imageCount = 0;
+			bool usingEpubTitle = false;
 			foreach (var child in body.ChildNodes.Cast<XmlNode>())
 			{
 				if (child.Name == "img")
@@ -800,9 +819,10 @@ namespace RoseGarden
 						{
 							Console.WriteLine("WARNING: using title from ePUB metadata ({0}) instead of data from title page({1})", _epubMetaData.Title, title);
 							SetTitle(_epubMetaData.Title);
+							usingEpubTitle = true;
 							titleSet = true;
-							AddCoverContributor(child.OuterXml);
-							// Don't claim to have set the author etc.  We don't know what we have here!
+							if (!_epubMetaData.Title.Contains(child.InnerText.Trim()))
+								AddCoverContributor(child.OuterXml);    // Don't claim to have set the author etc.  We aren't sure what we have here!
 						}
 						else
 						{
@@ -812,6 +832,12 @@ namespace RoseGarden
 					}
 					else
 					{
+						if (usingEpubTitle)
+						{
+							var text = child.InnerText.Trim();
+							if (_epubMetaData.Title.Contains(text) && !String.Join(", ", _epubMetaData.Authors).Contains(text))
+								continue;	// The title apparently was split across paragraphs.
+						}
 						var childXml = child.OuterXml;
 						if (child.Name != "p")
 							childXml = $"<p>{child.InnerXml.Trim()}</p>";
@@ -1011,6 +1037,43 @@ namespace RoseGarden
 		{
 			// This may not be sufficient, but maybe it's better than nothing.
 			SetDataDivTextValue("coverImage" + count.ToString(), imageFile);
+		}
+
+		private void ConvertAsafeerCreditPage(string pageFilePath, int pageNumber)
+		{
+			var pageDoc = new XmlDocument();
+			pageDoc.PreserveWhitespace = true;
+			pageDoc.Load(pageFilePath);
+			var nsmgr = new XmlNamespaceManager(pageDoc.NameTable);
+			nsmgr.AddNamespace("x", "http://www.w3.org/1999/xhtml");
+			var body = pageDoc.SelectSingleNode("/x:html/x:body", nsmgr) as XmlElement;
+			// English books from Asafeerhave a paragraph of disclaimer/credit text on page 2.
+			//  Arabic books embed that text in an image (at least in the sample I looked at).
+			var text = body.InnerText.Trim();
+			if (!String.IsNullOrEmpty(text))
+				SetDataDivParaValue("originalAcknowledgments", _epubMetaData.LanguageCode, text);
+			var year = GetYearPublished();
+			_asafeerCopyright = $"© Asafeer Education Technologies FZ LLC, {year}";
+			_asafeerLicense = "CC BY-NC-SA";
+			SetBookCopyright(_asafeerCopyright, "en");
+			SetBookLicense(_asafeerLicense);
+			_endCreditsPageCount = 1;	// not really an "end" credits page, but a credits page
+		}
+
+		private int GetYearPublished()
+		{
+			if (_opdsEntry != null)
+			{
+				var publishedNode = _opdsEntry.SelectSingleNode("/a:feed/a:entry/a:published", _opdsNsmgr) as XmlElement;
+				if (DateTime.TryParse(publishedNode.InnerText, out DateTime published))
+					return published.Year;
+			}
+			return _epubMetaData.Modified.Year;
+		}
+
+		private void SetAsafeerImageCredits()
+		{
+			SetAllImageMetadata(null, _asafeerCopyright, _asafeerLicense);
 		}
 
 		private bool ConvertContentPage(string pageFilePath, int pageNumber)
@@ -2254,7 +2317,7 @@ namespace RoseGarden
 			using (var util = new ImageUtility(imageFile))
 			{
 				util.CreateThumbnail(70, Path.Combine(_bookFolder, "thumbnail-70.png"));
-				File.Copy(Path.Combine(_bookFolder, "thumbnail-70.png"), Path.Combine(_bookFolder, "thumbnail.png"));
+				File.Copy(Path.Combine(_bookFolder, "thumbnail-70.png"), Path.Combine(_bookFolder, "thumbnail.png"), true);
 				util.CreateThumbnail(256, Path.Combine(_bookFolder, "thumbnail-256.png"));
 				util.CreateThumbnail(200, Path.Combine(_bookFolder, "coverImage200.jpg"));
 			}
