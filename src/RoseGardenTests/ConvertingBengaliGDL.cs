@@ -60,7 +60,7 @@ namespace RoseGardenTests
 			CheckTwoPageBookAfterEndPages(convert, coverImg, coverImageData, firstPageImage, secondPageImage,
 				"Copyright © The Asia Foundation, 2018", "CC BY-NC 4.0", "Mrigaja Bajracharya",
 				"Copyright © The Asia Foundation, 2018", "http://creativecommons.org/licenses/by-nc/4.0/",
-				"<p>All illustrations by Mrigaja Bajracharya. Copyright © The Asia Foundation, 2018. Some rights reserved. Released under the CC BY-NC 4.0 license.</p>");
+				"<p>Images by Mrigaja Bajracharya. © The Asia Foundation, 2018. CC BY-NC 4.0.</p>");
 		}
 
 		const string _bengaliOpfXml = @"<?xml version=""1.0"" encoding=""UTF-8""?>

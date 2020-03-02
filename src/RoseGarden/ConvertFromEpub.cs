@@ -814,35 +814,26 @@ namespace RoseGarden
 				{
 					if (!titleSet)
 					{
-						var title = child.InnerText.Trim();
-						if (title != _epubMetaData.Title)
-						{
-							Console.WriteLine("WARNING: using title from ePUB metadata ({0}) instead of data from title page({1})", _epubMetaData.Title, title);
-							SetTitle(_epubMetaData.Title);
-							usingEpubTitle = true;
-							titleSet = true;
-							if (!_epubMetaData.Title.Contains(child.InnerText.Trim()))
-								AddCoverContributor(child.OuterXml);    // Don't claim to have set the author etc.  We aren't sure what we have here!
-						}
-						else
-						{
-							SetTitle(title);
-							titleSet = true;
-						}
+						titleSet = SetTitle(child, ref usingEpubTitle);
 					}
 					else
 					{
-						if (usingEpubTitle)
+						authorEtcSet |= SetCoverContributor(child, usingEpubTitle);
+					}
+				}
+				else if (child is XmlText)
+				{
+					var text = child.InnerText.Trim();
+					if (!String.IsNullOrEmpty(text))
+					{
+						if (!titleSet)
 						{
-							var text = child.InnerText.Trim();
-							if (_epubMetaData.Title.Contains(text) && !String.Join(", ", _epubMetaData.Authors).Contains(text))
-								continue;	// The title apparently was split across paragraphs.
+							titleSet = SetTitle(child, ref usingEpubTitle);
 						}
-						var childXml = child.OuterXml;
-						if (child.Name != "p")
-							childXml = $"<p>{child.InnerXml.Trim()}</p>";
-						AddCoverContributor(childXml);
-						authorEtcSet = true;
+						else
+						{
+							authorEtcSet |= SetCoverContributor(child, usingEpubTitle);
+						}
 					}
 				}
 				else if (child is XmlComment)
@@ -909,6 +900,42 @@ namespace RoseGarden
 					AddCoverContributor(bldr.ToString());
 				}
 			}
+		}
+
+		private bool SetTitle(XmlNode child, ref bool usingEpubTitle)
+		{
+			bool titleSet = false;
+			var title = child.InnerText.Trim();
+			if (title != _epubMetaData.Title)
+			{
+				Console.WriteLine("WARNING: using title from ePUB metadata ({0}) instead of data from title page({1})", _epubMetaData.Title, title);
+				SetTitle(_epubMetaData.Title);
+				usingEpubTitle = true;
+				titleSet = true;
+				if (!_epubMetaData.Title.Contains(child.InnerText.Trim()))
+					AddCoverContributor(child.OuterXml);    // Don't claim to have set the author etc.  We aren't sure what we have here!
+			}
+			else
+			{
+				SetTitle(title);
+				titleSet = true;
+			}
+			return titleSet;
+		}
+
+		private bool SetCoverContributor(XmlNode child, bool usingEpubTitle)
+		{
+			if (usingEpubTitle)
+			{
+				var text = child.InnerText.Trim();
+				if (_epubMetaData.Title.Contains(text) && !String.Join(", ", _epubMetaData.Authors).Contains(text))
+					return false;   // The title apparently was split across paragraphs.
+			}
+			var childXml = child.OuterXml;
+			if (child.Name != "p")
+				childXml = $"<p>{child.InnerXml.Trim()}</p>";
+			AddCoverContributor(childXml);
+			return true;
 		}
 
 		private void AddEmptyCoverPage()
@@ -1054,7 +1081,7 @@ namespace RoseGarden
 				SetDataDivParaValue("originalAcknowledgments", _epubMetaData.LanguageCode, text);
 			var year = GetYearPublished();
 			_asafeerCopyright = $"© Asafeer Education Technologies FZ LLC, {year}";
-			_asafeerLicense = "CC BY-NC-SA";
+			_asafeerLicense = "CC BY-NC-SA 4.0";
 			SetBookCopyright(_asafeerCopyright, "en");
 			SetBookLicense(_asafeerLicense);
 			_endCreditsPageCount = 1;	// not really an "end" credits page, but a credits page
@@ -1073,7 +1100,26 @@ namespace RoseGarden
 
 		private void SetAsafeerImageCredits()
 		{
-			SetAllImageMetadata(null, _asafeerCopyright, _asafeerLicense);
+			var illustrator = String.Join(", ", _epubMetaData.Illustrators).Trim(' ', ',');
+			if (String.IsNullOrEmpty(illustrator) && _opdsEntry != null)
+			{
+				var contribNodes = _opdsEntry.SelectNodes("/a:feed/a:entry/a:contributor[@type='Illustrator']/a:name", _opdsNsmgr).Cast<XmlElement>().ToList();
+				if (contribNodes.Count == 1)
+				{
+					illustrator = contribNodes[0].InnerText.Trim();
+				}
+				else if (contribNodes.Count > 1)
+				{
+					foreach (var contrib in contribNodes)
+					{
+						if (!String.IsNullOrEmpty(illustrator))
+							illustrator = illustrator + ", " + contrib.InnerText.Trim();
+						else
+							illustrator = contrib.InnerText.Trim();
+					}
+				}
+			}
+			SetAllImageMetadata(illustrator, _asafeerCopyright, _asafeerLicense);
 		}
 
 		private bool ConvertContentPage(string pageFilePath, int pageNumber)
@@ -1680,17 +1726,17 @@ namespace RoseGarden
 				var artCreator = "";
 				if (_epubMetaData.Illustrators.Count > 0)
 					artCreator = String.Join(", ", _epubMetaData.Illustrators).Trim(' ', ',');
-				SetAllImageMetadata(artCreator, "Copyright " + artCopyright, licenseAbbrev);
+				SetAllImageMetadata(artCreator, artCopyright, licenseAbbrev);
 
 				var artCopyrightAndLicense = artCopyright;
 				if (licenseAbbrev == "CC0")
-					artCopyrightAndLicense = "Artwork: no rights reserved. (public domain)";
+					artCopyrightAndLicense = "no rights reserved. (public domain)";
 				if (licenseAbbrev.StartsWith("CC BY", StringComparison.InvariantCulture))
-					artCopyrightAndLicense = $"{artCopyright}. Some rights reserved. Released under the {licenseAbbrev} license.";
+					artCopyrightAndLicense = $"{artCopyright}. {licenseAbbrev}.";
 				if (String.IsNullOrEmpty(artCreator))
-					artCopyrightAndLicense = $"All illustrations copyright {artCopyrightAndLicense}";
+					artCopyrightAndLicense = $"Images {artCopyrightAndLicense}";
 				else
-					artCopyrightAndLicense = $"All illustrations by {artCreator}. Copyright {artCopyrightAndLicense}";
+					artCopyrightAndLicense = $"Images by {artCreator}. {artCopyrightAndLicense}";
 				_contributionsXmlBldr.AppendLine($"<p>{artCopyrightAndLicense}</p>");
 				var contributions = GetOrCreateDataDivElement("originalContributions", _creditsLang);
 				if (!String.IsNullOrWhiteSpace(contributions.InnerText))

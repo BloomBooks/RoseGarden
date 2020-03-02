@@ -53,7 +53,7 @@ namespace RoseGardenTests
 			CheckTwoPageBookAfterEndPages(convert, coverImg, coverImageData, firstPageImage, secondPageImage,
 				"Copyright © African Storybook Initiative 2015", "CC BY 4.0", "Marleen Visser",
 				"Copyright © Uganda Community Libraries Association (Ugcla) 2015", "http://creativecommons.org/licenses/by/4.0/",
-				"<p>All illustrations by Marleen Visser. Copyright © African Storybook Initiative 2015. Some rights reserved. Released under the CC BY 4.0 license.</p>");
+				"<p>Images by Marleen Visser. © African Storybook Initiative 2015. CC BY 4.0.</p>");
 		}
 
 		const string _goatOpfXml = @"<?xml version=""1.0"" encoding=""UTF-8""?>

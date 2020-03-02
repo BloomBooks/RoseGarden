@@ -49,7 +49,7 @@ namespace RoseGardenTests
 			CheckTwoPageBookAfterEndPages(convert, coverImg, coverImageData, firstPageImage, secondPageImage,
 				"Copyright © Book Dash, 2018", "CC BY 4.0", "",
 				"Copyright © Book Dash, 2018", "http://creativecommons.org/licenses/by/4.0/",
-				"<p>All illustrations copyright © Book Dash, 2018. Some rights reserved. Released under the CC BY 4.0 license.</p>");
+				"<p>Images © Book Dash, 2018. CC BY 4.0.</p>");
 		}
 
 		const string _uneMaisonOpfXml = @"<?xml version=""1.0"" encoding=""UTF-8""?>
