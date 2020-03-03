@@ -201,6 +201,22 @@ namespace RoseGarden.Parse
 			return response;
 		}
 
+		/// <summary>
+		/// Create a new object in a Parse class (table).
+		/// </summary>
+		/// <param name="className">The name of the class (table). Do not prefix it with "classes/".</param>
+		/// <param name="updateJson">Full json of the object to create.</param>
+		/// <returns>The response after executing the request</returns>
+		internal IRestResponse CreateObject(string className, string updateJson)
+		{
+			EnsureLogIn();
+			var request = MakeRequest($"classes/{className}", Method.POST);
+			AddJsonToRequest(request, updateJson);
+			var response = this.Client.Execute(request);
+			CheckForResponseError(response, "Update failed.\nRequest.Json: {0}", updateJson);
+			return response;
+		}
+
 		private void CheckForResponseError(IRestResponse response, string exceptionInfoFormat, params object[] args)
 		{
 			if (!IsResponseCodeSuccess(response.StatusCode))
@@ -221,7 +237,7 @@ namespace RoseGarden.Parse
 		{
 			var request = new RestRequest("classes/books", Method.GET);
 			SetCommonHeaders(request);
-			request.AddParameter("keys", "object_id,importerName,importerMajorVersion,importerMinorVersion,importedBookSourceUrl,title,bookInstanceId,uploader,lastUploaded,updateSource,tags,inCirculation");
+			request.AddParameter("keys", "object_id,importerName,importerMajorVersion,importerMinorVersion,importedBookSourceUrl,title,authors,bookInstanceId,uploader,lastUploaded,updateSource,tags,inCirculation");
 
 			if (!String.IsNullOrEmpty(whereCondition))
 			{
@@ -241,6 +257,17 @@ namespace RoseGarden.Parse
 			return results;
 		}
 
+		internal IEnumerable<RelatedBooks> GetRelatedBooks(string id)
+		{
+			var request = new RestRequest("classes/relatedBooks", Method.GET);
+			SetCommonHeaders(request);
+			request.AddParameter("keys", "books");
+			request.AddParameter("where", $"{{\"books\": {{\"__type\": \"Pointer\", \"className\": \"books\", \"objectId\": \"{id}\"}} }}");   // 
+			request.AddParameter("include", "books");
+			var results = GetAllResults<RelatedBooks>(request);
+			return results;
+		}
+
 		/// <summary>
 		/// Lazily gets all the results from a Parse database in chunks
 		/// </summary>
@@ -249,6 +276,7 @@ namespace RoseGarden.Parse
 		/// <returns>Yields the results through an IEnumerable as needed</returns>
 		private IEnumerable<T> GetAllResults<T>(IRestRequest request)
 		{
+			//Console.WriteLine("DEBUG GetAllResults(): request={0}", RequestToString(request));
 			int numProcessed = 0;
 			int totalCount = 0;
 			do
@@ -263,13 +291,13 @@ namespace RoseGarden.Parse
 				//Logger?.TrackEvent("ParseClient::GetAllResults Request Sent");
 				var restResponse = this.Client.Execute(request);
 				string responseJson = restResponse.Content;
-
+				//Console.WriteLine("DEBUG GetAllResults(): response={0}", responseJson);
 				var response = JsonConvert.DeserializeObject<Parse.ParseResponse<T>>(responseJson);
 
 				totalCount = response.Count;
 				if (totalCount == 0)
 				{
-					Console.Out.WriteLine("Query returned no results.");
+					//Console.Out.WriteLine("Query returned no results.");
 					break;
 				}
 
@@ -293,6 +321,26 @@ namespace RoseGarden.Parse
 				}
 			}
 			while (numProcessed < totalCount);
+		}
+
+		private string RequestToString(IRestRequest request)
+		{
+			var bldr = new System.Text.StringBuilder();
+			if (!String.IsNullOrEmpty(request.Resource))
+				bldr.AppendFormat("RESOURCE={0}", request.Resource);
+			if (request.Parameters != null)
+			{
+				if (bldr.Length > 0)
+					bldr.Append("; ");
+				bldr.AppendFormat("PARAMETERS=");
+				var sep = "";
+				foreach (var param in request.Parameters)
+				{
+					bldr.AppendFormat("{0}{1}:{2}", sep, param.Name, param.Value);
+					sep = "; ";
+				}
+			}
+			return bldr.ToString();
 		}
 
 		/// <summary>

@@ -49,6 +49,8 @@ namespace RoseGarden.Parse.Model
 		/// The URL used to download the book's original ePUB (and possibly image file) from an OPDS server.
 		/// This is set only by books uploaded by RoseGarden.  Other uploads may set it to an empty string,
 		/// but not to any content.  (This may change if any other importer programs/processes are invented.)
+		/// Alternatively, it may point to an online readable version of the book.  In either case, it
+		/// should be unique to the book and the source we obtained it from.
 		/// </summary>
 		[JsonProperty(kImportedBookSourceUrl)]
 		public string ImportedBookSourceUrl;
@@ -62,6 +64,9 @@ namespace RoseGarden.Parse.Model
 		[JsonProperty("title")]
 		public string Title;
 
+		[JsonProperty("authors")]
+		public List<string> Authors;
+
 		[JsonProperty("uploader")]
 		public User Uploader;
 
@@ -69,7 +74,7 @@ namespace RoseGarden.Parse.Model
 		public Date LastUploaded;
 
 		[JsonProperty("inCirculation")]
-		public bool InCirculation;
+		public bool? InCirculation;
 
 		[JsonProperty("updateSource")]
 		public string UpdateSource;

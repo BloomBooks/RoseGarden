@@ -5,6 +5,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Text;
+using System.Text.RegularExpressions;
 using System.Xml;
 using RoseGarden.Parse;
 using RoseGarden.Parse.Model;
@@ -198,12 +199,44 @@ namespace RoseGarden
 				Directory.Exists(directoryPath);
 		}
 
+		public Dictionary<string, List<Book>> _allBooks = new Dictionary<string, List<Book>>();
+		private void LoadAllBooks(ParseClient client)
+		{
+			var startTime = DateTime.Now;
+			IEnumerable<Book> bookList = client.GetBooks("", new[] { "uploader" });
+			var countAllBooks = 0;
+			var countTitles = 0;
+			foreach (var book in bookList)
+			{
+				++countAllBooks;
+				var normTitle = NormalizeTitle(book.Title);
+				if (!_allBooks.TryGetValue(normTitle, out List<Book> books))
+				{
+					++countTitles;
+					books = new List<Book>();
+					_allBooks.Add(normTitle, books);
+				}
+				books.Add(book);
+			}
+			var endTime = DateTime.Now;
+			if (_options.VeryVerbose)
+				Console.WriteLine("DEBUG: {0} books with {1} distinct titles processed in {2}", countAllBooks, countTitles, (endTime - startTime));
+		}
+
+		private string NormalizeTitle(string title)
+		{
+			title = title.ToLowerInvariant();
+			title = Regex.Replace(title, @"\s+", " ");
+			return title.Trim();
+		}
+
 		private void UpdateParseTables()
 		{
 			var bookDirs = ReadBloomBulkUploadLogFile();
 			GetBookInformationFromBookFolders(bookDirs, out Dictionary<string, string> instanceIdToTitle, out Dictionary<string, XmlDocument> instanceIdToOpds,
 				out Dictionary<string, string> instanceIdToFolder);
 			ParseClient parseClient = new ParseClient(_options.UploadUser, _options.UploadPassword);
+			LoadAllBooks(parseClient);
 			string importedFilter = "{\"importedBookSourceUrl\": {\"$regex\": \".\"}}";
 			IEnumerable<Book> bookList = parseClient.GetBooks(importedFilter, new[] { "uploader" });
 			var uploadDate = new Date(DateTime.Now.ToUniversalTime());
@@ -218,22 +251,49 @@ namespace RoseGarden
 			{
 				if (instanceIdToTitle.TryGetValue(book.BookInstanceId, out string localTitle) &&
 					instanceIdToOpds.TryGetValue(book.BookInstanceId, out XmlDocument opdsEntry) &&
-					instanceIdToFolder.TryGetValue(book.BookInstanceId, out string folder))
+					instanceIdToFolder.TryGetValue(book.BookInstanceId, out string folder) &&
+					!_previouslyLoadedBooks.Contains(folder))       // If we didn't reupload, don't try to update table.
 				{
-					if (_previouslyLoadedBooks.Contains(folder))
-						continue;		// we didn't reupload, so don't try to update table.
 					var needUpdate = book.ImporterName != "RoseGarden" || book.ImporterMajorVersion != _majorVersion || book.ImporterMinorVersion != _minorVersion;
 					if (localTitle != book.Title)
 						Console.WriteLine("WARNING: mismatch in titles from local to parse server: \"{0}\" vs \"{1}\"", localTitle, book.Title);
 					var updateJsonBldr = new StringBuilder(updateJsonBase);
+					var updateTags = false;
+					// Matching titles that vary in case or whitespace doesn't seem feasible using
+					// parse queries.  So we preload everything locally and index by a normalized
+					// title to find matching titles.
+					var matchingBooks = FindBooksWithMatchingTitle(NormalizeTitle(book.Title));
+					var related = new List<Book>();
+					foreach (var oldBook in matchingBooks)
+					{
+						if (oldBook.ObjectId == book.ObjectId)
+							continue;   // a better query would avoid this check
+						if (SameAuthor(book, oldBook) && SameBookshelf(book, oldBook))
+						{
+							if (_options.VeryVerbose)
+								Console.WriteLine("DEBUG: found matching book for \"{0}\"", book.Title);
+							if (book.InCirculation != false && oldBook.InCirculation != false)
+							{
+								book.InCirculation = false;
+								updateJsonBldr.Append(", \"inCirculation\":false");
+								needUpdate = true;
+							}
+							// add tag for librarian?
+							if (!book.Tags.Contains("todo:check duplicate import"))
+							{
+								book.Tags.Add("todo:check duplicate import");
+								updateTags = true;
+							}
+							related.Add(book);
+						}
+					}
 					if (book.Tags != null)
 					{
 						if (_options.VeryVerbose)
 						{
 							foreach (var tag in book.Tags)
-								Console.WriteLine("DEBUG: parse books table tags: tag=\"{0}\"", tag);
+								Console.WriteLine("DEBUG: initial parse books table tags: tag=\"{0}\"", tag);
 						}
-						var updateTags = false;
 						if (book.Tags.Contains("system:Incoming"))
 						{
 							updateTags = true;
@@ -284,8 +344,137 @@ namespace RoseGarden
 						if (response.StatusCode != System.Net.HttpStatusCode.OK)
 							Console.WriteLine("WARNING: updating the book table for \"{0}\" failed: {1}", book.Title, response.Content);
 					}
+
+					if (related.Count > 0)
+					{
+						FixRelatedBooksTable(book, related, parseClient);
+					}
 				}
 			}
+		}
+
+		private List<Book> FindBooksWithMatchingTitle(string normTitle)
+		{
+			if (_allBooks.TryGetValue(normTitle, out List<Book> books))
+				return books;
+			return new List<Book>();
+		}
+
+		private void FixRelatedBooksTable(Book book, List<Book> related, ParseClient parseClient)
+		{
+			related.Add(book);
+			var currentRelatedList = parseClient.GetRelatedBooks(book.ObjectId);
+			var objectsToRemove = new HashSet<string>();
+			foreach (var currentRelated in currentRelatedList)
+			{
+				if (SameBookList(related, currentRelated.Books))
+					return;
+				foreach (var obj in currentRelated.Books)
+					objectsToRemove.Add(obj.ObjectId);
+			}
+			foreach (var objId in objectsToRemove)
+				RemoveObjectFromRelatedBooksEntry(objId, parseClient);
+			CreateRelatedBooksEntry(related, parseClient);
+		}
+
+		private void RemoveObjectFromRelatedBooksEntry(string objId, ParseClient parseClient)
+		{
+			var currentRelatedList = parseClient.GetRelatedBooks(objId);
+			var bookSep = "";
+			foreach (var currentRelated in currentRelatedList)
+			{
+				var bldr = new StringBuilder("{");
+				bldr.AppendFormat("\"objectId\":\"{0}\", \"books\":[", currentRelated.ObjectId);
+				foreach (var book in currentRelated.Books)
+				{
+					if (book.ObjectId == objId)
+						continue;
+					bldr.AppendFormat("{0}{{\"__type\":\"Pointer\", \"className\":\"books\", \"objectId\":\"{1}\"}}", bookSep, book.ObjectId);
+					bookSep = ", ";
+				}
+				bldr.Append("]}");
+				Console.WriteLine("DEBUG RemoveObjectFromRelatedBooksEntry(): updateJson = {0}", bldr);
+				parseClient.UpdateObject("relatedBooks", currentRelated.ObjectId, bldr.ToString());
+			}
+		}
+
+		private void CreateRelatedBooksEntry(List<Book> related, ParseClient parseClient)
+		{
+			var bldr = new StringBuilder("{\"books\":[");
+			var bookSep = "";
+			foreach (var book in related)
+			{
+				bldr.AppendFormat("{0}{{\"__type\":\"Pointer\", \"className\":\"books\", \"objectId\":\"{1}\"}}", bookSep, book.ObjectId);
+				bookSep = ", ";
+			}
+			bldr.Append("]}");
+
+			Console.WriteLine("DEBUG Create: json = {0}", bldr);
+			parseClient.CreateObject("relatedBooks", bldr.ToString());
+		}
+
+		private bool SameBookList(List<Book> related, List<Book> currentRelated)
+		{
+			if (related.Count != currentRelated.Count)
+				return false;
+			foreach (var oldBook in currentRelated)
+			{
+				var match = false;
+				foreach (var newBook in related)
+				{
+					if (newBook.ObjectId == oldBook.ObjectId)
+					{
+						match = true;
+						break;
+					}
+				}
+				if (!match)
+					return false;
+			}
+			return true;
+		}
+
+		private bool SameAuthor(Book newBook, Book oldBook)
+		{
+			if (newBook.Authors == oldBook.Authors)
+				return true;    // they may both be null
+			if (newBook.Authors == null || oldBook.Authors == null)
+				return false;
+			if (newBook.Authors.Count != oldBook.Authors.Count)
+				return false;
+			foreach (var author in newBook.Authors)
+			{
+				if (!oldBook.Authors.Contains(author))
+					return false;
+			}
+			return true;
+		}
+
+		private bool SameBookshelf(Book newBook, Book oldBook)
+		{
+			if (newBook.Tags == oldBook.Tags)
+				return true;
+			if (newBook.Tags == null || oldBook.Tags == null)
+				return false;
+			var oldShelf = "";
+			var newShelf = "";
+			foreach (var tag in oldBook.Tags)
+			{
+				if (tag.StartsWith("Bookshelf:", StringComparison.InvariantCulture))
+				{
+					oldShelf = tag.Substring(10);
+					break;
+				}
+			}
+			foreach (var tag in newBook.Tags)
+			{
+				if (tag.StartsWith("Bookshelf:", StringComparison.InvariantCulture))
+				{
+					newShelf = tag.Substring(10);
+					break;
+				}
+			}
+			return oldShelf == newShelf;
 		}
 
 		public static string GetTagForLrmiReadingLevel(string level)
