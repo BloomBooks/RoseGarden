@@ -56,7 +56,8 @@ namespace RoseGardenTests
 			CheckTwoPageBookAfterEndPages(convert, coverImg, coverImageData, firstPageImage, secondPageImage,
 				"Copyright © The Asia Foundation, 2018", "CC BY 4.0", "Hari Kumar Nair",
 				"Copyright © The Asia Foundation, 2018", "http://creativecommons.org/licenses/by/4.0/",
-				"<p>Images by Hari Kumar Nair. © The Asia Foundation, 2018. CC BY 4.0.</p>");
+				@"<p>Written by Hari Kumar Nair.</p>
+<p>Images by Hari Kumar Nair. © The Asia Foundation, 2018. CC BY 4.0.</p>", null);
 		}
 
 		const string _bagaimanaOpfXml = @"<?xml version=""1.0"" encoding=""UTF-8""?>

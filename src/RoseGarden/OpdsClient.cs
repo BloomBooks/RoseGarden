@@ -36,7 +36,6 @@ namespace RoseGarden
 			if (_options.VeryVerbose)
 				_options.Verbose = true;
 			Directory.CreateDirectory(DownloadFolder);
-
 		}
 
 		public XmlDocument GetFilteredCatalog(XmlDocument rootCatalog)
@@ -44,11 +43,11 @@ namespace RoseGarden
 			if (_options.Verbose)
 			{
 				if (String.IsNullOrEmpty(_options.Publisher))
-					Console.WriteLine("INFO: Extracting a catalog specifically for {0}", _options.LanguageName);
+					Console.WriteLine("INFO: Extracting a catalog for all {0} books", _options.LanguageName);
 				else if (String.IsNullOrEmpty(_options.LanguageName))
-					Console.WriteLine("INFO: Extracting a catalog for books published by {0}", _options.Publisher);
+					Console.WriteLine("INFO: Extracting a catalog for all books published by {0}", _options.Publisher);
 				else
-					Console.WriteLine("INFO: Extracting a catalog specifically for {0} published by {1}", _options.LanguageName, _options.Publisher);
+					Console.WriteLine("INFO: Extracting a catalog for {0} books published by {1}", _options.LanguageName, _options.Publisher);
 			}
 			var filteredCatalog = CreateNewCatalogDocument();
 			int entryCount = 0;

@@ -228,8 +228,11 @@ namespace RoseGarden
 					var updateJsonBldr = new StringBuilder(updateJsonBase);
 					if (book.Tags != null)
 					{
-						foreach (var tag in book.Tags)
-							Console.WriteLine("DEBUG: parse books table tags: tag=\"{0}\"", tag);
+						if (_options.VeryVerbose)
+						{
+							foreach (var tag in book.Tags)
+								Console.WriteLine("DEBUG: parse books table tags: tag=\"{0}\"", tag);
+						}
 						var updateTags = false;
 						if (book.Tags.Contains("system:Incoming"))
 						{

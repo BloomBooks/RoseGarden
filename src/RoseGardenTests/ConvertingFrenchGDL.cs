@@ -49,7 +49,8 @@ namespace RoseGardenTests
 			CheckTwoPageBookAfterEndPages(convert, coverImg, coverImageData, firstPageImage, secondPageImage,
 				"Copyright © Book Dash, 2018", "CC BY 4.0", "",
 				"Copyright © Book Dash, 2018", "http://creativecommons.org/licenses/by/4.0/",
-				"<p>Images © Book Dash, 2018. CC BY 4.0.</p>");
+				@"<p>Written by Michele Fry, Amy Uzzell, Jennifer Jacobs.</p>
+<p>Images © Book Dash, 2018. CC BY 4.0.</p>", null);
 		}
 
 		const string _uneMaisonOpfXml = @"<?xml version=""1.0"" encoding=""UTF-8""?>
@@ -261,9 +262,11 @@ namespace RoseGardenTests
 			Assert.That(licenseUrlData.InnerXml, Is.EqualTo("http://creativecommons.org/licenses/by/4.0/"));
 			var originalContribData = convert._bloomDoc.SelectSingleNode($"/html/body/div[@id='bloomDataDiv']/div[@data-book='originalContributions' and @lang='en']") as XmlElement;
 			Assert.That(originalContribData, Is.Not.Null, "End page sets originalContributions in data div");
-			Assert.That(originalContribData.InnerXml, Is.EqualTo(
-				@"<p>The author of this book, Rohini Nilekani used to earlier write under the pseudonym 'Noni'. The print version of 'Too Many Bananas' has been published by Pratham Books with the support by Nikki Gulati.</p>
+			Assert.That(originalContribData.InnerXml, Is.EqualTo(@"<p>Written by Rohini Nilekani.</p>
 <p>Images by Angie &amp; Upesh. © Pratham Books, 2010. CC BY 4.0.</p>"));
+			var versionAckData = convert._bloomDoc.SelectSingleNode($"/html/body/div[@id='bloomDataDiv']/div[@data-book='versionAcknowledgments' and @lang='en']") as XmlElement;
+			Assert.That(versionAckData, Is.Not.Null, "End page sets versionAcknowledgments in data div");
+			Assert.That(versionAckData.InnerXml, Is.EqualTo("<p>The author of this book, Rohini Nilekani used to earlier write under the pseudonym 'Noni'. The print version of 'Too Many Bananas' has been published by Pratham Books with the support by Nikki Gulati.</p>"));
 			var copyrightData = convert._bloomDoc.SelectSingleNode("/html/body/div[@id='bloomDataDiv']/div[@data-book='copyright' and @lang='*']") as XmlElement;
 			Assert.That(copyrightData, Is.Not.Null, "End page sets copyright in data div");
 			Assert.That(copyrightData.InnerXml, Is.EqualTo("Copyright © Pratham Books, 2010"));
@@ -630,8 +633,9 @@ Pratham Books goes digital to weave a whole new chapter in the realm of multilin
 				// Don't bother adding words for "Copyright" when it's not English.
 				"© Pratham Books, 2016", "CC\u00a0BY\u00a04.0", "Anupama Ajinkya Apte",
 				"© Pratham Books, 2016", "http://creativecommons.org/licenses/by/4.0/",
-				@"<p>Le développement de ce livre a été soutenu par Fortis Charitable Foundation.</p>
+				@"<p>Écrit par Srividhya Venkat.</p>
 <p>Images de Anupama Ajinkya Apte. © Pratham Books, 2016. " + "CC\u00a0BY\u00a04.0.</p>",
+				"<p>Le développement de ce livre a été soutenu par Fortis Charitable Foundation.</p>",
 				"fr");
 		}
 

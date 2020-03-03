@@ -53,7 +53,8 @@ namespace RoseGardenTests
 			CheckTwoPageBookAfterEndPages(convert, coverImg, coverImageData, firstPageImage, secondPageImage,
 				"Copyright © African Storybook Initiative 2015", "CC BY 4.0", "Marleen Visser",
 				"Copyright © Uganda Community Libraries Association (Ugcla) 2015", "http://creativecommons.org/licenses/by/4.0/",
-				"<p>Images by Marleen Visser. © African Storybook Initiative 2015. CC BY 4.0.</p>");
+				@"<p>Written by Alice Nakasango.</p>
+<p>Images by Marleen Visser. © African Storybook Initiative 2015. CC BY 4.0.</p>", null);
 		}
 
 		const string _goatOpfXml = @"<?xml version=""1.0"" encoding=""UTF-8""?>
@@ -273,8 +274,8 @@ http://ugcla.org
 			CheckTwoPageBookAfterEndPages(convert, coverImg, coverImageData, firstPageImage, secondPageImage,
 				"Copyright © Room to Read, 2013", "CC BY 4.0", "Vusi Malindi",
 				"Copyright © Room to Read, 2013", "http://creativecommons.org/licenses/by/4.0/",
-				@"<p>This story 'Dogs versus Cats' has been published on StoryWeaver by Room to Read.</p>
-<p>Images by Vusi Malindi. © Room to Read, 2013. CC BY 4.0.</p>");
+				@"<p>Written by Alisha Berger.</p>
+<p>Images by Vusi Malindi. © Room to Read, 2013. CC BY 4.0.</p>", "<p>This story 'Dogs versus Cats' has been published on StoryWeaver by Room to Read.</p>");
 		}
 
 		const string _dogsOpfXml = @"<?xml version=""1.0"" encoding=""UTF-8""?>
@@ -541,8 +542,9 @@ Pratham Books goes digital to weave a whole new chapter in the realm of multilin
 			CheckTwoPageBookAfterEndPages(convert, coverImg, coverImageData, firstPageImage, secondPageImage,
 				"Copyright © Pratham Books, 2015", "CC BY 4.0", "Hari Kumar Nair",
 				"Copyright © Pratham Books, 2015", "http://creativecommons.org/licenses/by/4.0/",
-				@"<p>The development of this book has been supported by HDFC Asset Management Company Limited (A joint venture with Standard Life Investments).This book was part of the Pratham Books lab conducted in collaboration with Srishti School of Art, Design and Technology, Bangalore.</p>
-<p>Images by Hari Kumar Nair. © Pratham Books, 2015. CC BY 4.0.</p>");
+				@"<p>Written by Hari Kumar Nair.</p>
+<p>Images by Hari Kumar Nair. © Pratham Books, 2015. CC BY 4.0.</p>",
+				"<p>The development of this book has been supported by HDFC Asset Management Company Limited (A joint venture with Standard Life Investments).This book was part of the Pratham Books lab conducted in collaboration with Srishti School of Art, Design and Technology, Bangalore.</p>");
 		}
 
 		const string _whatIfOpfXml = @"<?xml version=""1.0"" encoding=""UTF-8""?>
@@ -860,7 +862,8 @@ Pratham Books goes digital to weave a whole new chapter in the realm of multilin
 			Assert.That(licenseUrlData.InnerXml, Is.EqualTo("http://creativecommons.org/licenses/by/4.0/"));
 			var originalContribData = convert._bloomDoc.SelectSingleNode($"/html/body/div[@id='bloomDataDiv']/div[@data-book='originalContributions' and @lang='en']") as XmlElement;
 			Assert.That(originalContribData, Is.Not.Null, "End page sets originalContributions in data div");
-			Assert.That(originalContribData.InnerXml, Is.EqualTo(@"<p>Images on Front Cover, page 3 by Megha Vishwanath. © Pratham Books, 2015. CC BY 4.0.</p>
+			Assert.That(originalContribData.InnerXml, Is.EqualTo(@"<p>Written by Storyweaver, Pratham Books.</p>
+<p>Images on Front Cover, page 3 by Megha Vishwanath. © Pratham Books, 2015. CC BY 4.0.</p>
 <p>Images on pages 1-2, 4-7 by Megha Vishwanath. © Megha Vishwanath, 2015. CC BY 4.0.</p>"));
 			var copyrightData = convert._bloomDoc.SelectSingleNode("/html/body/div[@id='bloomDataDiv']/div[@data-book='copyright' and @lang='*']") as XmlElement;
 			Assert.That(copyrightData, Is.Not.Null, "End page sets copyright in data div");
@@ -1174,6 +1177,717 @@ Disclaimer:
 <img src=""d710444fa4fa11e970eed00fa1977069.png"" />
 Pratham Books goes digital to weave a whole new chapter in the realm of multilingual children's stories. Knitting together children, authors, illustrators and publishers. Folding in teachers, and translators. To create a rich fabric of openly licensed multilingual stories for the children of India ­­ and the world. Our unique online platform, StoryWeaver, is a playground where children, parents, teachers and librarians can get creative. Come, start weaving today, and help us get a book in every child's hand!
 </body>
+</html>";
+
+		/// <summary>
+		/// This tests converting the Global Digital Library version of "The Great Hairy Khyaa" published by The Asia Foundation.
+		/// It has these distinctive features:
+		/// * the front cover page has a mixture of paragraph and raw text for the author and illustrator names
+		/// * content pages use paragraph markup for the text
+		/// * page 2 is really another credit page
+		/// * 2 end pages, the first talking about the author and illustrator (and no copyright or license information), and the
+		///   second a messy copyright/license page.
+		/// </summary>
+		[Test]
+		public void TestConvertingGreatHairyKhyaa_GDL()
+		{
+			// SUT (UsePortrait or UseLandscape must be true to avoid invalid file access)
+			var convert = InitializeForConversions(new ConvertOptions() { LanguageName = "English", UsePortrait = true }, _hairyKhyaaOpfXml, _hairyKhyaaOpdsXml);
+			var dataDiv0 = CheckInitialBookSetup(convert, "The Great Hairy Khyaa");
+
+			// SUT
+			convert.ConvertCoverPage(_hairyKhyaaPage1Xhtml);
+			var coverImg = CheckCoverPageImport(convert, dataDiv0, "The Great Hairy Khyaa", "36c0b3f194cfaee044a627a9ad4d5fc0.jpg",
+				@"<p>Durga Lal Shrestha</p><p>Suman Maharjan</p>", out XmlElement coverImageData);
+
+			// SUT
+			var result = convert.ConvertContentPage(1, _hairyKhyaaPage2Xhtml);
+			Assert.That(result, Is.True, "converting The Great Hairy Khyaa chapter 2 succeeded");
+			var firstPageImage = CheckTrueContentPageImport(convert._bloomDoc, "1", 2, "a99b2b2d4284bde63d16c7b4abffdf41.jpg",
+				@"<p>Srijanalaya produced this book with the support of The Asia Foundation’s Books for Asia program. Srijanalaya is an NGO based in Nepal that creates safe spaces of learning through the arts. For more information, visit: srijanalaya.org. Title: ‘Khyaa’ (2018), originally sung in Chulichiya Chan Chan (1991) Writer: Durga Lal Shrestha Illustrator: Suman Maharjan Editors: Muna Gurung, Sharareh Bajracharya and Niranjan Kunwar</p>");
+
+			// SUT
+			result = convert.ConvertContentPage(2, _hairyKhyaaPage3Xhtml);
+			Assert.That(result, Is.True, "converting The Great Hairy Khyaa chapter 3 succeeded");
+			var secondPageImage = CheckTrueContentPageImport(convert._bloomDoc, "2", 3, "e664fd3ac4e1600bcb4c0743a7552b7c.jpg", @"<p>Who’s down there? The Great Hairy Khyaa !</p>");
+
+			// SUT
+			result = convert.ConvertContentPage(12, _hairyKhyaaPage13Xhtml);
+			Assert.That(result, Is.True, "converting The Great Hairy Khyaa chapter 13 succeeded");
+			var thirdPageImage = CheckTrueContentPageImport(convert._bloomDoc, "12", 4, "50d7c9ca4e58137eb2e37a403666dc8d.jpg", @"<p>Ma is this the khyaa that scares me so?</p>");
+
+			// SUT
+			result = convert.ConvertContentPage(13, _hairyKhyaaPage14Xhtml);
+			Assert.That(result, Is.True, "converting The Great Hairy Khyaa chapter 14 succeeded");
+			var fourthPageImage = CheckTrueContentPageImport(convert._bloomDoc, "13", 5, "1f8866c433bbc82ef57f54cc0233009d.jpg",
+				@"<p>About the Author Durga Lal Shrestha is a famous poet of Nepal Bhasa and Nepali. As a teacher of Nepal Bhasa at Kanya Mandir Higher Secondary School in the 1950s to 70s, he created songs to inspire children to express themselves in their mother tongue. His songs became widely known throughout the Kathmandu Valley and collections of his children’s songs have been through over reprints and are still circulated today. About the Illustrator Suman Maharjan is a passionate visual artist, animator, and freelance illustrator from Nepal. He has loved illustrating and children’s picture books since a young age, with a passion for 2D character animation. He enjoys working in different medium - in addition to DIY solutions, printmaking and sculpture. Acknowledgments First and foremost we would like to thank the openness with which Durga Lal Shrestha has embraced this project. He is an inspiration for the next generation of creative thinkers. A warm thank you to the illustrator Amber Delahaye from Stichting Thang who held illustration workshops. And finally, this book would not have been possible without Suman and Suchita Shrestha, who are Durga Lal Shrestha’s children, and his wife, Purnadevi Shrestha, who is always by his side.</p>");
+
+			// SUT
+			result = convert.ConvertContentPage(14, _hairyKhyaaPage15Xhtml);
+			Assert.That(result, Is.True, "converting The Great Hairy Khyaa chapter 15 (end page) succeeded");
+			// We can't use the normal checking method because it assumes only 2 content pages and we have 4.
+			var pages = convert._bloomDoc.SelectNodes("/html/body/div[contains(@class,'bloom-page')]").Cast<XmlElement>().ToList();
+			Assert.That(pages.Count, Is.EqualTo(5), "Five pages should exist after converting the cover page, four content pages, and an end page.");
+			var imageCreator = "Suman Maharjan";
+			var imageCopyright = "Copyright © The Asia Foundation, 2019";
+			var imageLicense = "CC BY-NC 4.0";
+			CheckImageMetaData(coverImageData, imageCreator, imageCopyright, imageLicense);
+			CheckImageMetaData(coverImg, imageCreator, imageCopyright, imageLicense);
+			CheckImageMetaData(firstPageImage, imageCreator, imageCopyright, imageLicense);
+			CheckImageMetaData(secondPageImage, imageCreator, imageCopyright, imageLicense);
+			CheckImageMetaData(thirdPageImage, imageCreator, imageCopyright, imageLicense);
+			CheckImageMetaData(fourthPageImage, imageCreator, imageCopyright, imageLicense);
+			var licenseUrlData = convert._bloomDoc.SelectSingleNode("/html/body/div[@id='bloomDataDiv']/div[@data-book='copyrightUrl' and @lang='*']") as XmlElement;
+			Assert.That(licenseUrlData, Is.Not.Null, "End page sets copyrightUrl in data div");
+			Assert.That(licenseUrlData.InnerXml, Is.EqualTo("http://creativecommons.org/licenses/by-nc/4.0/"));
+			var originalContribData = convert._bloomDoc.SelectSingleNode($"/html/body/div[@id='bloomDataDiv']/div[@data-book='originalContributions' and @lang='en']") as XmlElement;
+			Assert.That(originalContribData, Is.Not.Null, "End page sets originalContributions in data div");
+			Assert.That(originalContribData.InnerXml, Is.EqualTo(@"<p>Written by Durga Lal Shrestha.</p>
+<p>Images by Suman Maharjan. © The Asia Foundation, 2019. CC BY-NC 4.0.</p>"));
+			var copyrightData = convert._bloomDoc.SelectSingleNode("/html/body/div[@id='bloomDataDiv']/div[@data-book='copyright' and @lang='*']") as XmlElement;
+			Assert.That(copyrightData, Is.Not.Null, "End page sets copyright in data div");
+			Assert.That(copyrightData.InnerXml, Is.EqualTo("Copyright © The Asia Foundation, 2019"));
+			var insideBackCoverData = convert._bloomDoc.SelectSingleNode($"/html/body/div[@id='bloomDataDiv']/div[@data-book='insideBackCover' and @lang='en']") as XmlElement;
+			Assert.That(insideBackCoverData, Is.Null, "The inside back cover in the data div should not be set.");
+		}
+		const string _hairyKhyaaOpfXml = @"<?xml version=""1.0"" encoding=""UTF-8""?>
+<package xmlns=""http://www.idpf.org/2007/opf"" version=""3.0"" unique-identifier=""uid"">
+	<metadata xmlns:dc=""http://purl.org/dc/elements/1.1/"">
+		<dc:identifier id=""uid"">1c13c21b-8a29-41f0-9633-ed3653aa2eaf</dc:identifier>
+		<dc:title>The Great Hairy Khyaa</dc:title>
+		<dc:language>en</dc:language>
+		<meta property=""dcterms:modified"">2020-03-02T09:52:06Z</meta>
+		<dc:description>What lurks under the stairs yet disappears when you turn on the lights? A group of friends encounter the Great Hairy Khyaa. Will they overcome their fear of the darkness?</dc:description>
+		<dc:creator id=""contributor_1"">Durga Lal Shrestha</dc:creator>
+		<meta refines=""#contributor_1"" property=""role"" scheme=""marc:relators"">aut</meta>
+		<dc:contributor id=""contributor_2"">Suman Maharjan</dc:contributor>
+		<meta refines=""#contributor_2"" property=""role"" scheme=""marc:relators"">ill</meta>
+	</metadata>
+	<manifest>
+		<item href=""toc.xhtml"" id=""toc"" media-type=""application/xhtml+xml"" properties=""nav"" />
+		<item href=""epub.css"" id=""css"" media-type=""text/css"" />
+		<item href=""36c0b3f194cfaee044a627a9ad4d5fc0.jpg"" id=""cover"" media-type=""image/jpeg"" properties=""cover-image"" />
+		<item href=""2afebc0bb8df793d350593e7e1859da5.jpg"" id=""image-50946-1"" media-type=""image/jpeg"" />
+		<item href=""a99b2b2d4284bde63d16c7b4abffdf41.jpg"" id=""image-50947-2"" media-type=""image/jpeg"" />
+		<item href=""e664fd3ac4e1600bcb4c0743a7552b7c.jpg"" id=""image-50948-3"" media-type=""image/jpeg"" />
+		<item href=""b1a965d6bbad678cac98c5c815d7e784.jpg"" id=""image-50949-4"" media-type=""image/jpeg"" />
+		<item href=""0e001757a769d2711c4152fe9dac8853.jpg"" id=""image-50950-5"" media-type=""image/jpeg"" />
+		<item href=""5ad37ac1a7e04ae838a3e769f2129df7.jpg"" id=""image-50951-6"" media-type=""image/jpeg"" />
+		<item href=""7555ebd64d50d6c5689d987ef529dfbc.jpg"" id=""image-50952-7"" media-type=""image/jpeg"" />
+		<item href=""7210f46dc24d1c9c32e073bf6dd2b6b3.jpg"" id=""image-50953-8"" media-type=""image/jpeg"" />
+		<item href=""2ede96dd77c6b1c0e1af9b255bf1affe.jpg"" id=""image-50954-9"" media-type=""image/jpeg"" />
+		<item href=""573dfdaaa3149c14020cce24651b9090.jpg"" id=""image-50955-10"" media-type=""image/jpeg"" />
+		<item href=""6ff0c357d78357b470270f45839123e6.jpg"" id=""image-50956-11"" media-type=""image/jpeg"" />
+		<item href=""f3ea5a34517e7db78015e6ae684221fc.jpg"" id=""image-50957-12"" media-type=""image/jpeg"" />
+		<item href=""50d7c9ca4e58137eb2e37a403666dc8d.jpg"" id=""image-50958-13"" media-type=""image/jpeg"" />
+		<item href=""1f8866c433bbc82ef57f54cc0233009d.jpg"" id=""image-50959-14"" media-type=""image/jpeg"" />
+		<item href=""2d85083a3544781ab3cab25d5c38b443.png"" id=""image-50960-15"" media-type=""image/png"" />
+		<item href=""13652b55fe3beeb1954c87d0f4c9bbc4.png"" id=""image-50961-16"" media-type=""image/png"" />
+		<item href=""chapter-1.xhtml"" id=""chapter-1"" media-type=""application/xhtml+xml"" />
+		<item href=""chapter-2.xhtml"" id=""chapter-2"" media-type=""application/xhtml+xml"" />
+		<item href=""chapter-3.xhtml"" id=""chapter-3"" media-type=""application/xhtml+xml"" />
+		<item href=""chapter-4.xhtml"" id=""chapter-4"" media-type=""application/xhtml+xml"" />
+		<item href=""chapter-5.xhtml"" id=""chapter-5"" media-type=""application/xhtml+xml"" />
+		<item href=""chapter-6.xhtml"" id=""chapter-6"" media-type=""application/xhtml+xml"" />
+		<item href=""chapter-7.xhtml"" id=""chapter-7"" media-type=""application/xhtml+xml"" />
+		<item href=""chapter-8.xhtml"" id=""chapter-8"" media-type=""application/xhtml+xml"" />
+		<item href=""chapter-9.xhtml"" id=""chapter-9"" media-type=""application/xhtml+xml"" />
+		<item href=""chapter-10.xhtml"" id=""chapter-10"" media-type=""application/xhtml+xml"" />
+		<item href=""chapter-11.xhtml"" id=""chapter-11"" media-type=""application/xhtml+xml"" />
+		<item href=""chapter-12.xhtml"" id=""chapter-12"" media-type=""application/xhtml+xml"" />
+		<item href=""chapter-13.xhtml"" id=""chapter-13"" media-type=""application/xhtml+xml"" />
+		<item href=""chapter-14.xhtml"" id=""chapter-14"" media-type=""application/xhtml+xml"" />
+		<item href=""chapter-15.xhtml"" id=""chapter-15"" media-type=""application/xhtml+xml"" />
+	</manifest>
+</package>";
+		const string _hairyKhyaaOpdsXml = @"<feed xmlns='http://www.w3.org/2005/Atom' xmlns:lrmi='http://purl.org/dcx/lrmi-terms/' xmlns:dc='http://purl.org/dc/terms/' xmlns:dcterms='http://purl.org/dc/terms/' xmlns:opds='http://opds-spec.org/2010/catalog'>
+<title>Global Digital Library - Book Catalog [extract]</title>
+<entry>
+<id>urn:uuid:1c13c21b-8a29-41f0-9633-ed3653aa2eaf</id>
+<title>The Great Hairy Khyaa</title>
+<author>
+<name>Durga Lal Shrestha</name>
+</author>
+<contributor type=""Illustrator"">
+<name>Suman Maharjan</name>
+</contributor>
+<dc:license>Creative Commons Attribution Non Commercial 4.0 International</dc:license>
+<dc:publisher>The Asia Foundation</dc:publisher>
+<updated>2019-12-03T00:00:00Z</updated>
+<dc:created>2019-12-03T00:00:00Z</dc:created>
+<published>2019-12-03T00:00:00Z</published>
+<lrmi:educationalAlignment alignmentType=""readingLevel"" targetName=""Level 2"" />
+<summary>What lurks under the stairs yet disappears when you turn on the lights? A group of friends encounter the Great Hairy Khyaa. Will they overcome their fear of the darkness?</summary>
+<link href=""https://res.cloudinary.com/dwqxoowxi/f_auto,q_auto/36c0b3f194cfaee044a627a9ad4d5fc0"" type=""image/jpeg"" rel=""http://opds-spec.org/image"" />
+<link href=""https://res.cloudinary.com/dwqxoowxi/f_auto,q_auto/36c0b3f194cfaee044a627a9ad4d5fc0?width=200"" type=""image/png"" rel=""http://opds-spec.org/image/thumbnail"" />
+<link href=""https://books.digitallibrary.io/epub/en/1c13c21b-8a29-41f0-9633-ed3653aa2eaf.epub"" type=""application/epub+zip"" rel=""http://opds-spec.org/acquisition/open-access"" />
+<link href=""https://books.digitallibrary.io/pdf/en/1c13c21b-8a29-41f0-9633-ed3653aa2eaf.pdf"" type=""application/pdf"" rel=""http://opds-spec.org/acquisition/open-access"" />
+<dcterms:language>English</dcterms:language>
+</entry>
+</feed>";
+		const string _hairyKhyaaPage1Xhtml = @"<html xmlns=""http://www.w3.org/1999/xhtml"">
+<head>
+    <title>Chapter 1</title>
+    <link href=""epub.css"" rel=""stylesheet"" type=""text/css""/>
+</head>
+<body><img src=""36c0b3f194cfaee044a627a9ad4d5fc0.jpg"" />
+<h1>
+ The Great Hairy Khyaa
+</h1>
+<h2>
+ Durga Lal Shrestha
+</h2>
+Suman Maharjan
+<img src=""2afebc0bb8df793d350593e7e1859da5.jpg"" />
+</body>
+</html>";
+		const string _hairyKhyaaPage2Xhtml = @"<html xmlns=""http://www.w3.org/1999/xhtml"">
+<head>
+    <title>Chapter 2</title>
+    <link href=""epub.css"" rel=""stylesheet"" type=""text/css""/>
+</head>
+<body><img src=""a99b2b2d4284bde63d16c7b4abffdf41.jpg"" />
+<p>
+ Srijanalaya produced this book with the support of The Asia Foundation’s Books for Asia program. Srijanalaya is an NGO based in Nepal that creates safe spaces of learning through the arts. For more information, visit: srijanalaya.org. Title: ‘Khyaa’ (2018), originally sung in Chulichiya Chan Chan (1991) Writer: Durga Lal Shrestha Illustrator: Suman Maharjan Editors: Muna Gurung, Sharareh Bajracharya and Niranjan Kunwar
+</p></body>
+</html>";
+		const string _hairyKhyaaPage3Xhtml = @"<html xmlns=""http://www.w3.org/1999/xhtml"">
+<head>
+    <title>Chapter 3</title>
+    <link href=""epub.css"" rel=""stylesheet"" type=""text/css""/>
+</head>
+<body><img src=""e664fd3ac4e1600bcb4c0743a7552b7c.jpg"" />
+<p>
+ Who’s down there? The Great Hairy Khyaa !
+</p></body>
+</html>";
+		const string _hairyKhyaaPage13Xhtml = @"<html xmlns=""http://www.w3.org/1999/xhtml"">
+<head>
+    <title>Chapter 13</title>
+    <link href=""epub.css"" rel=""stylesheet"" type=""text/css""/>
+</head>
+<body><img src=""50d7c9ca4e58137eb2e37a403666dc8d.jpg"" />
+<p>
+ Ma is this the khyaa that scares me so?
+</p></body>
+</html>";
+		const string _hairyKhyaaPage14Xhtml = @"<html xmlns=""http://www.w3.org/1999/xhtml"">
+<head>
+    <title>Chapter 14</title>
+    <link href=""epub.css"" rel=""stylesheet"" type=""text/css""/>
+</head>
+<body><img src=""1f8866c433bbc82ef57f54cc0233009d.jpg"" />
+<p>
+ About the Author Durga Lal Shrestha is a famous poet of Nepal Bhasa and Nepali. As a teacher of Nepal Bhasa at Kanya Mandir Higher Secondary School in the 1950s to 70s, he created songs to inspire children to express themselves in their mother tongue. His songs became widely known throughout the Kathmandu Valley and collections of his children’s songs have been through over reprints and are still circulated today. About the Illustrator Suman Maharjan is a passionate visual artist, animator, and freelance illustrator from Nepal. He has loved illustrating and children’s picture books since a young age, with a passion for 2D character animation. He enjoys working in different medium - in addition to DIY solutions, printmaking and sculpture. Acknowledgments First and foremost we would like to thank the openness with which Durga Lal Shrestha has embraced this project. He is an inspiration for the next generation of creative thinkers. A warm thank you to the illustrator Amber Delahaye from Stichting Thang who held illustration workshops. And finally, this book would not have been possible without Suman and Suchita Shrestha, who are Durga Lal Shrestha’s children, and his wife, Purnadevi Shrestha, who is always by his side.
+</p></body>
+</html>";
+		const string _hairyKhyaaPage15Xhtml = @"<html xmlns=""http://www.w3.org/1999/xhtml"">
+<head>
+    <title>Chapter 15</title>
+    <link href=""epub.css"" rel=""stylesheet"" type=""text/css""/>
+</head>
+<body><p>
+ Brought to you by
+</p>
+<p>
+ <img src=""2d85083a3544781ab3cab25d5c38b443.png"" />
+</p>
+<p>
+ Let's Read! is an initiative of The Asia Foundation's Books for Asia program that fosters young readers in Asia. booksforasia.org To read more books like this and get further information, visit letsreadasia.org .
+</p>
+<p>
+ Original Story ख्याक्, author: Durga Lal Shrestha. . illustrator: Suman Maharjan. Published by , https://www.letsreadasia.org © . Released under CC BY-NC 4.0.
+</p>
+<p>
+ This work is a modified version of the original story. © The Asia Foundation, 2019. Some rights reserved. Released under CC BY-NC 4.0.
+</p>
+<p>
+ <img src=""13652b55fe3beeb1954c87d0f4c9bbc4.png"" />
+ For full terms of use and attribution, http://creativecommons.org/licenses/by-nc/4.0/
+</p>
+<p>
+ #_contributions_#
+</p></body>
+</html>";
+
+		/// <summary>
+		/// This tests converting the Global Digital Library version of "The Elephant in My House" published by The Asia Foundation.
+		/// It has these distinctive features:
+		/// * the front cover page gives the author's name in a non-Roman script (I assume it's the author's name...)
+		/// * content pages use paragraph markup for the text
+		/// * 1 content page with only a picture without any text
+		/// * 3 end pages, the first with a blurb about saving the elephants, the second thanking a donor (neither with any
+		///   copyright or license information), and the final page a messy copyright/license page.
+		/// </summary>
+		[Test]
+		public void TestConvertingElephantInMyHouse_GDL()
+		{
+			// SUT (UsePortrait or UseLandscape must be true to avoid invalid file access)
+			var convert = InitializeForConversions(new ConvertOptions() { LanguageName = "English", UsePortrait = true }, _elephantOpfXml, _elephantOpdsXml);
+			var dataDiv0 = CheckInitialBookSetup(convert, "The Elephant in My House");
+
+			// SUT
+			convert.ConvertCoverPage(_elephantPage1Xhtml);
+			var coverImg = CheckCoverPageImport(convert, dataDiv0, "The Elephant in My House", "cc1c496186e7bd12151a5c39b522058d.jpg",
+				@"<p>ព្រុំ គន្ធារ៉ូ</p>"
+				, out XmlElement coverImageData);
+
+			// SUT
+			var result = convert.ConvertContentPage(1, _elephantPage2Xhtml);
+			Assert.That(result, Is.True, "converting The Elephant in My House chapter 2 succeeded");
+			var firstPageImage = CheckTrueContentPageImport(convert._bloomDoc, "1", 2, "858af36e7f07543929931d2002d7fd2c.jpg",
+				@"<p>One morning, Botom and her mother were tending their fields. Suddenly, they saw a young elephant running towards them!</p>");
+
+			// SUT
+			result = convert.ConvertContentPage(16, _elephantPage17Xhtml);
+			Assert.That(result, Is.True, "converting The Elephant in My House chapter 17 succeeded");
+			var secondPageImage = CheckTrueContentPageImport(convert._bloomDoc, "16", 3, "bb4e18bba720607c88276b8aff191169.jpg",
+				@"<p>Sakor was sad to leave too, now that Botom treated him kindly. But his mother reminded him he could come back to visit now that Botom understood how to be a friend to elephants.</p>");
+
+			// SUT
+			result = convert.ConvertContentPage(17, _elephantPage18Xhtml);
+			Assert.That(result, Is.True, "converting The Elephant in My House chapter 18 succeeded");
+			var thirdPageImage = CheckTrueContentPageImport(convert._bloomDoc, "17", 4, "33b5b1c2c03c6bbfcc438c7c0d16de0b.jpg", null);
+
+			// SUT
+			result = convert.ConvertContentPage(18, _elephantPage19Xhtml);
+			Assert.That(result, Is.True, "converting The Elephant in My House chapter 19 succeeded");
+			var fourthPageImage = CheckTrueContentPageImport(convert._bloomDoc, "18", 5, "7bd541afd7e292faa70d1492a4d45f45.jpg",
+				@"<p>More About the Environment Conservation International (CI) has been working in Cambodia since 2001 to conserve the rich biodiversity of Cambodia. From the Cardamom Mountains in the southwest, home of some of the few remaining Asian elephants in the country, to Tonle Sap Lake, the largest inland fishery in Southeast Asia, to Veun Sai Siem Park National Park, home of the yellow-cheeked gibbons. For more information: https://www.conservation.org/where/Pages/Greater-Mekong-region.aspx https://www.youtube.com/watch?v=XGlTHR8aD-o https://www.youtube.com/watch?v=xgqsniNBhgs Additional environmental information provided by Conservation International in collaboration with The Asia Foundation</p>");
+
+			// SUT
+			result = convert.ConvertContentPage(19, _elephantPage20Xhtml);
+			Assert.That(result, Is.True, "converting The Elephant in My House chapter 20 succeeded");
+			var fifthPageImage = CheckTrueContentPageImport(convert._bloomDoc, "19", 6, "7b6cd336c62f1c6b2098f9b65811403a.jpg",
+				@"<p>Generously supported by SMART</p>");
+
+			// SUT
+			result = convert.ConvertContentPage(20, _elephantPage21Xhtml);	// page number must match what is in opf file below.
+			Assert.That(result, Is.True, "converting The Elephant in My House chapter 21 (end page) succeeded");
+			// We can't use the normal checking method because it assumes only 2 content pages and we have 4.
+			var pages = convert._bloomDoc.SelectNodes("/html/body/div[contains(@class,'bloom-page')]").Cast<XmlElement>().ToList();
+			Assert.That(pages.Count, Is.EqualTo(6), "Six pages should exist after converting the cover page, five content pages, and one end page.");
+			var imageCreator = "Sin Thuokna";
+			var imageCopyright = "Copyright © The Asia Foundation, 2019";
+			var imageLicense = "CC BY-NC 4.0";
+			CheckImageMetaData(coverImageData, imageCreator, imageCopyright, imageLicense);
+			CheckImageMetaData(coverImg, imageCreator, imageCopyright, imageLicense);
+			CheckImageMetaData(firstPageImage, imageCreator, imageCopyright, imageLicense);
+			CheckImageMetaData(secondPageImage, imageCreator, imageCopyright, imageLicense);
+			CheckImageMetaData(thirdPageImage, imageCreator, imageCopyright, imageLicense);
+			CheckImageMetaData(fourthPageImage, imageCreator, imageCopyright, imageLicense);
+			var licenseUrlData = convert._bloomDoc.SelectSingleNode("/html/body/div[@id='bloomDataDiv']/div[@data-book='copyrightUrl' and @lang='*']") as XmlElement;
+			Assert.That(licenseUrlData, Is.Not.Null, "End page sets copyrightUrl in data div");
+			Assert.That(licenseUrlData.InnerXml, Is.EqualTo("http://creativecommons.org/licenses/by-nc/4.0/"));
+			var originalContribData = convert._bloomDoc.SelectSingleNode($"/html/body/div[@id='bloomDataDiv']/div[@data-book='originalContributions' and @lang='en']") as XmlElement;
+			Assert.That(originalContribData, Is.Not.Null, "End page sets originalContributions in data div");
+			// Check that the English author name gets put into the xmatter credits data, not just the illustrator's name.
+			Assert.That(originalContribData.InnerXml, Is.EqualTo(@"<p>Written by Prum Kunthearo.</p>
+<p>Images by Sin Thuokna. © The Asia Foundation, 2019. CC BY-NC 4.0.</p>"));
+			var copyrightData = convert._bloomDoc.SelectSingleNode("/html/body/div[@id='bloomDataDiv']/div[@data-book='copyright' and @lang='*']") as XmlElement;
+			Assert.That(copyrightData, Is.Not.Null, "End page sets copyright in data div");
+			Assert.That(copyrightData.InnerXml, Is.EqualTo("Copyright © The Asia Foundation, 2019"));
+			var insideBackCoverData = convert._bloomDoc.SelectSingleNode($"/html/body/div[@id='bloomDataDiv']/div[@data-book='insideBackCover' and @lang='en']") as XmlElement;
+			Assert.That(insideBackCoverData, Is.Null, "The inside back cover in the data div should not be set.");
+		}
+		const string _elephantOpfXml = @"<?xml version=""1.0"" encoding=""UTF-8""?>
+<package xmlns=""http://www.idpf.org/2007/opf"" version=""3.0"" unique-identifier=""uid"">
+	<metadata xmlns:dc=""http://purl.org/dc/elements/1.1/"">
+		<dc:identifier id=""uid"">34b4d1e4-cee5-4ad3-b747-be5e6358df85</dc:identifier>
+		<dc:title>The Elephant in My House</dc:title>
+		<dc:language>en</dc:language>
+		<meta property=""dcterms:modified"">2020-03-02T09:52:08Z</meta>
+		<dc:description>When a baby elephant runs into their house, Botom’s parents care for it but she becomes jealous. Can Botom get rid of the elephant or will she become friends with the lovable creature as well?</dc:description>
+		<dc:creator id=""contributor_1"">Prum Kunthearo</dc:creator>
+		<meta refines=""#contributor_1"" property=""role"" scheme=""marc:relators"">aut</meta>
+		<dc:contributor id=""contributor_2"">Sin Thuokna</dc:contributor>
+		<meta refines=""#contributor_2"" property=""role"" scheme=""marc:relators"">ill</meta>
+	</metadata>
+	<manifest>
+		<item href=""toc.xhtml"" id=""toc"" media-type=""application/xhtml+xml"" properties=""nav"" />
+		<item href=""epub.css"" id=""css"" media-type=""text/css"" />
+		<item href=""cc1c496186e7bd12151a5c39b522058d.jpg"" id=""cover"" media-type=""image/jpeg"" properties=""cover-image"" />
+		<item href=""858af36e7f07543929931d2002d7fd2c.jpg"" id=""image-50858-1"" media-type=""image/jpeg"" />
+		<item href=""e1024cc63b7235c73364e53c8d08fb99.jpg"" id=""image-50859-2"" media-type=""image/jpeg"" />
+		<item href=""3b3810a3aed98fa51b4375515e429c9a.jpg"" id=""image-50860-3"" media-type=""image/jpeg"" />
+		<item href=""a9ccb615210a86ac952d50bb02831aab.jpg"" id=""image-50861-4"" media-type=""image/jpeg"" />
+		<item href=""7de9b97f286d9e9cd5708828189971ae.jpg"" id=""image-50862-5"" media-type=""image/jpeg"" />
+		<item href=""bb4e18bba720607c88276b8aff191169.jpg"" id=""image-50873-16"" media-type=""image/jpeg"" />
+		<item href=""33b5b1c2c03c6bbfcc438c7c0d16de0b.jpg"" id=""image-50874-17"" media-type=""image/jpeg"" />
+		<item href=""7bd541afd7e292faa70d1492a4d45f45.jpg"" id=""image-50875-18"" media-type=""image/jpeg"" />
+		<item href=""7b6cd336c62f1c6b2098f9b65811403a.jpg"" id=""image-50876-19"" media-type=""image/jpeg"" />
+		<item href=""2d85083a3544781ab3cab25d5c38b443.png"" id=""image-50877-20"" media-type=""image/png"" />
+		<item href=""13652b55fe3beeb1954c87d0f4c9bbc4.png"" id=""image-50878-21"" media-type=""image/png"" />
+		<item href=""chapter-1.xhtml"" id=""chapter-1"" media-type=""application/xhtml+xml"" />
+		<item href=""chapter-2.xhtml"" id=""chapter-2"" media-type=""application/xhtml+xml"" />
+		<item href=""chapter-3.xhtml"" id=""chapter-3"" media-type=""application/xhtml+xml"" />
+		<item href=""chapter-4.xhtml"" id=""chapter-4"" media-type=""application/xhtml+xml"" />
+		<item href=""chapter-5.xhtml"" id=""chapter-5"" media-type=""application/xhtml+xml"" />
+		<item href=""chapter-6.xhtml"" id=""chapter-6"" media-type=""application/xhtml+xml"" />
+		<item href=""chapter-7.xhtml"" id=""chapter-7"" media-type=""application/xhtml+xml"" />
+		<item href=""chapter-8.xhtml"" id=""chapter-8"" media-type=""application/xhtml+xml"" />
+		<item href=""chapter-9.xhtml"" id=""chapter-9"" media-type=""application/xhtml+xml"" />
+		<item href=""chapter-10.xhtml"" id=""chapter-10"" media-type=""application/xhtml+xml"" />
+		<item href=""chapter-11.xhtml"" id=""chapter-11"" media-type=""application/xhtml+xml"" />
+		<item href=""chapter-12.xhtml"" id=""chapter-12"" media-type=""application/xhtml+xml"" />
+		<item href=""chapter-13.xhtml"" id=""chapter-13"" media-type=""application/xhtml+xml"" />
+		<item href=""chapter-14.xhtml"" id=""chapter-14"" media-type=""application/xhtml+xml"" />
+		<item href=""chapter-15.xhtml"" id=""chapter-15"" media-type=""application/xhtml+xml"" />
+		<item href=""chapter-16.xhtml"" id=""chapter-16"" media-type=""application/xhtml+xml"" />
+		<item href=""chapter-17.xhtml"" id=""chapter-17"" media-type=""application/xhtml+xml"" />
+		<item href=""chapter-18.xhtml"" id=""chapter-18"" media-type=""application/xhtml+xml"" />
+		<item href=""chapter-19.xhtml"" id=""chapter-19"" media-type=""application/xhtml+xml"" />
+		<item href=""chapter-20.xhtml"" id=""chapter-20"" media-type=""application/xhtml+xml"" />
+		<item href=""chapter-21.xhtml"" id=""chapter-21"" media-type=""application/xhtml+xml"" />
+	</manifest>
+</package>";
+		const string _elephantOpdsXml = @"<feed xmlns='http://www.w3.org/2005/Atom' xmlns:lrmi='http://purl.org/dcx/lrmi-terms/' xmlns:dc='http://purl.org/dc/terms/' xmlns:dcterms='http://purl.org/dc/terms/' xmlns:opds='http://opds-spec.org/2010/catalog'>
+<title>Global Digital Library - Book Catalog [extract]</title>
+<entry>
+<id>urn:uuid:34b4d1e4-cee5-4ad3-b747-be5e6358df85</id>
+<title>The Elephant in My House</title>
+<author>
+<name>Prum Kunthearo</name>
+</author>
+<contributor type=""Illustrator"">
+<name>Sin Thuokna</name>
+</contributor>
+<dc:license>Creative Commons Attribution Non Commercial 4.0 International</dc:license>
+<dc:publisher>The Asia Foundation</dc:publisher>
+<updated>2019-12-02T00:00:00Z</updated>
+<dc:created>2019-12-02T00:00:00Z</dc:created>
+<published>2019-12-02T00:00:00Z</published>
+<lrmi:educationalAlignment alignmentType=""readingLevel"" targetName=""Level 4"" />
+<summary>When a baby elephant runs into their house, Botom’s parents care for it but she becomes jealous. Can Botom get rid of the elephant or will she become friends with the lovable creature as well?</summary>
+<link href=""https://res.cloudinary.com/dwqxoowxi/f_auto,q_auto/cc1c496186e7bd12151a5c39b522058d"" type=""image/jpeg"" rel=""http://opds-spec.org/image"" />
+<link href=""https://res.cloudinary.com/dwqxoowxi/f_auto,q_auto/cc1c496186e7bd12151a5c39b522058d?width=200"" type=""image/png"" rel=""http://opds-spec.org/image/thumbnail"" />
+<link href=""https://books.digitallibrary.io/epub/en/34b4d1e4-cee5-4ad3-b747-be5e6358df85.epub"" type=""application/epub+zip"" rel=""http://opds-spec.org/acquisition/open-access"" />
+<link href=""https://books.digitallibrary.io/pdf/en/34b4d1e4-cee5-4ad3-b747-be5e6358df85.pdf"" type=""application/pdf"" rel=""http://opds-spec.org/acquisition/open-access"" />
+<dcterms:language>English</dcterms:language>
+</entry>
+</feed>";
+		const string _elephantPage1Xhtml = @"<html xmlns=""http://www.w3.org/1999/xhtml"">
+<head>
+    <title>Chapter 1</title>
+    <link href=""epub.css"" rel=""stylesheet"" type=""text/css""/>
+</head>
+<body><img src=""cc1c496186e7bd12151a5c39b522058d.jpg"" />
+<h1>
+ The Elephant in My House
+</h1>
+<h2>
+ ព្រុំ គន្ធារ៉ូ
+</h2></body>
+</html>";
+		const string _elephantPage2Xhtml = @"<html xmlns=""http://www.w3.org/1999/xhtml"">
+<head>
+    <title>Chapter 2</title>
+    <link href=""epub.css"" rel=""stylesheet"" type=""text/css""/>
+</head>
+<body><img src=""858af36e7f07543929931d2002d7fd2c.jpg"" />
+<p>
+ One morning, Botom and her mother were tending their fields. Suddenly, they saw a young elephant running towards them!
+</p></body>
+</html>";
+		const string _elephantPage17Xhtml = @"<html xmlns=""http://www.w3.org/1999/xhtml"">
+<head>
+    <title>Chapter 17</title>
+    <link href=""epub.css"" rel=""stylesheet"" type=""text/css""/>
+</head>
+<body><img src=""bb4e18bba720607c88276b8aff191169.jpg"" />
+<p>
+ Sakor was sad to leave too, now that Botom treated him kindly. But his mother reminded him he could come back to visit now that Botom understood how to be a friend to elephants.
+</p></body>
+</html>";
+		const string _elephantPage18Xhtml = @"<html xmlns=""http://www.w3.org/1999/xhtml"">
+<head>
+    <title>Chapter 18</title>
+    <link href=""epub.css"" rel=""stylesheet"" type=""text/css""/>
+</head>
+<body><img src=""33b5b1c2c03c6bbfcc438c7c0d16de0b.jpg"" />
+<p>
+</p></body>
+</html>";
+		const string _elephantPage19Xhtml = @"<html xmlns=""http://www.w3.org/1999/xhtml"">
+<head>
+    <title>Chapter 19</title>
+    <link href=""epub.css"" rel=""stylesheet"" type=""text/css""/>
+</head>
+<body><img src=""7bd541afd7e292faa70d1492a4d45f45.jpg"" />
+<p>
+ More About the Environment Conservation International (CI) has been working in Cambodia since 2001 to conserve the rich biodiversity of Cambodia. From the Cardamom Mountains in the southwest, home of some of the few remaining Asian elephants in the country, to Tonle Sap Lake, the largest inland fishery in Southeast Asia, to Veun Sai Siem Park National Park, home of the yellow-cheeked gibbons. For more information: https://www.conservation.org/where/Pages/Greater-Mekong-region.aspx https://www.youtube.com/watch?v=XGlTHR8aD-o https://www.youtube.com/watch?v=xgqsniNBhgs Additional environmental information provided by Conservation International in collaboration with The Asia Foundation
+</p></body>
+</html>";
+		const string _elephantPage20Xhtml = @"<html xmlns=""http://www.w3.org/1999/xhtml"">
+<head>
+    <title>Chapter 20</title>
+    <link href=""epub.css"" rel=""stylesheet"" type=""text/css""/>
+</head>
+<body><img src=""7b6cd336c62f1c6b2098f9b65811403a.jpg"" />
+<p>
+ Generously supported by SMART
+</p></body>
+</html>";
+		const string _elephantPage21Xhtml = @"<html xmlns=""http://www.w3.org/1999/xhtml"">
+<head>
+    <title>Chapter 21</title>
+    <link href=""epub.css"" rel=""stylesheet"" type=""text/css""/>
+</head>
+<body><p>
+ Brought to you by
+</p>
+<p>
+ <img src=""2d85083a3544781ab3cab25d5c38b443.png"" />
+</p>
+<p>
+ Let's Read! is an initiative of The Asia Foundation's Books for Asia program that fosters young readers in Asia. booksforasia.org To read more books like this and get further information, visit letsreadasia.org .
+</p>
+<p>
+ Original Story បុទម និងសាគរ, author: ព្រុំ គន្ធារ៉ូ . . illustrator: ស៊ិន ធួកណា. Published by The Asia Foundation, https://www.letsreadasia.org © The Asia Foundation. Released under CC BY-NC 4.0.
+</p>
+<p>
+ This work is a modified version of the original story. © The Asia Foundation, 2019. Some rights reserved. Released under CC BY-NC 4.0.
+</p>
+<p>
+ <img src=""13652b55fe3beeb1954c87d0f4c9bbc4.png"" />
+ For full terms of use and attribution, http://creativecommons.org/licenses/by-nc/4.0/
+</p>
+<p>
+ Contributing translators: Kyle Barker
+</p></body>
+</html>";
+
+		/// <summary>
+		/// This tests converting the Global Digital Library version of "Mini Num" published by 3Asafeer.
+		/// It has these distinctive features:
+		/// * 2 images on the front cover page
+		/// * content pages use paragraph markup for the text
+		/// * chapter 2 (page 1) is an acknowledgements page, not a content page.
+		/// * there are no end credit pages: the copyright is implied and the license given only by an image page 1 (chapter 2)
+		/// </summary>
+		[Test]
+		public void TestConvertingMiniNum_GDL()
+		{
+			// SUT (UsePortrait or UseLandscape must be true to avoid invalid file access)
+			var convert = InitializeForConversions(new ConvertOptions() { LanguageName = "English", UsePortrait = true }, _miniNumOpfXml, _miniNumOpdsXml);
+			var dataDiv0 = CheckInitialBookSetup(convert, "Mini Num");
+
+			// SUT
+			convert.ConvertPage(0, _miniNumPage1Xhtml);
+			var coverImg = CheckCoverPageImport(convert, dataDiv0, "Mini Num", "069dd655ca62b0c5f476446ce84d8b72.jpg", @"<p>
+ Author: Al-Sayed Ibrahim
+</p><p>
+ Illustrator: Mostafa Al-Barshoom
+</p><p>
+ 3 a s a f e e r . c o m
+</p>", out XmlElement coverImageData);
+			// This book has one extra image on the front cover page.  We save this information even though it doesn't do any good.
+			CheckExtraCoverImages(convert._bloomDoc, "c264a8fa3bce4416fdd903cfdcef27cc.png", null);
+
+			// SUT
+			var result = convert.ConvertPage(1, _miniNumPage2Xhtml);
+			Assert.That(result, Is.True, "converting Mini Num chapter 2 succeeded");
+			var pages = convert._bloomDoc.SelectNodes("/html/body/div[contains(@class,'bloom-page')]").Cast<XmlElement>().ToList();
+			Assert.That(pages.Count, Is.EqualTo(1), "Only one page (the cover page) exists after converting the cover page and the second (acknowledgements) page.");
+
+			// SUT
+			result = convert.ConvertPage(2, _miniNumPage3Xhtml);
+			Assert.That(result, Is.True, "converting Mini Num chapter 3 succeeded");
+			var firstPageImage = CheckTrueContentPageImport(convert._bloomDoc, "1", 2, "11eee87111091e1fe005745714df306f.jpg",
+				@"<p>Amid the noise in the forest, Mini Num the bear hatched in the depths of the quiet river. He drifted far away in the current and he found himself quite alone.</p>");
+
+			// SUT
+			result = convert.ConvertPage(3, _miniNumPage4Xhtml);
+			Assert.That(result, Is.True, "converting Mini Num chapter 4 succeeded");
+			var secondPageImage = CheckTrueContentPageImport(convert._bloomDoc, "2", 3, "2e9d898f5ae82b2a731206fee76a5354.jpg",
+				@"<p>None of the animals ever knew he was there, so small he was like a particle in the air. How would they ever see him if he’s that small? They probably won’t notice him at all.</p>");
+
+			// SUT
+			result = convert.ConvertPage(17, _miniNumPage18Xhtml);
+			Assert.That(result, Is.True, "converting Mini Num chapter 18 succeeded");
+			var thirdPageImage = CheckTrueContentPageImport(convert._bloomDoc, "16", 4, "1af6d646ab3a0d97ec8ff797825a6f18.jpg",
+				@"<p>Tiny laughed as he swam and said, “We can’t get burned! Did you know I survived an atomic bomb in World War II? Mini Num hadn’t known that but now he was convinced. So he jumped in, shouting, “We ARE amazing, no matter how small we are!”</p>");
+
+			// SUT
+			result = convert.ConvertPage(18, _miniNumPage19Xhtml);
+			Assert.That(result, Is.True, "converting Mini Num chapter 19 succeeded");
+			var fourthPageImage = CheckTrueContentPageImport(convert._bloomDoc, "17", 5, "0599389b1be03ae06bc492ed7af54c8f.jpg",
+				@"<p>The End</p>");
+
+			// SUT
+			convert.SetAsafeerImageCredits();
+			// We can't use the normal checking method because it assumes only 2 content pages and we have 4.
+			pages = convert._bloomDoc.SelectNodes("/html/body/div[contains(@class,'bloom-page')]").Cast<XmlElement>().ToList();
+			Assert.That(pages.Count, Is.EqualTo(5), "Five pages should exist after converting the cover page, one acknowledgments page, and four content pages.");
+			var imageCreator = "Mostapha Al-Barshomi";
+			var imageCopyright = "Copyright © Asafeer Education Technologies FZ LLC, 2018";
+			var imageLicense = "CC BY-NC-SA 4.0";
+			CheckImageMetaData(coverImageData, imageCreator, imageCopyright, imageLicense);
+			CheckImageMetaData(coverImg, imageCreator, imageCopyright, imageLicense);
+			CheckImageMetaData(firstPageImage, imageCreator, imageCopyright, imageLicense);
+			CheckImageMetaData(secondPageImage, imageCreator, imageCopyright, imageLicense);
+			CheckImageMetaData(thirdPageImage, imageCreator, imageCopyright, imageLicense);
+			CheckImageMetaData(fourthPageImage, imageCreator, imageCopyright, imageLicense);
+			var licenseUrlData = convert._bloomDoc.SelectSingleNode("/html/body/div[@id='bloomDataDiv']/div[@data-book='copyrightUrl' and @lang='*']") as XmlElement;
+			Assert.That(licenseUrlData, Is.Not.Null, "End page sets copyrightUrl in data div");
+			Assert.That(licenseUrlData.InnerXml, Is.EqualTo("https://creativecommons.org/licenses/by-nc-sa/4.0/"));
+			var originalContribData = convert._bloomDoc.SelectSingleNode($"/html/body/div[@id='bloomDataDiv']/div[@data-book='originalContributions' and @lang='en']") as XmlElement;
+			Assert.That(originalContribData, Is.Not.Null, "End page sets originalContributions in data div");
+			Assert.That(originalContribData.InnerXml, Is.EqualTo(@"<p>Written by El-Sayyed Ibraheem.</p>
+<p>Images by Mostapha Al-Barshomi. © Asafeer Education Technologies FZ LLC, 2018. CC BY-NC-SA 4.0.</p>"));
+			var originalAckData = convert._bloomDoc.SelectSingleNode($"/html/body/div[@id='bloomDataDiv']/div[@data-book='originalAcknowledgments' and @lang='en']") as XmlElement;
+			Assert.That(originalContribData, Is.Not.Null, "Acknowledgements page sets originalAcknowledgments in data div");
+			Assert.That(originalAckData.InnerXml, Is.EqualTo("<p>The original work of this book was made possible through the generous support of the All Children Reading: A Grand Challenge for Development (ACR GCD) Partners (the United States Agency for International Development (USAID), World Vision, and the Australian Government). It was prepared by Asafeer Education Technologies FZ LLC and does not necessarily reflect the views of the ACR GCD Partners. Any adaptation or translation of this work should not be considered an official ACR GCD translation and ACR GCD shall not be liable for any content or error in this translation.</p>"));
+			var copyrightData = convert._bloomDoc.SelectSingleNode("/html/body/div[@id='bloomDataDiv']/div[@data-book='copyright' and @lang='*']") as XmlElement;
+			Assert.That(copyrightData, Is.Not.Null, "End page sets copyright in data div");
+			Assert.That(copyrightData.InnerXml, Is.EqualTo("Copyright © Asafeer Education Technologies FZ LLC, 2018"));
+			var insideBackCoverData = convert._bloomDoc.SelectSingleNode($"/html/body/div[@id='bloomDataDiv']/div[@data-book='insideBackCover' and @lang='en']") as XmlElement;
+			Assert.That(insideBackCoverData, Is.Null, "The inside back cover in the data div should not be set.");
+		}
+		const string _miniNumOpfXml = @"<?xml version=""1.0"" encoding=""UTF-8""?>
+<package xmlns=""http://www.idpf.org/2007/opf"" version=""3.0"" unique-identifier=""uid"">
+	<metadata xmlns:dc=""http://purl.org/dc/elements/1.1/"">
+		<dc:identifier id=""uid"">3538852d-2ec3-49b0-a548-d385848b1423</dc:identifier>
+		<dc:title>Mini Num</dc:title>
+		<dc:language>en</dc:language>
+		<meta property=""dcterms:modified"">2020-02-25T11:17:58Z</meta>
+		<dc:description>Mini Num, the tardigrade (water bear), learns the value of being different.</dc:description>
+		<dc:creator id=""contributor_1"">El-Sayyed Ibraheem</dc:creator>
+		<meta refines=""#contributor_1"" property=""role"" scheme=""marc:relators"">aut</meta>
+		<dc:contributor id=""contributor_2"">Mostapha Al-Barshomi</dc:contributor>
+		<meta refines=""#contributor_2"" property=""role"" scheme=""marc:relators"">ill</meta>
+	</metadata>
+	<manifest>
+		<item href=""toc.xhtml"" id=""toc"" media-type=""application/xhtml+xml"" properties=""nav"" />
+		<item href=""epub.css"" id=""css"" media-type=""text/css"" />
+		<item href=""41a9c1d8188fecef429e48521a8fe200.jpg"" id=""cover"" media-type=""image/jpeg"" properties=""cover-image"" />
+		<item href=""069dd655ca62b0c5f476446ce84d8b72.jpg"" id=""image-21324-0"" media-type=""image/jpeg"" />
+		<item href=""c264a8fa3bce4416fdd903cfdcef27cc.png"" id=""image-20538-1"" media-type=""image/png"" />
+		<item href=""1af6d646ab3a0d97ec8ff797825a6f18.jpg"" id=""image-21340-22"" media-type=""image/jpeg"" />
+		<item href=""0599389b1be03ae06bc492ed7af54c8f.jpg"" id=""image-21341-23"" media-type=""image/jpeg"" />
+		<item href=""chapter-1.xhtml"" id=""chapter-1"" media-type=""application/xhtml+xml"" />
+		<item href=""chapter-2.xhtml"" id=""chapter-2"" media-type=""application/xhtml+xml"" />
+		<item href=""chapter-3.xhtml"" id=""chapter-3"" media-type=""application/xhtml+xml"" />
+		<item href=""chapter-4.xhtml"" id=""chapter-4"" media-type=""application/xhtml+xml"" />
+		<item href=""chapter-5.xhtml"" id=""chapter-5"" media-type=""application/xhtml+xml"" />
+		<item href=""chapter-6.xhtml"" id=""chapter-6"" media-type=""application/xhtml+xml"" />
+		<item href=""chapter-7.xhtml"" id=""chapter-7"" media-type=""application/xhtml+xml"" />
+		<item href=""chapter-8.xhtml"" id=""chapter-8"" media-type=""application/xhtml+xml"" />
+		<item href=""chapter-9.xhtml"" id=""chapter-9"" media-type=""application/xhtml+xml"" />
+		<item href=""chapter-10.xhtml"" id=""chapter-10"" media-type=""application/xhtml+xml"" />
+		<item href=""chapter-11.xhtml"" id=""chapter-11"" media-type=""application/xhtml+xml"" />
+		<item href=""chapter-12.xhtml"" id=""chapter-12"" media-type=""application/xhtml+xml"" />
+		<item href=""chapter-13.xhtml"" id=""chapter-13"" media-type=""application/xhtml+xml"" />
+		<item href=""chapter-14.xhtml"" id=""chapter-14"" media-type=""application/xhtml+xml"" />
+		<item href=""chapter-15.xhtml"" id=""chapter-15"" media-type=""application/xhtml+xml"" />
+		<item href=""chapter-16.xhtml"" id=""chapter-16"" media-type=""application/xhtml+xml"" />
+		<item href=""chapter-17.xhtml"" id=""chapter-17"" media-type=""application/xhtml+xml"" />
+		<item href=""chapter-18.xhtml"" id=""chapter-18"" media-type=""application/xhtml+xml"" />
+		<item href=""chapter-19.xhtml"" id=""chapter-19"" media-type=""application/xhtml+xml"" />
+	</manifest>
+</package>";
+		const string _miniNumOpdsXml = @"<feed xmlns='http://www.w3.org/2005/Atom' xmlns:lrmi='http://purl.org/dcx/lrmi-terms/' xmlns:dc='http://purl.org/dc/terms/' xmlns:dcterms='http://purl.org/dc/terms/' xmlns:opds='http://opds-spec.org/2010/catalog'>
+<title>Global Digital Library - Book Catalog [extract]</title>
+<entry>
+<id>urn:uuid:3538852d-2ec3-49b0-a548-d385848b1423</id>
+<title>Mini Num</title>
+<author>
+<name>El-Sayyed Ibraheem</name>
+</author>
+<contributor type=""Illustrator"">
+<name>Mostapha Al-Barshomi</name>
+</contributor>
+<dc:license>Creative Commons Attribution Non Commercial Share Alike 4.0 International</dc:license>
+<dc:publisher>3Asafeer</dc:publisher>
+<updated>2018-10-02T00:00:00Z</updated>
+<dc:created>2019-04-29T00:00:00Z</dc:created>
+<published>2018-10-02T00:00:00Z</published>
+<lrmi:educationalAlignment alignmentType=""readingLevel"" targetName=""Level 2"" />
+<summary>Mini Num, the tardigrade (water bear), learns the value of being different.</summary>
+<link href=""https://res.cloudinary.com/dwqxoowxi/f_auto,q_auto/41a9c1d8188fecef429e48521a8fe200"" type=""image/jpeg"" rel=""http://opds-spec.org/image"" />
+<link href=""https://res.cloudinary.com/dwqxoowxi/f_auto,q_auto/41a9c1d8188fecef429e48521a8fe200?width=200"" type=""image/png"" rel=""http://opds-spec.org/image/thumbnail"" />
+<link href=""https://books.digitallibrary.io/epub/en/3538852d-2ec3-49b0-a548-d385848b1423.epub"" type=""application/epub+zip"" rel=""http://opds-spec.org/acquisition/open-access"" />
+<link href=""https://books.digitallibrary.io/pdf/en/3538852d-2ec3-49b0-a548-d385848b1423.pdf"" type=""application/pdf"" rel=""http://opds-spec.org/acquisition/open-access"" />
+<dcterms:language>English</dcterms:language>
+</entry>
+</feed>";
+		const string _miniNumPage1Xhtml = @"<html xmlns=""http://www.w3.org/1999/xhtml"">
+<head>
+    <title>Chapter 1</title>
+    <link href=""epub.css"" rel=""stylesheet"" type=""text/css""/>
+</head>
+<body><img src=""069dd655ca62b0c5f476446ce84d8b72.jpg"" />
+<p>
+ Mini
+</p>
+<p>
+ Num
+</p>
+<p>
+ Author: Al-Sayed Ibrahim
+</p>
+<p>
+ Illustrator: Mostafa Al-Barshoom
+</p>
+<img data-resource_size=""150"" width=""150"" src=""c264a8fa3bce4416fdd903cfdcef27cc.png"" />
+<p>
+ 3 a s a f e e r . c o m
+</p></body>
+</html>";
+		const string _miniNumPage2Xhtml = @"<html xmlns=""http://www.w3.org/1999/xhtml"">
+<head>
+    <title>Chapter 2</title>
+    <link href=""epub.css"" rel=""stylesheet"" type=""text/css""/>
+</head>
+<body><img data-resource_size=""150"" width=""150"" src=""875144e42ad79c7fbcfa025d9f664943.png"" />
+<p>
+ The original work of this book was made possible through the generous support of the All Children Reading: A Grand Challenge for Development (ACR GCD) Partners (the United States Agency for International Development (USAID), World Vision, and the Australian Government). It was prepared by Asafeer Education Technologies FZ LLC and does not necessarily reflect the views of the ACR GCD Partners. Any adaptation or translation of this work should not be considered an official ACR GCD translation and ACR GCD shall not be liable for any content or error in this translation.
+</p>
+<img data-resource_size=""200"" width=""200"" src=""e5a4391fb765b113a36c7212d62f171e.jpg"" />
+<img data-resource_size=""200"" width=""200"" src=""fab5309f47c06b8a76c1b9f0cf38e959.png"" />
+<img data-resource_size=""200"" width=""200"" src=""fec090169da14c8b198eaff508d9fbb0.png"" />
+<img data-resource_size=""100"" width=""100"" src=""671491aaacc6cfe7012f9e62b5b1ccdb.png"" />
+</body>
+</html>";
+		const string _miniNumPage3Xhtml = @"<html xmlns=""http://www.w3.org/1999/xhtml"">
+<head>
+    <title>Chapter 3</title>
+    <link href=""epub.css"" rel=""stylesheet"" type=""text/css""/>
+</head>
+<body><img src=""11eee87111091e1fe005745714df306f.jpg"" />
+<p>
+ Amid the noise in the forest, Mini Num the bear hatched in the depths of the quiet river. He drifted far away in the current and he found himself quite alone.
+</p></body>
+</html>";
+		const string _miniNumPage4Xhtml = @"<html xmlns=""http://www.w3.org/1999/xhtml"">
+<head>
+    <title>Chapter 4</title>
+    <link href=""epub.css"" rel=""stylesheet"" type=""text/css""/>
+</head>
+<body><img src=""2e9d898f5ae82b2a731206fee76a5354.jpg"" />
+<p>
+ None of the animals ever knew he was there, so small he was like a particle in the air. How would they ever see him if he’s that small? They probably won’t notice him at all.
+</p></body>
+</html>";
+		const string _miniNumPage18Xhtml = @"<html xmlns=""http://www.w3.org/1999/xhtml"">
+<head>
+    <title>Chapter 18</title>
+    <link href=""epub.css"" rel=""stylesheet"" type=""text/css""/>
+</head>
+<body><img src=""1af6d646ab3a0d97ec8ff797825a6f18.jpg"" />
+<p>
+ Tiny laughed as he swam and said, “We can’t get burned! Did you know I survived an atomic bomb in World War II?  Mini Num hadn’t known that but now he was convinced. So he jumped in, shouting, “We ARE amazing, no matter how small we are!”
+</p></body>
+</html>";
+		const string _miniNumPage19Xhtml = @"<html xmlns=""http://www.w3.org/1999/xhtml"">
+<head>
+    <title>Chapter 19</title>
+    <link href=""epub.css"" rel=""stylesheet"" type=""text/css""/>
+</head>
+<body><img src=""0599389b1be03ae06bc492ed7af54c8f.jpg"" />
+<p>
+ The End
+</p></body>
 </html>";
 	}
 }

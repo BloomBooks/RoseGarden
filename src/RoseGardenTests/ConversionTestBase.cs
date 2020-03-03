@@ -164,7 +164,7 @@ namespace RoseGardenTests
 		protected static void CheckTwoPageBookAfterEndPages(ConvertFromEpub convert,
 			XmlElement coverImg, XmlElement coverImageData, XmlElement firstPageImage, XmlElement secondPageImage,
 			string imageCopyright, string imageLicense, string imageCreator, string bookCopyright, string bookLicense,
-			string contribInnerXml, string lang="en")
+			string contribInnerXml, string versionAckInnerXml, string lang="en")
 		{
 			var pages = convert._bloomDoc.SelectNodes("/html/body/div[contains(@class,'bloom-page')]").Cast<XmlElement>().ToList();
 			Assert.That(pages.Count, Is.EqualTo(3), "Three pages should exist after converting the cover page, two content pages, and any end pages. (list has three pages)");
@@ -178,6 +178,16 @@ namespace RoseGardenTests
 			var originalContribData = convert._bloomDoc.SelectSingleNode($"/html/body/div[@id='bloomDataDiv']/div[@data-book='originalContributions' and @lang='{lang}']") as XmlElement;
 			Assert.That(originalContribData, Is.Not.Null, "End page sets originalContributions in data div");
 			Assert.That(originalContribData.InnerXml, Is.EqualTo(contribInnerXml));
+			var versionAckData = convert._bloomDoc.SelectSingleNode($"/html/body/div[@id='bloomDataDiv']/div[@data-book='versionAcknowledgments' and @lang='{lang}']") as XmlElement;
+			if (String.IsNullOrEmpty(versionAckInnerXml))
+			{
+				Assert.That(versionAckData, Is.Null, "We don't expect anything to be set for the versionAcknowledgements in this test.");
+			}
+			else
+			{
+				Assert.That(versionAckData, Is.Not.Null, "End page set versionAcknowledgments in data div");
+				Assert.That(versionAckData.InnerXml, Is.EqualTo(versionAckInnerXml));
+			}
 			var copyrightData = convert._bloomDoc.SelectSingleNode("/html/body/div[@id='bloomDataDiv']/div[@data-book='copyright' and @lang='*']") as XmlElement;
 			Assert.That(copyrightData, Is.Not.Null, "End page sets copyright in data div");
 			Assert.That(copyrightData.InnerXml, Is.EqualTo(bookCopyright));
@@ -197,6 +207,8 @@ namespace RoseGardenTests
 			var coverImage2Data = bookDoc.SelectSingleNode($"/html/body/div[@id='bloomDataDiv']/div[@data-book='coverImage2' and @lang='*']") as XmlElement;
 			Assert.That(coverImage2Data, Is.Not.Null, "The second cover image is set in the data div.");
 			Assert.That(coverImage2Data.InnerXml, Is.EqualTo(image2Src));
+			if (String.IsNullOrEmpty(image3Src))
+				return;
 			var coverImage3Data = bookDoc.SelectSingleNode($"/html/body/div[@id='bloomDataDiv']/div[@data-book='coverImage3' and @lang='*']") as XmlElement;
 			Assert.That(coverImage3Data, Is.Not.Null, "The third cover image is set in the data div.");
 			Assert.That(coverImage3Data.InnerXml, Is.EqualTo(image3Src));

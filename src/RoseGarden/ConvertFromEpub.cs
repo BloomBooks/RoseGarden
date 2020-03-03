@@ -63,6 +63,7 @@ namespace RoseGarden
 
 
 		internal StringBuilder _contributionsXmlBldr = new StringBuilder();
+		internal StringBuilder _supportedByXmlBldr = new StringBuilder();
 		Dictionary<string, List<int>> _creditsAndPages;
 		Dictionary<string, Book> _bloomlibraryBooks;
 
@@ -487,7 +488,12 @@ namespace RoseGarden
 
 			for (int pageNumber = 0; pageNumber < _epubMetaData.PageFiles.Count; ++pageNumber)
 			{
-				ConvertPage(pageNumber, _epubMetaData.PageFiles[pageNumber]);
+				var pageFile = _epubMetaData.PageFiles[pageNumber];
+				if (_options.VeryVerbose)
+					Console.WriteLine("DEBUG: converting {0}", pageFile);
+				var pageXhtml = File.ReadAllText(pageFile);
+				if (!ConvertPage(pageNumber, pageXhtml))
+					Console.WriteLine("WARNING: {0} did not convert successfully.", pageFile);
 			}
 			if (_publisher == "3Asafeer")
 				SetAsafeerImageCredits();
@@ -760,21 +766,20 @@ namespace RoseGarden
 			return String.Format("{0}.{1}.{2}", asVersion.Major, asVersion.Minor, asVersion.Revision);
 		}
 
-		private void ConvertPage(int pageNumber, string pageFilePath)
+		internal bool ConvertPage(int pageNumber, string pageXhtml)
 		{
-			if (_options.VeryVerbose)
-				Console.WriteLine("DEBUG: converting {0}", pageFilePath);
+			// pass in XHTML and internal access to facilitate unit testing
 			if (pageNumber == 0)
 			{
-				ConvertFrontCoverPage(pageFilePath);
+				return ConvertCoverPage(pageXhtml);
 			}
 			else if (pageNumber == 1 && _publisher == "3Asafeer")
 			{
-				ConvertAsafeerCreditPage(pageFilePath, pageNumber);
+				return ConvertAsafeerCreditPage(pageNumber, pageXhtml);
 			}
-			else if (!ConvertContentPage(pageFilePath, pageNumber))
+			else
 			{
-				Console.WriteLine("WARNING: {0} did not convert successfully.", pageFilePath);
+				return ConvertContentPage(pageNumber, pageXhtml);
 			}
 		}
 
@@ -784,7 +789,7 @@ namespace RoseGarden
 			ConvertCoverPage(coverPageXhtml);
 		}
 
-		internal void ConvertCoverPage(string coverPageXhtml)
+		internal bool ConvertCoverPage(string coverPageXhtml)
 		{
 			// The cover page created here will be overwritten by Bloom when it applies the user's chosen xmatter.
 			// The important result is filling in values in the data div.
@@ -900,6 +905,7 @@ namespace RoseGarden
 					AddCoverContributor(bldr.ToString());
 				}
 			}
+			return true;
 		}
 
 		private bool SetTitle(XmlNode child, ref bool usingEpubTitle)
@@ -933,7 +939,12 @@ namespace RoseGarden
 			}
 			var childXml = child.OuterXml;
 			if (child.Name != "p")
-				childXml = $"<p>{child.InnerXml.Trim()}</p>";
+			{
+				if (child is XmlElement)
+					childXml = $"<p>{child.InnerXml.Trim()}</p>";
+				else
+					childXml = $"<p>{child.InnerText.Trim()}</p>";
+			}
 			AddCoverContributor(childXml);
 			return true;
 		}
@@ -1066,11 +1077,11 @@ namespace RoseGarden
 			SetDataDivTextValue("coverImage" + count.ToString(), imageFile);
 		}
 
-		private void ConvertAsafeerCreditPage(string pageFilePath, int pageNumber)
+		private bool ConvertAsafeerCreditPage(int pageNumber, string pageXhtml)
 		{
 			var pageDoc = new XmlDocument();
 			pageDoc.PreserveWhitespace = true;
-			pageDoc.Load(pageFilePath);
+			pageDoc.LoadXml(pageXhtml);
 			var nsmgr = new XmlNamespaceManager(pageDoc.NameTable);
 			nsmgr.AddNamespace("x", "http://www.w3.org/1999/xhtml");
 			var body = pageDoc.SelectSingleNode("/x:html/x:body", nsmgr) as XmlElement;
@@ -1084,7 +1095,8 @@ namespace RoseGarden
 			_asafeerLicense = "CC BY-NC-SA 4.0";
 			SetBookCopyright(_asafeerCopyright, "en");
 			SetBookLicense(_asafeerLicense);
-			_endCreditsPageCount = 1;	// not really an "end" credits page, but a credits page
+			_endCreditsPageCount = 1;   // not really an "end" credits page, but a credits page
+			return true;
 		}
 
 		private int GetYearPublished()
@@ -1098,7 +1110,7 @@ namespace RoseGarden
 			return _epubMetaData.Modified.Year;
 		}
 
-		private void SetAsafeerImageCredits()
+		internal void SetAsafeerImageCredits()
 		{
 			var illustrator = String.Join(", ", _epubMetaData.Illustrators).Trim(' ', ',');
 			if (String.IsNullOrEmpty(illustrator) && _opdsEntry != null)
@@ -1120,6 +1132,8 @@ namespace RoseGarden
 				}
 			}
 			SetAllImageMetadata(illustrator, _asafeerCopyright, _asafeerLicense);
+			AddIllustratorContributionCredit(illustrator, _asafeerCopyright, _asafeerLicense);
+			WriteAccumulatedImageAndOtherCredits();
 		}
 
 		private bool ConvertContentPage(string pageFilePath, int pageNumber)
@@ -1157,7 +1171,10 @@ namespace RoseGarden
 			foreach (XmlAttribute attr in templatePage.Attributes.Cast<XmlAttribute>())
 				newPageDiv.SetAttribute(attr.Name, attr.Value);
 			newPageDiv.SetAttribute("id", Guid.NewGuid().ToString());
-			newPageDiv.SetAttribute("data-page-number", pageNumber.ToString());
+			if (_publisher == "3Asafeer")
+				newPageDiv.SetAttribute("data-page-number", (pageNumber - 1).ToString());
+			else
+				newPageDiv.SetAttribute("data-page-number", pageNumber.ToString());
 			newPageDiv.SetAttribute("lang", _epubMetaData.LanguageCode);
 			if (_options.IsRtl)
 				newPageDiv.SetAttribute("dir", "rtl");
@@ -1452,9 +1469,7 @@ namespace RoseGarden
 				if (divs.Count == 0)
 				{
 					if (NeedCopyrightInformation())
-					{
 						ProcessRawCreditsPageForCopyrights(body, pageNumber);
-					}
 					WriteAccumulatedImageAndOtherCredits();
 					return true;
 				}
@@ -1471,17 +1486,44 @@ namespace RoseGarden
 			return false;
 		}
 
+		private void SetBookAuthorInContributions()
+		{
+			var author = String.Join(", ", _epubMetaData.Authors).Trim(',', ' ');
+			if (String.IsNullOrEmpty(author) && _opdsEntry != null)
+			{
+				var authorNames = _opdsEntry.SelectNodes("/a:feed/a:entry/a:author/a:name", _opdsNsmgr).Cast<XmlElement>().ToList();
+				foreach (var name in authorNames)
+				{
+					if (String.IsNullOrWhiteSpace(name.InnerText))
+						continue;
+					if (!String.IsNullOrEmpty(author))
+						author = author + ", " + name.InnerText.Trim();
+					else
+						author = name.InnerText.Trim();
+				}
+			}
+			if (!String.IsNullOrEmpty(author))
+			{
+				string writtenByFmt;
+				switch (_creditsLang)
+				{
+					case "fr":
+						writtenByFmt = "<p>Écrit par {0}.</p>{1}";
+						break;
+					default:
+						writtenByFmt = "<p>Written by {0}.</p>{1}";
+						break;
+				}
+				var writtenBy = String.Format(writtenByFmt, author, Environment.NewLine);
+				_contributionsXmlBldr.Insert(0, writtenBy);
+			}
+		}
+
 		private void WriteAccumulatedImageAndOtherCredits()
 		{
-			if (_creditsAndPages.Count > 0 || _contributionsXmlBldr.Length > 0)
+			SetBookAuthorInContributions();
+			if (_creditsAndPages != null)
 			{
-				var contributions = GetOrCreateDataDivElement("originalContributions", _creditsLang);
-				if (!String.IsNullOrWhiteSpace(contributions.InnerText))
-				{
-					_contributionsXmlBldr.Insert(0, Environment.NewLine);
-					var oldXml = RemoveXmlnsAttribsFromXmlString(contributions.InnerXml);
-					_contributionsXmlBldr.Insert(0, oldXml);
-				}
 				if (_creditsAndPages.Count == 1)
 				{
 					var creditText = FormatIllustrationCredit(_creditsAndPages.Keys.First());
@@ -1496,8 +1538,23 @@ namespace RoseGarden
 						_contributionsXmlBldr.AppendLine($"<p>{pagesText} {creditText}</p>");
 					}
 				}
-				contributions.InnerXml = _contributionsXmlBldr.ToString().Trim();
 			}
+			AddToDataDivParaValue("originalContributions", _contributionsXmlBldr);
+			if (_supportedByXmlBldr.Length > 0)
+				AddToDataDivParaValue("versionAcknowledgments", _supportedByXmlBldr);
+		}
+
+		private void AddToDataDivParaValue(string name, StringBuilder newData)
+		{
+			var dataDiv = GetOrCreateDataDivElement(name, _creditsLang);
+			if (!String.IsNullOrWhiteSpace(dataDiv.InnerText))
+			{
+				newData.Insert(0, Environment.NewLine);
+				var oldXml = RemoveXmlnsAttribsFromXmlString(dataDiv.InnerXml);
+				newData.Insert(0, oldXml);
+			}
+			dataDiv.InnerXml = newData.ToString().Trim();
+			newData.Clear();
 		}
 
 		private string FormatIllustrationCredit(string credit)
@@ -1727,27 +1784,31 @@ namespace RoseGarden
 				if (_epubMetaData.Illustrators.Count > 0)
 					artCreator = String.Join(", ", _epubMetaData.Illustrators).Trim(' ', ',');
 				SetAllImageMetadata(artCreator, artCopyright, licenseAbbrev);
-
-				var artCopyrightAndLicense = artCopyright;
-				if (licenseAbbrev == "CC0")
-					artCopyrightAndLicense = "no rights reserved. (public domain)";
-				if (licenseAbbrev.StartsWith("CC BY", StringComparison.InvariantCulture))
-					artCopyrightAndLicense = $"{artCopyright}. {licenseAbbrev}.";
-				if (String.IsNullOrEmpty(artCreator))
-					artCopyrightAndLicense = $"Images {artCopyrightAndLicense}";
-				else
-					artCopyrightAndLicense = $"Images by {artCreator}. {artCopyrightAndLicense}";
-				_contributionsXmlBldr.AppendLine($"<p>{artCopyrightAndLicense}</p>");
-				var contributions = GetOrCreateDataDivElement("originalContributions", _creditsLang);
-				if (!String.IsNullOrWhiteSpace(contributions.InnerText))
-				{
-					_contributionsXmlBldr.Insert(0, Environment.NewLine);
-					var oldXml = RemoveXmlnsAttribsFromXmlString(contributions.InnerXml);
-					_contributionsXmlBldr.Insert(0, oldXml);
-				}
-				contributions.InnerXml = _contributionsXmlBldr.ToString().Trim();
-				_contributionsXmlBldr.Clear();
+				AddIllustratorContributionCredit(artCreator, artCopyright, licenseAbbrev);
 			}
+		}
+
+		private void AddIllustratorContributionCredit(string artCreator, string artCopyright, string licenseAbbrev)
+		{
+			var artCopyrightAndLicense = artCopyright;
+			if (licenseAbbrev == "CC0")
+				artCopyrightAndLicense = "no rights reserved. (public domain)";
+			if (licenseAbbrev.StartsWith("CC BY", StringComparison.InvariantCulture))
+				artCopyrightAndLicense = $"{artCopyright}. {licenseAbbrev}.";
+			if (String.IsNullOrEmpty(artCreator))
+				artCopyrightAndLicense = $"Images {artCopyrightAndLicense}";
+			else
+				artCopyrightAndLicense = $"Images by {artCreator}. {artCopyrightAndLicense}";
+			_contributionsXmlBldr.AppendLine($"<p>{artCopyrightAndLicense}</p>");
+			//var contributions = GetOrCreateDataDivElement("originalContributions", _creditsLang);
+			//if (!String.IsNullOrWhiteSpace(contributions.InnerText))
+			//{
+			//	_contributionsXmlBldr.Insert(0, Environment.NewLine);
+			//	var oldXml = RemoveXmlnsAttribsFromXmlString(contributions.InnerXml);
+			//	_contributionsXmlBldr.Insert(0, oldXml);
+			//}
+			//contributions.InnerXml = _contributionsXmlBldr.ToString().Trim();
+			//_contributionsXmlBldr.Clear();
 		}
 
 		private string FindAndProcessCreativeCommonsForBook(string bodyText)
@@ -1995,9 +2056,9 @@ namespace RoseGarden
 			var credits = RemovePrathamCreditBoilerplate(otherCredits, lang);
 			if (!String.IsNullOrWhiteSpace(credits))
 			{
-				_contributionsXmlBldr.Append("<p>");
-				_contributionsXmlBldr.Append(credits);
-				_contributionsXmlBldr.AppendLine("</p>");
+				_supportedByXmlBldr.Append("<p>");
+				_supportedByXmlBldr.Append(credits);
+				_supportedByXmlBldr.AppendLine("</p>");
 			}
 		}
 
