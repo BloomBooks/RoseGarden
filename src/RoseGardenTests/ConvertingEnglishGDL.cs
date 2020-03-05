@@ -1668,6 +1668,7 @@ Suman Maharjan
 		[Test]
 		public void TestConvertingMiniNum_GDL()
 		{
+			Console.WriteLine("TESTING: A warning about using title from ePUB metadata is expected.");
 			// SUT (UsePortrait or UseLandscape must be true to avoid invalid file access)
 			var convert = InitializeForConversions(new ConvertOptions() { LanguageName = "English", UsePortrait = true }, _miniNumOpfXml, _miniNumOpdsXml);
 			var dataDiv0 = CheckInitialBookSetup(convert, "Mini Num");

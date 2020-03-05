@@ -81,6 +81,9 @@ namespace RoseGarden.Parse.Model
 
 		[JsonProperty("tags")]
 		public List<string> Tags;
+
+		[JsonProperty("publisher")]
+		public string Publisher;
 		#endregion
 
 		// Returns the class name (like a table name) of the class on the Parse server that this object corresponds to

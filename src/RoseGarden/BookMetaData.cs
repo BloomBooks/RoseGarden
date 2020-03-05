@@ -371,6 +371,12 @@ namespace RoseGarden
 		/// </summary>
 		[JsonProperty("imported-book-source-url")]
 		public string ImportedBookSourceUrl { get; set; }
+
+		/// <summary>
+		/// The publisher of the book.  For many books, this may be unset because the book is "self-published".
+		/// </summary>
+		[JsonProperty("publisher")]
+		public string Publisher { get; set; }
 	}
 
 	/// <summary>

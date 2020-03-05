@@ -237,7 +237,7 @@ namespace RoseGarden.Parse
 		{
 			var request = new RestRequest("classes/books", Method.GET);
 			SetCommonHeaders(request);
-			request.AddParameter("keys", "object_id,importerName,importerMajorVersion,importerMinorVersion,importedBookSourceUrl,title,authors,bookInstanceId,uploader,lastUploaded,updateSource,tags,inCirculation");
+			request.AddParameter("keys", "object_id,importerName,importerMajorVersion,importerMinorVersion,importedBookSourceUrl,title,authors,bookInstanceId,uploader,lastUploaded,updateSource,tags,inCirculation,publisher");
 
 			if (!String.IsNullOrEmpty(whereCondition))
 			{
@@ -262,7 +262,7 @@ namespace RoseGarden.Parse
 			var request = new RestRequest("classes/relatedBooks", Method.GET);
 			SetCommonHeaders(request);
 			request.AddParameter("keys", "books");
-			request.AddParameter("where", $"{{\"books\": {{\"__type\": \"Pointer\", \"className\": \"books\", \"objectId\": \"{id}\"}} }}");   // 
+			request.AddParameter("where", $"{{\"books\": {{\"__type\": \"Pointer\", \"className\": \"books\", \"objectId\": \"{id}\"}} }}");
 			request.AddParameter("include", "books");
 			var results = GetAllResults<RelatedBooks>(request);
 			return results;

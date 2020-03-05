@@ -562,7 +562,8 @@ namespace RoseGarden
 				if (_publisher == "ew")
 					_publisher = "EW Nigeria";
 				else if (_publisher == "Pratham books")
-					_publisher = "Pratham Books";	// consistent capitalization!
+					_publisher = "Pratham Books";   // consistent capitalization!
+				_bookMetaData.Publisher = _publisher;
 			}
 		}
 
