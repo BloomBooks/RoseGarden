@@ -263,7 +263,7 @@ namespace RoseGarden
 					// parse queries.  So we preload everything locally and index by a normalized
 					// title to find matching titles.
 					var matchingBooks = FindBooksWithMatchingTitle(NormalizeTitle(book.Title));
-					var related = new List<Book>();
+					var related = new HashSet<Book>();
 					foreach (var oldBook in matchingBooks)
 					{
 						if (oldBook.ObjectId == book.ObjectId)
@@ -284,7 +284,7 @@ namespace RoseGarden
 								book.Tags.Add("todo:check duplicate import");
 								updateTags = true;
 							}
-							related.Add(book);
+							related.Add(oldBook);
 						}
 					}
 					if (book.Tags != null)
@@ -360,9 +360,11 @@ namespace RoseGarden
 			return new List<Book>();
 		}
 
-		private void FixRelatedBooksTable(Book book, List<Book> related, ParseClient parseClient)
+		private void FixRelatedBooksTable(Book book, HashSet<Book> related, ParseClient parseClient)
 		{
 			related.Add(book);
+			if (related.Count == 1)
+				return;
 			var currentRelatedList = parseClient.GetRelatedBooks(book.ObjectId);
 			var objectsToRemove = new HashSet<string>();
 			foreach (var currentRelated in currentRelatedList)
@@ -398,7 +400,7 @@ namespace RoseGarden
 			}
 		}
 
-		private void CreateRelatedBooksEntry(List<Book> related, ParseClient parseClient)
+		private void CreateRelatedBooksEntry(HashSet<Book> related, ParseClient parseClient)
 		{
 			var bldr = new StringBuilder("{\"books\":[");
 			var bookSep = "";
@@ -413,7 +415,7 @@ namespace RoseGarden
 			parseClient.CreateObject("relatedBooks", bldr.ToString());
 		}
 
-		private bool SameBookList(List<Book> related, List<Book> currentRelated)
+		private bool SameBookList(HashSet<Book> related, List<Book> currentRelated)
 		{
 			if (related.Count != currentRelated.Count)
 				return false;
