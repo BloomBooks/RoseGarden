@@ -15,7 +15,7 @@ namespace RoseGarden
 	/// Class for batch processing books from an OPDS catalog, either an online catalog or a local
 	/// catalog file.  The basic approach is as follows:
 	/// 1) Find which books need to be converted, either updated or for the first time.
-	/// 2) Fetch and convert those books (epubs and image files).
+	/// 2) Fetch and convert those books (epub files).
 	/// 3) Upload the converted books.
 	/// </summary>
 	/// <remarks>
@@ -50,8 +50,7 @@ namespace RoseGarden
 		///    to bloomlibrary.  Also check to see if RoseGarden has been updated significantly since
 		///    the book was uploaded and whether it has never been uploaded.  Any one of these three
 		///    conditions is sufficient to include the book in the batch process.
-		/// 4) Download the epub and image files for all of the batched books.  (Image files can be
-		///    ignored for African Storybook Project books since we use page 1 images for those.)
+		/// 4) Download the epub files for all of the batched books.
 		/// 5) Convert each of the books, cleverly sorting them into bookshelves and language folders.
 		/// 6) Upload the newly converted books.
 		/// </summary>
@@ -89,21 +88,19 @@ namespace RoseGarden
 		}
 
 		/// <summary>
-		/// Fetch the epub and main image file for the given book and write them to the standard RoseGarden/Downloads folder.
+		/// Fetch the epub file for the given book and write it to the standard RoseGarden/Downloads folder.
 		/// Also write the catalog entry as a single-entry OPDS catalog file.
 		/// </summary>
 		private void FetchBook(XmlElement entry)
 		{
 			string pathEpub = ComputeEpubPathFromEntryTitle(entry);
-			var pathImage = Path.ChangeExtension(pathEpub, "jpg");
 			var pathOpds = Path.ChangeExtension(pathEpub, "opds");
 			var obsolete = false;
 			if (File.Exists(pathOpds))
 				obsolete = IsExistingDownloadObsolete(entry, pathOpds);
-			if (!File.Exists(pathEpub) || !File.Exists(pathImage) || !File.Exists(pathOpds) || obsolete)
+			if (!File.Exists(pathEpub) || !File.Exists(pathOpds) || obsolete)
 			{
 				_opdsClient.DownloadBook(entry, "epub", _feedTitle, pathEpub);
-				_opdsClient.DownloadImage(entry, pathImage);
 				_opdsClient.WriteCatalogEntryFile(_rootCatalog, entry, pathOpds);
 			}
 			else
@@ -134,7 +131,7 @@ namespace RoseGarden
 		private string CreateFetchCommandLine(XmlElement entry)
 		{
 			var command = new StringBuilder();
-			command.Append("RoseGarden fetch --image");
+			command.Append("RoseGarden fetch");
 			if (_options.VeryVerbose)
 				command.Append(" -V");
 			else if (_options.Verbose)

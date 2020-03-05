@@ -55,6 +55,12 @@ namespace RoseGardenTests
 				"Copyright © Uganda Community Libraries Association (Ugcla) 2015", "http://creativecommons.org/licenses/by/4.0/",
 				@"<p>Written by Alice Nakasango.</p>
 <p>Images by Marleen Visser. © African Storybook Initiative 2015. CC BY 4.0.</p>", null);
+
+			// SUT
+			convert.ReplaceCoverImageIfNeeded();
+			// Check the changed image filename.
+			Assert.That(coverImageData.InnerXml, Is.EqualTo("27e900b0dc523b77e981b601a779c6a0.jpg"));
+			CheckImageMetaData(coverImageData, "Marleen Visser", "Copyright © African Storybook Initiative 2015", "CC BY 4.0");
 		}
 
 		const string _goatOpfXml = @"<?xml version=""1.0"" encoding=""UTF-8""?>
@@ -276,6 +282,12 @@ http://ugcla.org
 				"Copyright © Room to Read, 2013", "http://creativecommons.org/licenses/by/4.0/",
 				@"<p>Written by Alisha Berger.</p>
 <p>Images by Vusi Malindi. © Room to Read, 2013. CC BY 4.0.</p>", "<p>This story 'Dogs versus Cats' has been published on StoryWeaver by Room to Read.</p>");
+
+			// SUT
+			convert.ReplaceCoverImageIfNeeded();
+			// Check the unchanged image filename.
+			Assert.That(coverImageData.InnerXml, Is.EqualTo("ac99ee2a331aa285d8c828cdb2ee0b29.jpg"));
+			CheckImageMetaData(coverImageData, "Vusi Malindi", "Copyright © Room to Read, 2013", "CC BY 4.0");
 		}
 
 		const string _dogsOpfXml = @"<?xml version=""1.0"" encoding=""UTF-8""?>

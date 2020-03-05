@@ -100,10 +100,10 @@ namespace RoseGarden
 				InitializeData();
 
 				ConvertBook();
+				CreateThumbnails();
 
 				File.Delete(Path.Combine(_bookFolder, _htmFileName));
 				_bloomDoc.Save(Path.Combine(_bookFolder, _htmFileName));
-				CreateThumbnails();
 				if (!String.IsNullOrWhiteSpace(_options.CollectionFolder) && _options.CollectionFolder != _bookFolder)
 					CopyBloomBookToOutputFolder();
 				if (NeedCopyrightInformation())
@@ -2413,11 +2413,8 @@ namespace RoseGarden
 
 		private void CreateThumbnails()
 		{
-			var imageFile = Path.ChangeExtension(_options.EpubFile, "jpg");
-			if (_options.EpubFile.EndsWith(".epub.zip", StringComparison.InvariantCulture))
-				imageFile = _options.EpubFile.Replace(".epub.zip", ".jpg");
-			if (_publisher.ToLowerInvariant().StartsWith("african storybook", StringComparison.InvariantCulture))
-				imageFile = GetFirstPageOrCoverImage();
+			ReplaceCoverImageIfNeeded();
+			var imageFile = GetCoverImagePath();
 			if (String.IsNullOrWhiteSpace(imageFile) || !File.Exists(imageFile))
 				return;
 			if (_options.Verbose)
@@ -2433,15 +2430,34 @@ namespace RoseGarden
 				File.Delete(Path.Combine(_bookFolder, "thumbnail.jpg"));
 		}
 
-		private string GetFirstPageOrCoverImage()
+		private string GetCoverImagePath()
 		{
-			var firstPageImageDiv = _bloomDoc.SelectSingleNode("/html/body/div[@data-page-number='1']//div[contains(@class,'bloom-imageContainer')]/img") as XmlElement;
-			if (firstPageImageDiv != null)
-				return Path.Combine(_bookFolder, firstPageImageDiv.GetAttribute("src"));
 			var coverImageDiv = _bloomDoc.SelectSingleNode("/html/body/div[@id='bloomDataDiv']/div[@data-book='coverImage' and @lang='*']") as XmlElement;
 			if (coverImageDiv != null)
 				return Path.Combine(_bookFolder, coverImageDiv.InnerText.Trim());
 			return "";
+		}
+
+		/// <summary>
+		/// Some publishers use only an image for the front cover with the title and author embedded in the image.
+		/// This is obviously bad for translated books, so try using the image from the first content page instead.
+		/// </summary>
+		internal void ReplaceCoverImageIfNeeded()
+		{
+			if (_publisher.ToLowerInvariant().StartsWith("african storybook", StringComparison.InvariantCulture))
+			{
+				var firstPageImageDiv = _bloomDoc.SelectSingleNode("/html/body/div[@data-page-number='1']//div[contains(@class,'bloom-imageContainer')]/img") as XmlElement;
+				var coverImageDiv = _bloomDoc.SelectSingleNode("/html/body/div[@id='bloomDataDiv']/div[@data-book='coverImage' and @lang='*']") as XmlElement;
+				if (firstPageImageDiv != null && coverImageDiv != null)
+				{
+					// Replace the cover image with the first page image since we're using it as the thumbnail.
+					var src = firstPageImageDiv.GetAttribute("src");
+					coverImageDiv.InnerText = src;
+					coverImageDiv.SetAttribute("data-creator", firstPageImageDiv.GetAttribute("data-creator"));
+					coverImageDiv.SetAttribute("data-copyright", firstPageImageDiv.GetAttribute("data-copyright"));
+					coverImageDiv.SetAttribute("data-license", firstPageImageDiv.GetAttribute("data-license"));
+				}
+			}
 		}
 	}
 }
