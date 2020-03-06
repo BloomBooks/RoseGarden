@@ -590,13 +590,15 @@ namespace RoseGarden
 						_averageImageSize, _averageAspect);
 					Console.WriteLine("DEBUG: image sizes max = {0}, min = {1}; image aspect ratio max = {2}, min = {3}",
 						_biggestImageSize, _smallestImageSize, _biggestAspect, _smallestAspect);
+					Console.WriteLine("DEBUG: {0} pages had landscape picture, {1} pages had portrait picture",
+						_pagesWithLandscapeImage, _pagesWithPortraitImage);
 				}
 			}
 			var singularPageCount = _textOnlyPageCount + _imageOnlyPageCount;
-			if (//_maxTextLengthWithImage <= kMaxTextLengthForLandscape &&
-				(_imageOnlyPageCount >= (_contentPageCount - 1) && _averageAspect > 1.0) ||
-				(_averageAspect <= 1.0 &&
-				(singularPageCount * 3) < _contentPageCount))	//text-only and image-only are < 1/3 of all total pages
+			// Picture Books (those with only pictures except maybe for 1 page of instruction) are landscape if the pictures are mostly landscape.
+			// Other books with both pictures and text on 2/3 or more of the pares are landscape if the pictures are mostly portrait.
+			if ((_imageOnlyPageCount >= (_contentPageCount - 1) && _pagesWithLandscapeImage > _pagesWithPortraitImage) ||
+				(_contentPageCount >= (singularPageCount * 3) && _pagesWithPortraitImage > _pagesWithLandscapeImage))
 			{
 				if (_options.Verbose)
 					Console.WriteLine("INFO: setting book layout to landscape for {0}", _epubMetaData.Title);
@@ -674,6 +676,8 @@ namespace RoseGarden
 		double _biggestAspect;
 		double _smallestAspect;
 		double _averageAspect;
+		int _pagesWithLandscapeImage;
+		int _pagesWithPortraitImage;
 
 		private void ProcessImageSizes()
 		{
@@ -704,6 +708,10 @@ namespace RoseGarden
 					_biggestAspect = aspect;
 				if (_smallestAspect > aspect)
 					_smallestAspect = aspect;
+				if (size.Width > size.Height)
+					++_pagesWithLandscapeImage;
+				else
+					++_pagesWithPortraitImage;		// square image counts as portrait
 			}
 			_averageImageSize = new SizeF((float)totalWidth / (float)_imageSizes.Count, (float)totalHeight / (float)_imageSizes.Count);
 			_averageAspect = (double)totalWidth / (double)totalHeight;

@@ -86,13 +86,14 @@ The current algorithm in **RoseGarden** is rather simplistic.
 2. *RoseGarden** scans through the content pages of the book, noting whether each page has a
    picture and the image size of that picture.
 3. If all of the content pages (or all but one page) contain only a picture, then if the
-   pictures average being wider than they are high the layout is changed to landscape.  This
-   better fits landscape pictures without text.  In other words, landscape pictures in a pure
-   picture book cause a landscape layout of the book.
-4. If 2/3 or more of the content pages have both text and a picture, then if the pictures
-   average being as high (or higher) as they are wide the layout is changed to landscape.  This
-   seems to give a better visual effect.  In other words, square or portrait pictures in a book
-   with both a picture and text on most pages cause a landscape layout of the book.
+   majority of pages have pictures that are wider than they are high, the layout is changed to
+   landscape.  This better fits landscape pictures without text.  In other words, landscape
+   pictures in a pure picture book cause a landscape layout of the book.
+4. If 2/3 or more of the content pages have both text and a picture, then if the majority of
+   pages have pictures that are higher than (or as high as) they are wide the layout is changed
+   to landscape.  This seems to give a better visual effect.  In other words, square or portrait
+   pictures in a book with both a picture and text on most pages cause a landscape layout of the
+   book.
 
 [It may be worthwhile exploring whether adjusting the relative sizes of the picture and text
 areas on each page (or for all pages based on some average metric) is feasible based on picture
