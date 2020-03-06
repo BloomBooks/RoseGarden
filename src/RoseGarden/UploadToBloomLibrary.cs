@@ -209,7 +209,7 @@ namespace RoseGarden
 			foreach (var book in bookList)
 			{
 				++countAllBooks;
-				var normTitle = NormalizeTitle(book.Title);
+				var normTitle = Program.NormalizeTitle(book.Title);
 				if (!_allBooks.TryGetValue(normTitle, out List<Book> books))
 				{
 					++countTitles;
@@ -221,13 +221,6 @@ namespace RoseGarden
 			var endTime = DateTime.Now;
 			if (_options.VeryVerbose)
 				Console.WriteLine("DEBUG: {0} books with {1} distinct titles processed in {2}", countAllBooks, countTitles, (endTime - startTime));
-		}
-
-		private string NormalizeTitle(string title)
-		{
-			title = title.ToLowerInvariant();
-			title = Regex.Replace(title, @"\s+", " ");
-			return title.Trim();
 		}
 
 		private void UpdateParseTables()
@@ -262,7 +255,7 @@ namespace RoseGarden
 					// Matching titles that vary in case or whitespace doesn't seem feasible using
 					// parse queries.  So we preload everything locally and index by a normalized
 					// title to find matching titles.
-					var matchingBooks = FindBooksWithMatchingTitle(NormalizeTitle(book.Title));
+					var matchingBooks = FindBooksWithMatchingTitle(Program.NormalizeTitle(book.Title));
 					var related = new HashSet<Book>();
 					foreach (var oldBook in matchingBooks)
 					{

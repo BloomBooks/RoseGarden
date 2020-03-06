@@ -869,8 +869,8 @@ Pratham Books goes digital to weave a whole new chapter in the realm of multilin
 			CheckImageMetaData(page5Img, imageCreator, imageCopyright, imageLicense);
 			CheckImageMetaData(page6Img, imageCreator, imageCopyright, imageLicense);
 			CheckImageMetaData(page7Img, imageCreator, imageCopyright, imageLicense);
-			var licenseUrlData = convert._bloomDoc.SelectSingleNode("/html/body/div[@id='bloomDataDiv']/div[@data-book='copyrightUrl' and @lang='*']") as XmlElement;
-			Assert.That(licenseUrlData, Is.Not.Null, "End page sets copyrightUrl in data div");
+			var licenseUrlData = convert._bloomDoc.SelectSingleNode("/html/body/div[@id='bloomDataDiv']/div[@data-book='licenseUrl' and @lang='*']") as XmlElement;
+			Assert.That(licenseUrlData, Is.Not.Null, "End page sets licenseUrl in data div");
 			Assert.That(licenseUrlData.InnerXml, Is.EqualTo("http://creativecommons.org/licenses/by/4.0/"));
 			var originalContribData = convert._bloomDoc.SelectSingleNode($"/html/body/div[@id='bloomDataDiv']/div[@data-book='originalContributions' and @lang='en']") as XmlElement;
 			Assert.That(originalContribData, Is.Not.Null, "End page sets originalContributions in data div");
@@ -1249,8 +1249,8 @@ Pratham Books goes digital to weave a whole new chapter in the realm of multilin
 			CheckImageMetaData(secondPageImage, imageCreator, imageCopyright, imageLicense);
 			CheckImageMetaData(thirdPageImage, imageCreator, imageCopyright, imageLicense);
 			CheckImageMetaData(fourthPageImage, imageCreator, imageCopyright, imageLicense);
-			var licenseUrlData = convert._bloomDoc.SelectSingleNode("/html/body/div[@id='bloomDataDiv']/div[@data-book='copyrightUrl' and @lang='*']") as XmlElement;
-			Assert.That(licenseUrlData, Is.Not.Null, "End page sets copyrightUrl in data div");
+			var licenseUrlData = convert._bloomDoc.SelectSingleNode("/html/body/div[@id='bloomDataDiv']/div[@data-book='licenseUrl' and @lang='*']") as XmlElement;
+			Assert.That(licenseUrlData, Is.Not.Null, "End page sets licenseUrl in data div");
 			Assert.That(licenseUrlData.InnerXml, Is.EqualTo("http://creativecommons.org/licenses/by-nc/4.0/"));
 			var originalContribData = convert._bloomDoc.SelectSingleNode($"/html/body/div[@id='bloomDataDiv']/div[@data-book='originalContributions' and @lang='en']") as XmlElement;
 			Assert.That(originalContribData, Is.Not.Null, "End page sets originalContributions in data div");
@@ -1488,8 +1488,8 @@ Suman Maharjan
 			CheckImageMetaData(secondPageImage, imageCreator, imageCopyright, imageLicense);
 			CheckImageMetaData(thirdPageImage, imageCreator, imageCopyright, imageLicense);
 			CheckImageMetaData(fourthPageImage, imageCreator, imageCopyright, imageLicense);
-			var licenseUrlData = convert._bloomDoc.SelectSingleNode("/html/body/div[@id='bloomDataDiv']/div[@data-book='copyrightUrl' and @lang='*']") as XmlElement;
-			Assert.That(licenseUrlData, Is.Not.Null, "End page sets copyrightUrl in data div");
+			var licenseUrlData = convert._bloomDoc.SelectSingleNode("/html/body/div[@id='bloomDataDiv']/div[@data-book='licenseUrl' and @lang='*']") as XmlElement;
+			Assert.That(licenseUrlData, Is.Not.Null, "End page sets licenseUrl in data div");
 			Assert.That(licenseUrlData.InnerXml, Is.EqualTo("http://creativecommons.org/licenses/by-nc/4.0/"));
 			var originalContribData = convert._bloomDoc.SelectSingleNode($"/html/body/div[@id='bloomDataDiv']/div[@data-book='originalContributions' and @lang='en']") as XmlElement;
 			Assert.That(originalContribData, Is.Not.Null, "End page sets originalContributions in data div");
@@ -1741,15 +1741,15 @@ Suman Maharjan
 			CheckImageMetaData(secondPageImage, imageCreator, imageCopyright, imageLicense);
 			CheckImageMetaData(thirdPageImage, imageCreator, imageCopyright, imageLicense);
 			CheckImageMetaData(fourthPageImage, imageCreator, imageCopyright, imageLicense);
-			var licenseUrlData = convert._bloomDoc.SelectSingleNode("/html/body/div[@id='bloomDataDiv']/div[@data-book='copyrightUrl' and @lang='*']") as XmlElement;
-			Assert.That(licenseUrlData, Is.Not.Null, "End page sets copyrightUrl in data div");
+			var licenseUrlData = convert._bloomDoc.SelectSingleNode("/html/body/div[@id='bloomDataDiv']/div[@data-book='licenseUrl' and @lang='*']") as XmlElement;
+			Assert.That(licenseUrlData, Is.Not.Null, "End page sets licenseUrl in data div");
 			Assert.That(licenseUrlData.InnerXml, Is.EqualTo("https://creativecommons.org/licenses/by-nc-sa/4.0/"));
 			var originalContribData = convert._bloomDoc.SelectSingleNode($"/html/body/div[@id='bloomDataDiv']/div[@data-book='originalContributions' and @lang='en']") as XmlElement;
 			Assert.That(originalContribData, Is.Not.Null, "End page sets originalContributions in data div");
 			Assert.That(originalContribData.InnerXml, Is.EqualTo(@"<p>Written by El-Sayyed Ibraheem.</p>
 <p>Images by Mostapha Al-Barshomi. © Asafeer Education Technologies FZ LLC, 2018. CC BY-NC-SA 4.0.</p>"));
 			var originalAckData = convert._bloomDoc.SelectSingleNode($"/html/body/div[@id='bloomDataDiv']/div[@data-book='originalAcknowledgments' and @lang='en']") as XmlElement;
-			Assert.That(originalContribData, Is.Not.Null, "Acknowledgements page sets originalAcknowledgments in data div");
+			Assert.That(originalAckData, Is.Not.Null, "Acknowledgements page sets originalAcknowledgments in data div");
 			Assert.That(originalAckData.InnerXml, Is.EqualTo("<p>The original work of this book was made possible through the generous support of the All Children Reading: A Grand Challenge for Development (ACR GCD) Partners (the United States Agency for International Development (USAID), World Vision, and the Australian Government). It was prepared by Asafeer Education Technologies FZ LLC and does not necessarily reflect the views of the ACR GCD Partners. Any adaptation or translation of this work should not be considered an official ACR GCD translation and ACR GCD shall not be liable for any content or error in this translation.</p>"));
 			var copyrightData = convert._bloomDoc.SelectSingleNode("/html/body/div[@id='bloomDataDiv']/div[@data-book='copyright' and @lang='*']") as XmlElement;
 			Assert.That(copyrightData, Is.Not.Null, "End page sets copyright in data div");
@@ -1902,5 +1902,276 @@ Suman Maharjan
  The End
 </p></body>
 </html>";
+
+		/// <summary>
+		/// This tests converting the Global Digital Library version of "The Garbage Monster" published by 3Asafeer.
+		/// It has these distinctive features:
+		/// * 2 images on the front cover page
+		/// * content pages use paragraph markup for the text
+		/// * chapter 2 (page 1) is an acknowledgements page, not a content page.
+		/// * there are no end credit pages: the copyright is implied and the license given only by an image page 1 (chapter 2)
+		/// * the cover page places the title following the author and illustrator, and splits the words of the title across lines.
+		/// </summary>
+		[Test]
+		public void TestConvertingTheGarbageMonster_GDL()
+		{
+			// SUT (UsePortrait or UseLandscape must be true to avoid invalid file access)
+			var convert = InitializeForConversions(new ConvertOptions() { LanguageName = "English", UsePortrait = true }, _garbageOpfXml, _garbageOpdsXml);
+			var dataDiv0 = CheckInitialBookSetup(convert, "The Garbage Monster");
+
+			// SUT
+			convert.ConvertPage(0, _garbagePage1Xhtml);
+			var coverImg = CheckCoverPageImport(convert, dataDiv0, "The Garbage Monster", "c098c8faab74b36f4f7f47740abce964.jpg",
+				@"<p>
+ Author:
+ Layla
+ Audi
+</p><p>
+ Illustrator:
+ Hanan
+ Al-Karargy
+</p><p>
+ 3asafeer.com
+</p>",
+				out XmlElement coverImageData);
+			// This book has one extra image on the front cover page.  We save this information even though it doesn't do any good.
+			CheckExtraCoverImages(convert._bloomDoc, "39187b6109946a555d0aa2590ad7dfc3.png", null);
+
+			// SUT
+			var result = convert.ConvertPage(1, _garbagePage2Xhtml);
+			Assert.That(result, Is.True, "converting The Garbage Monster chapter 2 succeeded");
+			var pages = convert._bloomDoc.SelectNodes("/html/body/div[contains(@class,'bloom-page')]").Cast<XmlElement>().ToList();
+			Assert.That(pages.Count, Is.EqualTo(1), "Only one page (the cover page) exists after converting the cover page and the second (acknowledgements) page.");
+
+			// SUT
+			result = convert.ConvertPage(2, _garbagePage3Xhtml);
+			Assert.That(result, Is.True, "converting The Garbage Monster chapter 3 succeeded");
+			var firstPageImage = CheckTrueContentPageImport(convert._bloomDoc, "1", 2, "03fed45a79182e03f23ef567d95cb554.jpg",
+				@"<p>Bishu
+ lived
+ happily
+ in
+ Bubbly
+ Bill
+ Village
+ near
+ Lemonade
+ River.
+ He
+ loved
+ collecting
+ tin
+ cans,
+ bottles
+ and
+ paper
+ and
+ wouldn’t
+ throw
+ them
+ away,
+ but
+ why?</p>");
+
+			// SUT
+			result = convert.ConvertPage(21, _garbagePage22Xhtml);
+			Assert.That(result, Is.True, "converting The Garbage Monster chapter 22 succeeded");
+			var secondPageImage = CheckTrueContentPageImport(convert._bloomDoc, "20", 3, "a6040707f0f75a1a141b5ebe6e93655a.jpg",
+				@"<p>THE
+ END</p>");
+
+			// SUT
+			convert.SetAsafeerImageCredits();
+			// TODO CHECK THIS OUT!
+			CheckTwoPageBookAfterEndPages(convert, coverImg, coverImageData, firstPageImage, secondPageImage,
+	"Copyright © Asafeer Education Technologies FZ LLC, 2018", "CC BY-NC-SA 4.0", "Hanan Al-Karargy",
+	"Copyright © Asafeer Education Technologies FZ LLC, 2018", "https://creativecommons.org/licenses/by-nc-sa/4.0/",
+	@"<p>Written by Layla Audi.</p>
+<p>Images by Hanan Al-Karargy. © Asafeer Education Technologies FZ LLC, 2018. CC BY-NC-SA 4.0.</p>",
+	null);
+			var originalAckData = convert._bloomDoc.SelectSingleNode($"/html/body/div[@id='bloomDataDiv']/div[@data-book='originalAcknowledgments' and @lang='en']") as XmlElement;
+			Assert.That(originalAckData, Is.Not.Null, "Acknowledgements page sets originalAcknowledgments in data div");
+			Assert.That(originalAckData.InnerXml, Is.EqualTo("<p>The original work of this book was made possible through the generous support of the All Children Reading: A Grand Challenge for Development (ACR GCD) Partners (the United States Agency for International Development (USAID), World Vision, and the Australian Government). It was prepared by Asafeer Education Technologies FZ LLC and does not necessarily reflect the views of the ACR GCD Partners. Any adaptation or translation of this work should not be considered an official ACR GCD translation and ACR GCD shall not be liable for any content or error in this translation.</p>"));
+		}
+		const string _garbageOpfXml = @"<?xml version=""1.0"" encoding=""UTF-8""?>
+<package xmlns=""http://www.idpf.org/2007/opf"" version=""3.0"" unique-identifier=""uid"">
+	<metadata xmlns:dc=""http://purl.org/dc/elements/1.1/"">
+		<dc:identifier id=""uid"">dfd8b7cb-dfbc-4d16-b490-5cdbb1776730</dc:identifier>
+		<dc:title>The Garbage Monster</dc:title>
+		<dc:language>en</dc:language>
+		<meta property=""dcterms:modified"">2020-03-02T09:11:28Z</meta>
+		<dc:description>The Garbage Monster</dc:description>
+		<dc:creator id=""contributor_1"">Layla Audi</dc:creator>
+		<meta refines=""#contributor_1"" property=""role"" scheme=""marc:relators"">aut</meta>
+		<dc:contributor id=""contributor_2"">Hanan Al-Karargy</dc:contributor>
+		<meta refines=""#contributor_2"" property=""role"" scheme=""marc:relators"">ill</meta>
+	</metadata>
+	<manifest>
+		<item href=""toc.xhtml"" id=""toc"" media-type=""application/xhtml+xml"" properties=""nav"" />
+		<item href=""epub.css"" id=""css"" media-type=""text/css"" />
+		<item href=""fa21492bf8fb8800028bb03226e10e7e.jpg"" id=""cover"" media-type=""image/jpeg"" properties=""cover-image"" />
+		<item href=""c098c8faab74b36f4f7f47740abce964.jpg"" id=""image-13612-0"" media-type=""image/jpeg"" />
+		<item href=""39187b6109946a555d0aa2590ad7dfc3.png"" id=""image-13613-1"" media-type=""image/png"" />
+		<item href=""4a4f7676089264ea017d6864c3fc69a8.png"" id=""image-14211-2"" media-type=""image/png"" />
+		<item href=""9a668c34be6e6fd9a4a3db65ef00825a.png"" id=""image-14212-3"" media-type=""image/png"" />
+		<item href=""8365a4264f99914742806bf950a4df07.png"" id=""image-14213-4"" media-type=""image/png"" />
+		<item href=""19d5730405dc3ef4f9ab77113b7aaf0f.png"" id=""image-14214-5"" media-type=""image/png"" />
+		<item href=""03fed45a79182e03f23ef567d95cb554.jpg"" id=""image-13620-6"" media-type=""image/jpeg"" />
+		<item href=""477f47cc28cf3f40a368787b556844d7.jpg"" id=""image-13621-7"" media-type=""image/jpeg"" />
+		<item href=""bf09775e3c05ced024e1413b3fed4fac.jpg"" id=""image-13622-8"" media-type=""image/jpeg"" />
+		<item href=""6a67e8594677b53b67686a279c01e071.jpg"" id=""image-13623-9"" media-type=""image/jpeg"" />
+		<item href=""3264b38983b480b0d25db636c151f4e2.jpg"" id=""image-13624-10"" media-type=""image/jpeg"" />
+		<item href=""50f50eeeb093e2d67c9dad8c10939add.jpg"" id=""image-13625-11"" media-type=""image/jpeg"" />
+		<item href=""468ef548d10f95e3b9691dff382a0809.jpg"" id=""image-13626-12"" media-type=""image/jpeg"" />
+		<item href=""abbc8370ace4e46d24b45a1856ee0085.jpg"" id=""image-13627-13"" media-type=""image/jpeg"" />
+		<item href=""f8f73360d9868e2781cfbd8e96bbc8f2.jpg"" id=""image-13628-14"" media-type=""image/jpeg"" />
+		<item href=""aa78499e96695df6d94ea2b1eb309d1d.jpg"" id=""image-13629-15"" media-type=""image/jpeg"" />
+		<item href=""1bc4a0964e5ca519a5b15577c58a6a89.jpg"" id=""image-13630-16"" media-type=""image/jpeg"" />
+		<item href=""880df9e9c4fc8beb73b69059f389215c.jpg"" id=""image-13631-17"" media-type=""image/jpeg"" />
+		<item href=""a2db193b02c07c566a4e1c2d736453e2.jpg"" id=""image-13632-18"" media-type=""image/jpeg"" />
+		<item href=""04c27b6bdd546f1c12517aeb08a8c98d.jpg"" id=""image-13614-19"" media-type=""image/jpeg"" />
+		<item href=""3d93d691a93bb3ec342da67794dc7167.jpg"" id=""image-13633-20"" media-type=""image/jpeg"" />
+		<item href=""46a2cc2176632998e53cf43e36cd01ca.jpg"" id=""image-13634-21"" media-type=""image/jpeg"" />
+		<item href=""9977d1494c47813d8be6b9aadc24539f.jpg"" id=""image-13635-22"" media-type=""image/jpeg"" />
+		<item href=""c8584cd4408ba4eb4c93e15c5a999d71.jpg"" id=""image-13636-23"" media-type=""image/jpeg"" />
+		<item href=""88bd698c1f40dc6502ee200a85c1fcd0.jpg"" id=""image-13637-24"" media-type=""image/jpeg"" />
+		<item href=""a6040707f0f75a1a141b5ebe6e93655a.jpg"" id=""image-13615-25"" media-type=""image/jpeg"" />
+		<item href=""chapter-1.xhtml"" id=""chapter-1"" media-type=""application/xhtml+xml"" />
+		<item href=""chapter-2.xhtml"" id=""chapter-2"" media-type=""application/xhtml+xml"" />
+		<item href=""chapter-3.xhtml"" id=""chapter-3"" media-type=""application/xhtml+xml"" />
+		<item href=""chapter-4.xhtml"" id=""chapter-4"" media-type=""application/xhtml+xml"" />
+		<item href=""chapter-5.xhtml"" id=""chapter-5"" media-type=""application/xhtml+xml"" />
+		<item href=""chapter-6.xhtml"" id=""chapter-6"" media-type=""application/xhtml+xml"" />
+		<item href=""chapter-7.xhtml"" id=""chapter-7"" media-type=""application/xhtml+xml"" />
+		<item href=""chapter-8.xhtml"" id=""chapter-8"" media-type=""application/xhtml+xml"" />
+		<item href=""chapter-9.xhtml"" id=""chapter-9"" media-type=""application/xhtml+xml"" />
+		<item href=""chapter-10.xhtml"" id=""chapter-10"" media-type=""application/xhtml+xml"" />
+		<item href=""chapter-11.xhtml"" id=""chapter-11"" media-type=""application/xhtml+xml"" />
+		<item href=""chapter-12.xhtml"" id=""chapter-12"" media-type=""application/xhtml+xml"" />
+		<item href=""chapter-13.xhtml"" id=""chapter-13"" media-type=""application/xhtml+xml"" />
+		<item href=""chapter-14.xhtml"" id=""chapter-14"" media-type=""application/xhtml+xml"" />
+		<item href=""chapter-15.xhtml"" id=""chapter-15"" media-type=""application/xhtml+xml"" />
+		<item href=""chapter-16.xhtml"" id=""chapter-16"" media-type=""application/xhtml+xml"" />
+		<item href=""chapter-17.xhtml"" id=""chapter-17"" media-type=""application/xhtml+xml"" />
+		<item href=""chapter-18.xhtml"" id=""chapter-18"" media-type=""application/xhtml+xml"" />
+		<item href=""chapter-19.xhtml"" id=""chapter-19"" media-type=""application/xhtml+xml"" />
+		<item href=""chapter-20.xhtml"" id=""chapter-20"" media-type=""application/xhtml+xml"" />
+		<item href=""chapter-21.xhtml"" id=""chapter-21"" media-type=""application/xhtml+xml"" />
+		<item href=""chapter-22.xhtml"" id=""chapter-22"" media-type=""application/xhtml+xml"" />
+	</manifest>
+</package>";
+		const string _garbageOpdsXml = @"<feed xmlns='http://www.w3.org/2005/Atom' xmlns:lrmi='http://purl.org/dcx/lrmi-terms/' xmlns:dc='http://purl.org/dc/terms/' xmlns:dcterms='http://purl.org/dc/terms/' xmlns:opds='http://opds-spec.org/2010/catalog'>
+<title>Global Digital Library - Book Catalog [extract]</title>
+<entry>
+<id>urn:uuid:dfd8b7cb-dfbc-4d16-b490-5cdbb1776730</id>
+<title>The Garbage Monster</title>
+<author>
+<name>Layla Audi</name>
+</author>
+<contributor type=""Illustrator"">
+<name>Hanan Al-Karargy</name>
+</contributor>
+<dc:license>Creative Commons Attribution Non Commercial Share Alike 4.0 International</dc:license>
+<dc:publisher>3Asafeer</dc:publisher>
+<updated>2018-09-20T00:00:00Z</updated>
+<dc:created>2018-09-20T00:00:00Z</dc:created>
+<published>2018-09-20T00:00:00Z</published>
+<lrmi:educationalAlignment alignmentType=""readingLevel"" targetName=""Read aloud"" />
+<summary>The Garbage Monster</summary>
+<link href=""https://res.cloudinary.com/dwqxoowxi/f_auto,q_auto/fa21492bf8fb8800028bb03226e10e7e"" type=""image/jpeg"" rel=""http://opds-spec.org/image"" />
+<link href=""https://res.cloudinary.com/dwqxoowxi/f_auto,q_auto/fa21492bf8fb8800028bb03226e10e7e?width=200"" type=""image/png"" rel=""http://opds-spec.org/image/thumbnail"" />
+<link href=""https://books.digitallibrary.io/epub/en/dfd8b7cb-dfbc-4d16-b490-5cdbb1776730.epub"" type=""application/epub+zip"" rel=""http://opds-spec.org/acquisition/open-access"" />
+<link href=""https://books.digitallibrary.io/pdf/en/dfd8b7cb-dfbc-4d16-b490-5cdbb1776730.pdf"" type=""application/pdf"" rel=""http://opds-spec.org/acquisition/open-access"" />
+<dcterms:language>English</dcterms:language>
+</entry>
+</feed>";
+		const string _garbagePage1Xhtml = @"<html xmlns=""http://www.w3.org/1999/xhtml"">
+<head>
+    <title>Chapter 1</title>
+    <link href=""epub.css"" rel=""stylesheet"" type=""text/css""/>
+</head>
+<body><img src=""c098c8faab74b36f4f7f47740abce964.jpg"" />
+<p>
+ Author:
+ Layla
+ Audi
+</p>
+<p>
+ Illustrator:
+ Hanan
+ Al-Karargy
+</p>
+<p>
+ The
+ Garbage
+ Monster
+</p>
+<img data-resource_size=""150"" width=""150"" src=""39187b6109946a555d0aa2590ad7dfc3.png"" />
+<p>
+ 3asafeer.com
+</p>
+</body>
+</html>";
+		const string _garbagePage2Xhtml = @"<html xmlns=""http://www.w3.org/1999/xhtml"">
+<head>
+    <title>Chapter 2</title>
+    <link href=""epub.css"" rel=""stylesheet"" type=""text/css""/>
+</head>
+<body><p>
+ The original work of this book was made possible through the generous support of the All Children Reading: A Grand Challenge for Development (ACR GCD) Partners (the United States Agency for International Development (USAID), World Vision, and the Australian Government). It was prepared by Asafeer Education Technologies FZ LLC and does not necessarily reflect the views of the ACR GCD Partners. Any adaptation or translation of this work should not be considered an official ACR GCD translation and ACR GCD shall not be liable for any content or error in this translation.
+</p>
+<img data-resource_size=""200"" width=""200"" src=""4a4f7676089264ea017d6864c3fc69a8.png"" />
+<img data-resource_size=""200"" width=""200"" src=""9a668c34be6e6fd9a4a3db65ef00825a.png"" />
+<img data-resource_size=""200"" width=""200"" src=""8365a4264f99914742806bf950a4df07.png"" />
+<img data-resource_size=""100"" width=""100"" src=""19d5730405dc3ef4f9ab77113b7aaf0f.png"" /></body>
+</html>";
+		const string _garbagePage3Xhtml = @"<html xmlns=""http://www.w3.org/1999/xhtml"">
+<head>
+    <title>Chapter 3</title>
+    <link href=""epub.css"" rel=""stylesheet"" type=""text/css""/>
+</head>
+<body><img src=""03fed45a79182e03f23ef567d95cb554.jpg"" />
+<p>
+ Bishu
+ lived
+ happily
+ in
+ Bubbly
+ Bill
+ Village
+ near
+ Lemonade
+ River.
+ He
+ loved
+ collecting
+ tin
+ cans,
+ bottles
+ and
+ paper
+ and
+ wouldn’t
+ throw
+ them
+ away,
+ but
+ why?
+</p>
+</body>
+</html>";
+		const string _garbagePage22Xhtml = @"<html xmlns=""http://www.w3.org/1999/xhtml"">
+<head>
+    <title>Chapter 22</title>
+    <link href=""epub.css"" rel=""stylesheet"" type=""text/css""/>
+</head>
+<body><img src=""a6040707f0f75a1a141b5ebe6e93655a.jpg"" />
+<p>
+ THE
+ END
+</p>
+</body>
+</html>";
+
 	}
 }

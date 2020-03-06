@@ -578,10 +578,15 @@ namespace RoseGarden
 				ScanPageForMetrics(pageNumber);
 			_endCreditsStart = Int32.MaxValue;  // reset credits page marker
 			ProcessImageSizes();
-			if (_options.VeryVerbose)
+			if (_options.Verbose)
 			{
 				Console.WriteLine("DEBUG: scanning the book shows {0} content pages with {1} image-only and {2} text-only pages",
 					_contentPageCount, _imageOnlyPageCount, _textOnlyPageCount);
+				Console.WriteLine("DEBUG: {0} pages have a landscape picture, {1} pages have a portrait picture",
+					_pagesWithLandscapeImage, _pagesWithPortraitImage);
+			}
+			if (_options.VeryVerbose)
+			{
 				Console.WriteLine("DEBUG: the maximum character count on a page is {0}, or {1} if the page has an image",
 					_maxTextLength, _maxTextLengthWithImage);
 				if (_imageSizes.Count > 0)
@@ -590,8 +595,6 @@ namespace RoseGarden
 						_averageImageSize, _averageAspect);
 					Console.WriteLine("DEBUG: image sizes max = {0}, min = {1}; image aspect ratio max = {2}, min = {3}",
 						_biggestImageSize, _smallestImageSize, _biggestAspect, _smallestAspect);
-					Console.WriteLine("DEBUG: {0} pages had landscape picture, {1} pages had portrait picture",
-						_pagesWithLandscapeImage, _pagesWithPortraitImage);
 				}
 			}
 			var singularPageCount = _textOnlyPageCount + _imageOnlyPageCount;
@@ -614,9 +617,9 @@ namespace RoseGarden
 					oldLandscapeLayout = true;
 				}
 				if (oldLandscapeLayout && !_options.UseLandscape)
-					Console.WriteLine("DEBUG: Character counting caused landscape layout, but not new image size metrics.");
+					Console.WriteLine("DEBUG: Character counting would cause landscape layout, but not image size metrics.");
 				else if (!oldLandscapeLayout && _options.UseLandscape)
-					Console.WriteLine("DEBUG: Character counting caused portrait layout, but not new image size metrics.");
+					Console.WriteLine("DEBUG: Character counting would cause portrait layout, but not image size metrics.");
 			}
 		}
 
@@ -664,6 +667,8 @@ namespace RoseGarden
 			var src = Path.Combine(_bookFolder, img.GetAttribute("src"));
 			using (var image = Image.FromFile(src))
 			{
+				if (_options.VeryVerbose)
+					Console.WriteLine("DEBUG: image {0} has size {1}", src, image.Size);
 				return image.Size;
 			}
 		}
@@ -776,7 +781,7 @@ namespace RoseGarden
 			}
 			if (!String.IsNullOrEmpty(url))
 			{
-				SetDataDivTextValue("copyrightUrl", url);
+				SetDataDivTextValue("licenseUrl", url);
 				_bookMetaData.License = licenseAbbreviation.ToLowerInvariant().Replace("cc by", "cc-by");
 			}
 		}
@@ -1005,8 +1010,19 @@ namespace RoseGarden
 		{
 			bool titleSet = false;
 			var title = child.InnerText.Trim();
-			if (title != _epubMetaData.Title)
+			if (Program.NormalizeTitle(title) != Program.NormalizeTitle(_epubMetaData.Title))
 			{
+				if (title.StartsWith("Author:", StringComparison.InvariantCulture) ||
+					title.StartsWith("Illustrator:", StringComparison.InvariantCulture) ||
+					title.StartsWith("Authors:", StringComparison.InvariantCulture) ||
+					title.StartsWith("Illustrators:", StringComparison.InvariantCulture) ||
+					title.StartsWith("قصة:", StringComparison.InvariantCulture) ||		// author: ?
+					title.StartsWith("رسوم:", StringComparison.InvariantCulture) ||	// illustrator: ?
+					title.Replace(" ", "") == "3asafeer.com")
+				{
+					AddCoverContributor(child.OuterXml);
+					return false;
+				}
 				Console.WriteLine("WARNING: using title from ePUB metadata ({0}) instead of data from title page({1})", _epubMetaData.Title, title);
 				SetTitle(_epubMetaData.Title);
 				usingEpubTitle = true;
@@ -1016,6 +1032,7 @@ namespace RoseGarden
 			}
 			else
 			{
+				title = Regex.Replace(title, "[ \r\n\t]+", " ");	// changes newlines to a space if needed to clean up title string
 				SetTitle(title);
 				titleSet = true;
 			}
@@ -1773,7 +1790,7 @@ namespace RoseGarden
 
 		private bool NeedLicenseInformation()
 		{
-			var license = GetOrCreateDataDivElement("copyrightUrl", "*");
+			var license = GetOrCreateDataDivElement("licenseUrl", "*");
 			return String.IsNullOrWhiteSpace(license.InnerText);
 		}
 
@@ -1856,7 +1873,7 @@ namespace RoseGarden
 					}
 				}
 			}
-			var licenseUrl = GetOrCreateDataDivElement("copyrightUrl", "*");
+			var licenseUrl = GetOrCreateDataDivElement("licenseUrl", "*");
 			var licenseAbbrev = "";
 			if (String.IsNullOrWhiteSpace(licenseUrl.InnerText))
 			{
@@ -1910,7 +1927,7 @@ namespace RoseGarden
 			if (match.Success)
 			{
 				var url = match.Groups[1].Value;
-				SetDataDivTextValue("copyrightUrl", url);
+				SetDataDivTextValue("licenseUrl", url);
 				var license = "CC " + match.Groups[2].Value.ToUpperInvariant().Replace("/", " ").Trim();
 				_bookMetaData.License = license.ToLowerInvariant().Replace("cc by", "cc-by");
 				return license;

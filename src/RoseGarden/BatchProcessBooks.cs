@@ -89,11 +89,13 @@ namespace RoseGarden
 
 		/// <summary>
 		/// Fetch the epub file for the given book and write it to the standard RoseGarden/Downloads folder.
+		/// If desired, fetch the image file and also write it to the standard RoseGarden/Downloads folder.
 		/// Also write the catalog entry as a single-entry OPDS catalog file.
 		/// </summary>
 		private void FetchBook(XmlElement entry)
 		{
-			string pathEpub = ComputeEpubPathFromEntryTitle(entry);
+			var pathEpub = ComputeEpubPathFromEntryTitle(entry);
+			var pathImage = Path.ChangeExtension(pathEpub, "jpg");
 			var pathOpds = Path.ChangeExtension(pathEpub, "opds");
 			var obsolete = false;
 			if (File.Exists(pathOpds))
@@ -101,6 +103,8 @@ namespace RoseGarden
 			if (!File.Exists(pathEpub) || !File.Exists(pathOpds) || obsolete)
 			{
 				_opdsClient.DownloadBook(entry, "epub", _feedTitle, pathEpub);
+				if (_options.DownloadImage)
+					_opdsClient.DownloadImage(entry, pathImage);
 				_opdsClient.WriteCatalogEntryFile(_rootCatalog, entry, pathOpds);
 			}
 			else
@@ -178,7 +182,6 @@ namespace RoseGarden
 		{
 			var convertOptions = CreateConvertOptions(entry);
 			var convert = new ConvertFromEpub(convertOptions);
-			Console.WriteLine("INFO: trying to convert \"{0}\"", convertOptions.EpubFile);
 			if (convert.RunConvert() == 0)
 				Console.WriteLine("INFO: converting \"{0}\" apparently succeeded.", convertOptions.EpubFile);
 			else
@@ -346,7 +349,9 @@ namespace RoseGarden
 								Console.WriteLine("DEBUG: \"{0}\" is already imported, but needs to be updated.", book.Title);
 						}
 					}
-					if (needBook)
+					if (!needBook && _options.ForceConvert && _options.VeryVerbose)
+						Console.WriteLine("DEBUG: \"{0}\" is imported and apparently up to date, but will be converted afresh", book.Title);
+					if (needBook || _options.ForceConvert)
 					{
 						entriesToProcess.Add(entry);
 					}

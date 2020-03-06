@@ -2,6 +2,7 @@
 // This software is licensed under the MIT License (http://opensource.org/licenses/MIT)
 using System;
 using System.Reflection;
+using System.Text.RegularExpressions;
 using CommandLine;
 
 namespace RoseGarden
@@ -135,6 +136,12 @@ namespace RoseGarden
 
 		[Option('B', "bloomfolder", Required = false, HelpText = "Folder where Bloom is installed locally.  If not given, the folder portion of --bloomexe is used.  (This default probably works only on Windows.)")]
 		public string BloomFolder { get; set; }
+
+		[Option('f', "forceconvert", Required = false, HelpText = "Force conversion of books even if checks indicate no need.")]
+		public bool ForceConvert { get; set; }
+
+		[Option('I', "image", Required = false, HelpText = "Download the fullsize image file as well as the ePUB file.  This may not be useful for anything except visually comparing book images across languages.")]
+		public bool DownloadImage { get; set; }
 
 		[Option('N', "noupload", Required = false, HelpText = "Do not upload after fetching and converting.")]
 		public bool DoNotUpload { get; set; }
@@ -286,6 +293,17 @@ namespace RoseGarden
 			var version = Assembly.GetExecutingAssembly().GetName().Version;
 			majorVersion = version.Major;
 			minorVersion = version.Minor;
+		}
+
+		/// <summary>
+		/// Convert the title string into a form that can be compared more deterministically: all lowercase,
+		/// all whitespace converted to single spaces, and trimmed of whitespace at beginning and end.
+		/// </summary>
+		public static string NormalizeTitle(string title)
+		{
+			title = title.ToLowerInvariant();
+			title = Regex.Replace(title, @"\s+", " ");
+			return title.Trim();
 		}
 #endregion
 	}

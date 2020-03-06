@@ -172,8 +172,8 @@ namespace RoseGardenTests
 			CheckImageMetaData(coverImg, imageCreator, imageCopyright, imageLicense);
 			CheckImageMetaData(firstPageImage, imageCreator, imageCopyright, imageLicense);
 			CheckImageMetaData(secondPageImage, imageCreator, imageCopyright, imageLicense);
-			var licenseUrlData = convert._bloomDoc.SelectSingleNode("/html/body/div[@id='bloomDataDiv']/div[@data-book='copyrightUrl' and @lang='*']") as XmlElement;
-			Assert.That(licenseUrlData, Is.Not.Null, "End page sets copyrightUrl in data div");
+			var licenseUrlData = convert._bloomDoc.SelectSingleNode("/html/body/div[@id='bloomDataDiv']/div[@data-book='licenseUrl' and @lang='*']") as XmlElement;
+			Assert.That(licenseUrlData, Is.Not.Null, "End page sets licenseUrl in data div");
 			Assert.That(licenseUrlData.InnerXml, Is.EqualTo(bookLicense));
 			var originalContribData = convert._bloomDoc.SelectSingleNode($"/html/body/div[@id='bloomDataDiv']/div[@data-book='originalContributions' and @lang='{lang}']") as XmlElement;
 			Assert.That(originalContribData, Is.Not.Null, "End page sets originalContributions in data div");
