@@ -3,6 +3,7 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Drawing;
 using System.IO;
 using System.IO.Compression;
 using System.Linq;
@@ -97,6 +98,8 @@ namespace RoseGarden
 				return 1;
 			try
 			{
+				if (_options.Verbose)
+					Console.WriteLine("INFO: converting \"{0}\"", Path.GetFileName(_options.EpubFile));
 				InitializeData();
 
 				ConvertBook();
@@ -573,22 +576,45 @@ namespace RoseGarden
 				return;     // user specifically demanded a particular layout
 			for (int pageNumber = 1; pageNumber < _epubMetaData.PageFiles.Count; ++pageNumber)
 				ScanPageForMetrics(pageNumber);
-			_endCreditsStart = Int32.MaxValue;	// reset credits page marker
+			_endCreditsStart = Int32.MaxValue;  // reset credits page marker
+			ProcessImageSizes();
 			if (_options.VeryVerbose)
 			{
 				Console.WriteLine("DEBUG: scanning the book shows {0} content pages with {1} image-only and {2} text-only pages",
 					_contentPageCount, _imageOnlyPageCount, _textOnlyPageCount);
 				Console.WriteLine("DEBUG: the maximum character count on a page is {0}, or {1} if the page has an image",
 					_maxTextLength, _maxTextLengthWithImage);
+				if (_imageSizes.Count > 0)
+				{
+					Console.WriteLine("DEBUG: images have an average size of {0} with an average aspect ratio of {1}",
+						_averageImageSize, _averageAspect);
+					Console.WriteLine("DEBUG: image sizes max = {0}, min = {1}; image aspect ratio max = {2}, min = {3}",
+						_biggestImageSize, _smallestImageSize, _biggestAspect, _smallestAspect);
+				}
 			}
 			var singularPageCount = _textOnlyPageCount + _imageOnlyPageCount;
-			if (_maxTextLengthWithImage <= kMaxTextLengthForLandscape &&
-				(singularPageCount * 3) < _contentPageCount)	//text-only and image-only are < 1/3 of all total pages
+			if (//_maxTextLengthWithImage <= kMaxTextLengthForLandscape &&
+				(_imageOnlyPageCount >= (_contentPageCount - 1) && _averageAspect > 1.0) ||
+				(_averageAspect <= 1.0 &&
+				(singularPageCount * 3) < _contentPageCount))	//text-only and image-only are < 1/3 of all total pages
 			{
 				if (_options.Verbose)
 					Console.WriteLine("INFO: setting book layout to landscape for {0}", _epubMetaData.Title);
 				_options.UseLandscape = true;
 				ChangePagesToLandscape();
+			}
+			if (_options.VeryVerbose)
+			{
+				var oldLandscapeLayout = false;
+				if (_maxTextLengthWithImage <= kMaxTextLengthForLandscape &&
+					(singularPageCount * 3) < _contentPageCount)    //text-only and image-only are < 1/3 of all total pages
+				{
+					oldLandscapeLayout = true;
+				}
+				if (oldLandscapeLayout && !_options.UseLandscape)
+					Console.WriteLine("DEBUG: Character counting caused landscape layout, but not new image size metrics.");
+				else if (!oldLandscapeLayout && _options.UseLandscape)
+					Console.WriteLine("DEBUG: Character counting caused portrait layout, but not new image size metrics.");
 			}
 		}
 
@@ -597,6 +623,7 @@ namespace RoseGarden
 		int _imageOnlyPageCount = 0;
 		int _textOnlyPageCount = 0;
 		int _contentPageCount = 0;
+		List<Size> _imageSizes = new List<Size>();
 
 		private void ScanPageForMetrics(int pageNumber)
 		{
@@ -610,7 +637,12 @@ namespace RoseGarden
 			if (IsEndCreditsPage(body, pageNumber))
 				return;		// ignore credits pages
 			++_contentPageCount;
-			var img = body.SelectSingleNode("//x:img", nsmgr);
+			var img = body.SelectSingleNode("//x:img", nsmgr) as XmlElement;
+			if (img != null)
+			{
+				var imgSize = GetImageSize(img);
+				_imageSizes.Add(imgSize);
+			}
 			var text = body.InnerText.Trim();
 			text = Regex.Replace(body.InnerText.Trim(), "[\\s\n]+", " ");
 			if (img != null && text.Length == 0)
@@ -623,6 +655,58 @@ namespace RoseGarden
 				_maxTextLength = text.Length;
 			if (img != null && _maxTextLengthWithImage < text.Length)
 				_maxTextLengthWithImage = text.Length;
+		}
+
+		private Size GetImageSize(XmlElement img)
+		{
+			var src = Path.Combine(_bookFolder, img.GetAttribute("src"));
+			using (var image = Image.FromFile(src))
+			{
+				return image.Size;
+			}
+		}
+
+		SizeF _averageImageSize;
+		Size _widestImageSize;
+		Size _tallestImageSize;
+		Size _biggestImageSize;
+		Size _smallestImageSize;
+		double _biggestAspect;
+		double _smallestAspect;
+		double _averageAspect;
+
+		private void ProcessImageSizes()
+		{
+			if (_imageSizes.Count == 0)
+				return;
+			_widestImageSize = _imageSizes[0];
+			_tallestImageSize = _imageSizes[0];
+			_biggestImageSize = _imageSizes[0];
+			_smallestImageSize = _imageSizes[0];
+			_biggestAspect = (double)(_imageSizes[0].Width) / (double)(_imageSizes[0].Height);
+			_smallestAspect = (double)(_imageSizes[0].Width) / (double)(_imageSizes[0].Height);
+			var totalWidth = 0;
+			var totalHeight = 0;
+			foreach (var size in _imageSizes)
+			{
+				if (_widestImageSize.Width < size.Width)
+					_widestImageSize = size;
+				if (_tallestImageSize.Height < size.Height)
+					_tallestImageSize = size;
+				if (_biggestImageSize.Width * _biggestImageSize.Height < size.Width * size.Height)
+					_biggestImageSize = size;
+				if (_smallestImageSize.Width * _smallestImageSize.Height > size.Width * size.Height)
+					_smallestImageSize = size;
+				totalWidth += size.Width;
+				totalHeight += size.Height;
+				double aspect = (double)size.Width / (double)size.Height;
+				if (_biggestAspect < aspect)
+					_biggestAspect = aspect;
+				if (_smallestAspect > aspect)
+					_smallestAspect = aspect;
+			}
+			_averageImageSize = new SizeF((float)totalWidth / (float)_imageSizes.Count, (float)totalHeight / (float)_imageSizes.Count);
+			_averageAspect = (double)totalWidth / (double)totalHeight;
 		}
 
 		internal void ExtractCopyrightAndLicenseFromAttributionText(string attributionText)

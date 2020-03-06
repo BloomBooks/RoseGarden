@@ -72,7 +72,7 @@ likely to change in the absence of some real need for it.
 
 # Automated Importing Niceties
 
-## Choosing layout
+## Choosing page layout
 
 One of the decisions needed on import is whether the book should initially be laid out in
 portrait mode or landscape mode.  Traditional books have mostly been published with a portrait
@@ -80,14 +80,61 @@ layout where their height is noticeably greater than their width.  With electron
 just as easy to lay out the book either way, but one will probably look better based on the
 pictures and amount of text in the book.
 
-The current algorithm in **RoseGarden** is rather simplistic.  It scans through the content
-pages of the book, noting whether each page has a picture and how much text is on each page.
-(This last metric is a simple character count.)  If at least 2/3 of the pages have both a
-picture and text, and the maximum amount of text on any page that has a picture is no more than
-300 characters, then the book is set to landscape layout on input.  Otherwise, the book is set
-to portrait layout.
+The current algorithm in **RoseGarden** is rather simplistic.
 
-[It may be worth looking at the image dimensions on each page to see whether the pictures favor
-portrait or landscape layout.  It may also be worth using picture metrics to adjust the relative
-sizes of the picture and the text areas on the pages.  These additional complications seem
-fraught with uncertainty and additional computational complexity, so have not been implemented.]
+1. The default layout is portrait.
+2. *RoseGarden** scans through the content pages of the book, noting whether each page has a
+   picture and the image size of that picture.
+3. If all of the content pages (or all but one page) contain only a picture, then if the
+   pictures average being wider than they are high the layout is changed to landscape.  This
+   better fits landscape pictures without text.  In other words, landscape pictures in a pure
+   picture book cause a landscape layout of the book.
+4. If 2/3 or more of the content pages have both text and a picture, then if the pictures
+   average being as high (or higher) as they are wide the layout is changed to landscape.  This
+   seems to give a better visual effect.  In other words, square or portrait pictures in a book
+   with both a picture and text on most pages cause a landscape layout of the book.
+
+[It may be worthwhile exploring whether adjusting the relative sizes of the picture and text
+areas on each page (or for all pages based on some average metric) is feasible based on picture
+sizes and amount of text on the pages.  This sounds rather intractible to get reliably good
+results programmatically.]
+
+Note that the **convert** command has command line options to explicitly set whether the
+book should have a portrait or landscape layout.  If one of these options is set, then the
+algorithm described above is ignored.
+
+
+## Choosing thumbnail / cover images
+
+**RoseGarden** creates thumbnails from the first image on the cover (first) page of the source
+epub file.  This follows the logic of **Bloom** in creating thumbnails.  This works well except
+for publishers that use a single image for the whole front cover with the title and author
+embedded in the image.  African Storybook Initiative is the worst offender we've seen thus far,
+with cover images in portrait layout and half the cover image being a solid color as background
+for the textual information.  For this publisher, we use the first image from the second (first
+content) page of the epub for both the thumbnails and for the cover page image.
+
+For 3Asafeer, **RoseGarden** may end up using the image from the third page for the cover and
+thumbnails, since page 3 is actually the first content page.  However, we're currently using the
+original cover image for 3Asafeer books despite the embedded text.
+
+There are drawbacks to choosing the image from the first content page.  It's rarely the most
+exciting image in the book and thus rarely the one chosen for the cover by the author.  Trying
+to find the closest matching image in the book is an interesting AI problem that **RoseGarden**
+is unlikely to ever tackle.
+
+## Dealing with books imported before RoseGarden
+
+There are a number of books from Pratham Books and Book Dash (and maybe other publishers) that
+have already been converted manually and uploaded to Bloom Library.  To detect this situation,
+**RoseGarden** searches for existing books with the same title normalized to all lowercase and
+all whitespace converted to single spaces.  If any matching titles are found, false positives
+are detected by comparing bookshelf tags as a proxy for publisher.  (If the authors field in the
+parse table were filled out, **RoseGarden** would check that too.)  If a match is found that
+appears to be valid, the newly imported book is marked in three ways:
+
+1. inCirculation is set false in its entry in the parse books table
+2. "todo:check duplicate import" is added to its tags field in the parse books table
+3. A new entry is made in the parse relatedBooks table that contains pointers to all the books
+   that match title publisher, and author.
+
