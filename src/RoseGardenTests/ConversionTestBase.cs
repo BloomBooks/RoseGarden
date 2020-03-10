@@ -69,10 +69,13 @@ namespace RoseGardenTests
 		/// and the book XHTML initialized properly.
 		/// </summary>
 		/// <returns>The book's data div from the initial setup.</returns>
-		protected XmlElement CheckInitialBookSetup(ConvertFromEpub convert, string title)
+		protected XmlElement CheckInitialBookSetup(ConvertFromEpub convert, string title, bool hasOpds=true)
 		{
 			Assert.That(convert._epubMetaData.Title, Is.EqualTo(title));
-			Assert.That(convert._opdsEntry, Is.Not.Null);
+			if (hasOpds)
+				Assert.That(convert._opdsEntry, Is.Not.Null, "The opds entry file should be loaded.");
+			else
+				Assert.That(convert._opdsEntry, Is.Null, "There is no opds entry file to load.");
 			Assert.That(convert._templatePages.Count, Is.GreaterThan(1));
 			Assert.That(convert._bloomDoc, Is.Not.Null);
 			var page0 = convert._bloomDoc.SelectSingleNode("/html/body/div[contains(@class,'bloom-page')]") as XmlElement;

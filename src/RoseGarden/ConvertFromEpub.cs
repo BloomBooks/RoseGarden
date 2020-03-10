@@ -900,7 +900,7 @@ namespace RoseGarden
 			bool titleSet = false;
 			bool authorEtcSet = false;
 			int imageCount = 0;
-			bool usingEpubTitle = false;
+			var titleBldr = new StringBuilder();
 			foreach (var child in body.ChildNodes.Cast<XmlNode>())
 			{
 				if (child.Name == "img")
@@ -913,30 +913,20 @@ namespace RoseGarden
 					else
 						AddExtraCoverImage(imageFile, imageCount);
 				}
-				else if (child.Name == "p" || child.Name == "h1" || child.Name == "h2" || child.Name == "h3")
+				else if (child.Name == "p" || child.Name == "h1" || child.Name == "h2" || child.Name == "h3" || child is XmlText)
 				{
-					if (!titleSet)
+					var text = child.InnerText.Trim();
+					if (String.IsNullOrEmpty(text))
+						continue;
+					if (Regex.Replace(text, @"\s", "").ToLowerInvariant() == "3asafeer.com")
+						continue;   // no free advertising on cover...
+					if (IsAuthorOrIllustrator(text) || titleSet)
 					{
-						titleSet = SetTitle(child, ref usingEpubTitle);
+						authorEtcSet |= SetCoverContributor(child);
 					}
 					else
 					{
-						authorEtcSet |= SetCoverContributor(child, usingEpubTitle);
-					}
-				}
-				else if (child is XmlText)
-				{
-					var text = child.InnerText.Trim();
-					if (!String.IsNullOrEmpty(text))
-					{
-						if (!titleSet)
-						{
-							titleSet = SetTitle(child, ref usingEpubTitle);
-						}
-						else
-						{
-							authorEtcSet |= SetCoverContributor(child, usingEpubTitle);
-						}
+						titleSet = SetTitle(child, titleBldr);
 					}
 				}
 				else if (child is XmlComment)
@@ -949,10 +939,22 @@ namespace RoseGarden
 					Console.WriteLine("WARNING: UNEXPECTED ITEM IN THE FIRST (COVER) PAGE: {0} / \"{1}\"", child.NodeType.ToString(), child.OuterXml);
 				}
 			}
-			if (!titleSet)
+			if (!titleSet && titleBldr.Length > 0)
+			{
+				if (_options.Verbose)
+					Console.WriteLine("INFO: title does not match epub metadata.  Title=\"{0}\"; epub metadata=\"{1}\"", titleBldr, _epubMetaData.Title);
+				SetTitle(titleBldr.ToString());
+			}
+			else if (!titleSet)
+			{
+				if (_options.Verbose)
+					Console.WriteLine("INFO: Using title from ePUB metadata: \"{0}\"", _epubMetaData.Title);
 				SetTitle(_epubMetaData.Title);
+			}
 			if (!authorEtcSet)
 			{
+				if (_options.Verbose)
+					Console.WriteLine("INFO: Using contributor information from ePUB metadata for the front cover.");
 				// TODO: make & < and > safe for XML.
 				// TODO: Localize "Author(s):", "Illustrator(s):", etc.
 				var bldr = new StringBuilder();
@@ -1006,47 +1008,50 @@ namespace RoseGarden
 			return true;
 		}
 
-		private bool SetTitle(XmlNode child, ref bool usingEpubTitle)
+		private bool IsAuthorOrIllustrator(string text)
 		{
-			bool titleSet = false;
-			var title = child.InnerText.Trim();
-			if (Program.NormalizeTitle(title) != Program.NormalizeTitle(_epubMetaData.Title))
-			{
-				if (title.StartsWith("Author:", StringComparison.InvariantCulture) ||
-					title.StartsWith("Illustrator:", StringComparison.InvariantCulture) ||
-					title.StartsWith("Authors:", StringComparison.InvariantCulture) ||
-					title.StartsWith("Illustrators:", StringComparison.InvariantCulture) ||
-					title.StartsWith("قصة:", StringComparison.InvariantCulture) ||		// author: ?
-					title.StartsWith("رسوم:", StringComparison.InvariantCulture) ||	// illustrator: ?
-					title.Replace(" ", "") == "3asafeer.com")
-				{
-					AddCoverContributor(child.OuterXml);
-					return false;
-				}
-				Console.WriteLine("WARNING: using title from ePUB metadata ({0}) instead of data from title page({1})", _epubMetaData.Title, title);
-				SetTitle(_epubMetaData.Title);
-				usingEpubTitle = true;
-				titleSet = true;
-				if (!_epubMetaData.Title.Contains(child.InnerText.Trim()))
-					AddCoverContributor(child.OuterXml);    // Don't claim to have set the author etc.  We aren't sure what we have here!
-			}
-			else
-			{
-				title = Regex.Replace(title, "[ \r\n\t]+", " ");	// changes newlines to a space if needed to clean up title string
-				SetTitle(title);
-				titleSet = true;
-			}
-			return titleSet;
+			var normText = Program.NormalizeWhitespace(text).ToLowerInvariant();
+			return Regex.IsMatch(normText, "^authors? ?:", RegexOptions.CultureInvariant) ||
+					Regex.IsMatch(normText, "^illustrators? ?:", RegexOptions.CultureInvariant) ||
+					Regex.IsMatch(normText, "^translation ?:", RegexOptions.CultureInvariant) ||
+					Regex.IsMatch(normText, "^published by ?:", RegexOptions.CultureInvariant) ||
+					Regex.IsMatch(normText, "^قصة *[:/]", RegexOptions.CultureInvariant) ||		// author: ?
+					Regex.IsMatch(normText, "^رسوم *[:/]", RegexOptions.CultureInvariant) ||	// illustrator: ?
+					Regex.IsMatch(normText, "^تأليف *[:/]", RegexOptions.CultureInvariant) ||		// written by: ?
+					Regex.IsMatch(normText, "^كلمات *[:/]", RegexOptions.CultureInvariant);		// words: ?
 		}
 
-		private bool SetCoverContributor(XmlNode child, bool usingEpubTitle)
+		private bool SetTitle(XmlNode child, StringBuilder titleBldr)
 		{
-			if (usingEpubTitle)
+			var title = child.InnerText.Trim();
+			var normTitle = Program.NormalizeToCompare(title);
+			var normEpub = Program.NormalizeToCompare(_epubMetaData.Title);
+			if (normTitle == normEpub)
 			{
-				var text = child.InnerText.Trim();
-				if (_epubMetaData.Title.Contains(text) && !String.Join(", ", _epubMetaData.Authors).Contains(text))
-					return false;   // The title apparently was split across paragraphs.
+				title = Program.NormalizeWhitespace(title);
+				SetTitle(title);
+				titleBldr.Clear();		// just in case...
+				return true;
 			}
+			var titleNorm = Program.NormalizeWhitespace(title);
+			if (titleBldr.Length > 0 && !titleNorm.StartsWith("’re", StringComparison.InvariantCulture))
+				titleBldr.Append(" ");
+			titleBldr.Append(titleNorm);
+			if (normEpub.Contains(normTitle))
+			{
+				var newNormTitle = Program.NormalizeToCompare(titleBldr.ToString());
+				if (normEpub == newNormTitle)
+				{
+					SetTitle(titleBldr.ToString());
+					titleBldr.Clear();
+					return true;
+				}
+			}
+			return false;
+		}
+
+		private bool SetCoverContributor(XmlNode child)
+		{
 			var childXml = child.OuterXml;
 			if (child.Name != "p")
 			{

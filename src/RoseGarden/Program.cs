@@ -296,14 +296,29 @@ namespace RoseGarden
 		}
 
 		/// <summary>
-		/// Convert the title string into a form that can be compared more deterministically: all lowercase,
-		/// all whitespace converted to single spaces, and trimmed of whitespace at beginning and end.
+		/// Convert the text string into a form that can be compared more deterministically: all lowercase,
+		/// all whitespace converted to single spaces, and trimmed off whitespace at beginning and end.
+		/// All punctuation characters are removed as well.
 		/// </summary>
-		public static string NormalizeTitle(string title)
+		public static string NormalizeToCompare(string text)
 		{
-			title = title.ToLowerInvariant();
-			title = Regex.Replace(title, @"\s+", " ");
-			return title.Trim();
+			text = text.ToLowerInvariant();				// convert to all lowercase
+			text = Regex.Replace(text, @"\s+", " ");	// supernormalize whitespace
+			text = Regex.Replace(text, @"\p{P}", "");	// remove all punctuation characters
+			return text.Trim();							// trim whitespace off the edges
+		}
+
+		/// <summary>
+		/// Convert newlines to spaces and normalize to single spaces inside the string and no spaces
+		/// at the edges of the string.  This is useful for normalizing titles from messy HTML.
+		/// </summary>
+		public static string NormalizeWhitespace(string text)
+		{
+			text = Regex.Replace(text, "[ \r\n\t\f]+", " ");    // space and newlines are probably most important
+			// Some spurious whitespace I've seen
+			text = Regex.Replace(text, "^’ re$", "’re");
+			text = Regex.Replace(text, "^T he ", "The ");
+			return text.Trim();
 		}
 #endregion
 	}

@@ -209,7 +209,7 @@ namespace RoseGarden
 			foreach (var book in bookList)
 			{
 				++countAllBooks;
-				var normTitle = Program.NormalizeTitle(book.Title);
+				var normTitle = Program.NormalizeToCompare(book.Title);
 				if (!_allBooks.TryGetValue(normTitle, out List<Book> books))
 				{
 					++countTitles;
@@ -255,7 +255,7 @@ namespace RoseGarden
 					// Matching titles that vary in case or whitespace doesn't seem feasible using
 					// parse queries.  So we preload everything locally and index by a normalized
 					// title to find matching titles.
-					var matchingBooks = FindBooksWithMatchingTitle(Program.NormalizeTitle(book.Title));
+					var matchingBooks = FindBooksWithMatchingTitle(Program.NormalizeToCompare(book.Title));
 					var related = new HashSet<Book>();
 					foreach (var oldBook in matchingBooks)
 					{

@@ -1474,7 +1474,7 @@ Suman Maharjan
 				@"<p>Generously supported by SMART</p>");
 
 			// SUT
-			result = convert.ConvertContentPage(20, _elephantPage21Xhtml);	// page number must match what is in opf file below.
+			result = convert.ConvertContentPage(20, _elephantPage21Xhtml);  // page number must match what is in opf file below.
 			Assert.That(result, Is.True, "converting The Elephant in My House chapter 21 (end page) succeeded");
 			// We can't use the normal checking method because it assumes only 2 content pages and we have 4.
 			var pages = convert._bloomDoc.SelectNodes("/html/body/div[contains(@class,'bloom-page')]").Cast<XmlElement>().ToList();
@@ -1680,7 +1680,6 @@ Suman Maharjan
 		[Test]
 		public void TestConvertingMiniNum_GDL()
 		{
-			Console.WriteLine("TESTING: A warning about using title from ePUB metadata is expected.");
 			// SUT (UsePortrait or UseLandscape must be true to avoid invalid file access)
 			var convert = InitializeForConversions(new ConvertOptions() { LanguageName = "English", UsePortrait = true }, _miniNumOpfXml, _miniNumOpdsXml);
 			var dataDiv0 = CheckInitialBookSetup(convert, "Mini Num");
@@ -1691,8 +1690,6 @@ Suman Maharjan
  Author: Al-Sayed Ibrahim
 </p><p>
  Illustrator: Mostafa Al-Barshoom
-</p><p>
- 3 a s a f e e r . c o m
 </p>", out XmlElement coverImageData);
 			// This book has one extra image on the front cover page.  We save this information even though it doesn't do any good.
 			CheckExtraCoverImages(convert._bloomDoc, "c264a8fa3bce4416fdd903cfdcef27cc.png", null);
@@ -1930,8 +1927,6 @@ Suman Maharjan
  Illustrator:
  Hanan
  Al-Karargy
-</p><p>
- 3asafeer.com
 </p>",
 				out XmlElement coverImageData);
 			// This book has one extra image on the front cover page.  We save this information even though it doesn't do any good.
@@ -2173,5 +2168,429 @@ Suman Maharjan
 </body>
 </html>";
 
+		/// <summary>
+		/// This tests converting the cover page of Global Digital Library version of "The Centipede’s Problem" published by 3Asafeer.
+		/// It has these distinctive features:
+		/// * 2 images on the front cover page
+		/// * title split into 3 paragraphs on the front cover
+		/// </summary>
+		[Test]
+		public void TestConvertingTheCentipedesProblemCover_GDL()
+		{
+			// SUT (UsePortrait or UseLandscape must be true to avoid invalid file access)
+			var convert = InitializeForConversions(new ConvertOptions() { LanguageName = "English", UsePortrait = true }, _centipedeOpfXml, null);
+			var dataDiv0 = CheckInitialBookSetup(convert, "The Centipede's Problem", false);    // title from epub metadata
+
+			// SUT
+			convert.ConvertPage(0, _centipedePage1Xhtml);
+			var coverImg = CheckCoverPageImport(convert, dataDiv0, "The Centipede’s Problem",   // title from cover page
+				"2e36be50ae9e12d26ff140bb3f44a3c6.jpg",
+				@"<p>
+ Author: Asmaa Emara
+</p><p>
+ Illustrator: Noreen Khan
+</p>",
+				out XmlElement coverImageData);
+			// This book has one extra image on the front cover page.  We save this information even though it doesn't do any good.
+			CheckExtraCoverImages(convert._bloomDoc, "c264a8fa3bce4416fdd903cfdcef27cc.png", null);
+		}
+		const string _centipedeOpfXml = @"<?xml version=""1.0"" encoding=""UTF-8""?>
+<package xmlns=""http://www.idpf.org/2007/opf"" version=""3.0"" unique-identifier=""uid"">
+	<metadata xmlns:dc=""http://purl.org/dc/elements/1.1/"">
+		<dc:identifier id=""uid"">bf3c9678-a012-4b98-898d-d4cd41dbd831</dc:identifier>
+		<dc:title>The Centipede&apos;s Problem</dc:title>
+		<dc:language>en</dc:language>
+		<meta property=""dcterms:modified"">2020-03-02T09:08:01Z</meta>
+		<dc:description>Mother centipede needs to go shoe shopping for her little ones. Will she ever get what she needs?</dc:description>
+		<dc:creator id=""contributor_1"">Asmaa Emara</dc:creator>
+		<meta refines=""#contributor_1"" property=""role"" scheme=""marc:relators"">aut</meta>
+		<dc:contributor id=""contributor_2"">Nooren Khan</dc:contributor>
+		<meta refines=""#contributor_2"" property=""role"" scheme=""marc:relators"">ill</meta>
+	</metadata>
+	<manifest>
+		<item href=""toc.xhtml"" id=""toc"" media-type=""application/xhtml+xml"" properties=""nav"" />
+		<item href=""epub.css"" id=""css"" media-type=""text/css"" />
+		<item href=""229571ba8b8244d4750e2b1b563e1879.jpg"" id=""cover"" media-type=""image/jpeg"" properties=""cover-image"" />
+		<item href=""2e36be50ae9e12d26ff140bb3f44a3c6.jpg"" id=""image-21584-0"" media-type=""image/jpeg"" />
+		<item href=""bcad2b0a6c493c6eb23c1c3f6cd969c0.jpg"" id=""image-21583-29"" media-type=""image/jpeg"" />
+		<item href=""chapter-1.xhtml"" id=""chapter-1"" media-type=""application/xhtml+xml"" />
+		<item href=""chapter-25.xhtml"" id=""chapter-25"" media-type=""application/xhtml+xml"" />
+	</manifest>
+</package>";
+		const string _centipedePage1Xhtml = @"<html xmlns=""http://www.w3.org/1999/xhtml"">
+<head>
+    <title>Chapter 1</title>
+    <link href=""epub.css"" rel=""stylesheet"" type=""text/css""/>
+</head>
+<body><img src=""2e36be50ae9e12d26ff140bb3f44a3c6.jpg"" />
+<p>
+ The
+</p>
+<p>
+ Centipede’s
+</p>
+<p>
+ Problem
+</p>
+<img data-resource_size=""150"" width=""150"" src=""c264a8fa3bce4416fdd903cfdcef27cc.png"" />
+<p>
+ 3asafeer.com
+</p>
+<p>
+ Author: Asmaa Emara
+</p>
+<p>
+ Illustrator: Noreen Khan
+</p></body>
+</html>";
+
+		/// <summary>
+		/// This tests converting the cover page of Global Digital Library version of "Jack and the Magic Grape Seeds" published by 3Asafeer.
+		/// It has these distinctive features:
+		/// * 2 images on the front cover page
+		/// * title split into 2 paragraphs on the front cover, and the words in the paragraphs separated by newlines
+		/// * extra words on the cover that aren't really title, but not author or illustrator
+		/// * author and illustrator in the same paragraph
+		/// * title differs between epub metadata and cover page in capitalization
+		/// </summary>
+		[Test]
+		public void TestConvertingJackAndTheEtcCover_GDL()
+		{
+			// SUT (UsePortrait or UseLandscape must be true to avoid invalid file access)
+			var convert = InitializeForConversions(new ConvertOptions() { LanguageName = "English", UsePortrait = true }, _jackOpfXml, null);
+			var dataDiv0 = CheckInitialBookSetup(convert, "Jack and the magic grape seeds", false); // title from epub metadata
+
+			// SUT
+			convert.ConvertPage(0, _jackPage1Xhtml);
+			var coverImg = CheckCoverPageImport(convert, dataDiv0, "Jack and the Magic Grape Seeds",    // title from cover page
+				"d40cf1083253ea28e0d1534d31ca5a5a.jpg",
+				@"<p>
+ 2092
+ Version
+</p><p>
+ Illustrator:
+ Nawras
+ Douqa
+ Author:
+ Maria
+ Daadouch
+</p>",
+				out XmlElement coverImageData);
+			// This book has one extra image on the front cover page.  We save this information even though it doesn't do any good.
+			CheckExtraCoverImages(convert._bloomDoc, "652930789d77e9df9da69074760707d9.png", null);
+		}
+		const string _jackOpfXml = @"<?xml version=""1.0"" encoding=""UTF-8""?>
+<package xmlns=""http://www.idpf.org/2007/opf"" version=""3.0"" unique-identifier=""uid"">
+	<metadata xmlns:dc=""http://purl.org/dc/elements/1.1/"">
+		<dc:identifier id=""uid"">a3f840c7-1176-4134-a9b3-a834acb4aa90</dc:identifier>
+		<dc:title>Jack and the magic grape seeds</dc:title>
+		<dc:language>en</dc:language>
+		<meta property=""dcterms:modified"">2020-03-02T09:07:27Z</meta>
+		<dc:description>Jack and the magic grape seeds</dc:description>
+		<dc:creator id=""contributor_1"">Maria Daadouch</dc:creator>
+		<meta refines=""#contributor_1"" property=""role"" scheme=""marc:relators"">aut</meta>
+		<dc:contributor id=""contributor_2"">Nawras Douqa</dc:contributor>
+		<meta refines=""#contributor_2"" property=""role"" scheme=""marc:relators"">ill</meta>
+	</metadata>
+	<manifest>
+		<item href=""toc.xhtml"" id=""toc"" media-type=""application/xhtml+xml"" properties=""nav"" />
+		<item href=""epub.css"" id=""css"" media-type=""text/css"" />
+		<item href=""484979e0fe163e78557db46b3e217720.jpg"" id=""cover"" media-type=""image/jpeg"" properties=""cover-image"" />
+		<item href=""d40cf1083253ea28e0d1534d31ca5a5a.jpg"" id=""image-19551-0"" media-type=""image/jpeg"" />
+		<item href=""71588addaade5467d6291b71f21574cf.jpg"" id=""image-19578-27"" media-type=""image/jpeg"" />
+		<item href=""chapter-1.xhtml"" id=""chapter-1"" media-type=""application/xhtml+xml"" />
+		<item href=""chapter-24.xhtml"" id=""chapter-24"" media-type=""application/xhtml+xml"" />
+	</manifest>
+</package>";
+		const string _jackPage1Xhtml = @"<html xmlns=""http://www.w3.org/1999/xhtml"">
+<head>
+    <title>Chapter 1</title>
+    <link href=""epub.css"" rel=""stylesheet"" type=""text/css""/>
+</head>
+<body><img src=""d40cf1083253ea28e0d1534d31ca5a5a.jpg"" />
+<p>
+ Jack
+ and
+ the
+</p>
+<p>
+ Magic
+ Grape
+ Seeds
+</p>
+<p>
+ 2092
+ Version
+</p>
+<p>
+ Illustrator:
+ Nawras
+ Douqa
+ Author:
+ Maria
+ Daadouch
+</p>
+<img data-resource_size=""150"" width=""150"" src=""652930789d77e9df9da69074760707d9.png"" />
+<p>
+ 3asafeer.com
+</p>
+</body>
+</html>";
+
+		/// <summary>
+		/// This tests converting the cover page of Global Digital Library version of "Don’t Open this Book" published by 3Asafeer.
+		/// It has these distinctive features:
+		/// * 2 images on the front cover page
+		/// * title split into 2 paragraphs on the front cover
+		/// * title follows the author and illustrator
+		/// * title differs between epub metadata and cover page in punctuation and capitalization
+		/// </summary>
+		[Test]
+		public void TestConvertingDontOpenThisBookCover_GDL()
+		{
+			// SUT (UsePortrait or UseLandscape must be true to avoid invalid file access)
+			var convert = InitializeForConversions(new ConvertOptions() { LanguageName = "English", UsePortrait = true }, _dontOpenOpfXml, null);
+			var dataDiv0 = CheckInitialBookSetup(convert, "Don't open this book…", false);  // title from epub metadata
+
+			// SUT
+			convert.ConvertPage(0, _dontOpenPage1Xhtml);
+			var coverImg = CheckCoverPageImport(convert, dataDiv0, "Don’t Open this Book",  // title from cover page
+				"a79fdc2db9718139b8de32870b32aeb2.jpg",
+				@"<p>
+ Author:Lamees Asali
+</p><p>
+ Illustrator:Youmna Ibraheem
+</p>",
+				out XmlElement coverImageData);
+			// This book has one extra image on the front cover page.  We save this information even though it doesn't do any good.
+			CheckExtraCoverImages(convert._bloomDoc, "c264a8fa3bce4416fdd903cfdcef27cc.png", null);
+		}
+		const string _dontOpenOpfXml = @"<?xml version=""1.0"" encoding=""UTF-8""?>
+<package xmlns=""http://www.idpf.org/2007/opf"" version=""3.0"" unique-identifier=""uid"">
+	<metadata xmlns:dc=""http://purl.org/dc/elements/1.1/"">
+		<dc:identifier id=""uid"">7f287318-ed90-43b8-b450-9338ff9652f8</dc:identifier>
+		<dc:title>Don&apos;t open this book…</dc:title>
+		<dc:language>en</dc:language>
+		<meta property=""dcterms:modified"">2020-03-02T09:13:18Z</meta>
+		<dc:description>An illustrators jumps into his own story and learns all about owls .</dc:description>
+		<dc:creator id=""contributor_1"">Lamis Asali</dc:creator>
+		<meta refines=""#contributor_1"" property=""role"" scheme=""marc:relators"">aut</meta>
+		<dc:contributor id=""contributor_2"">Yomna Ibraheem</dc:contributor>
+		<meta refines=""#contributor_2"" property=""role"" scheme=""marc:relators"">ill</meta>
+	</metadata>
+	<manifest>
+		<item href=""toc.xhtml"" id=""toc"" media-type=""application/xhtml+xml"" properties=""nav"" />
+		<item href=""epub.css"" id=""css"" media-type=""text/css"" />
+		<item href=""ac20ba2e2844d2bbb1a6dcb06f15a58a.jpg"" id=""cover"" media-type=""image/jpeg"" properties=""cover-image"" />
+		<item href=""a79fdc2db9718139b8de32870b32aeb2.jpg"" id=""image-20873-0"" media-type=""image/jpeg"" />
+		<item href=""ebec8d40d6aa9409d9d03681e2451ac1.jpg"" id=""image-20891-27"" media-type=""image/jpeg"" />
+		<item href=""chapter-1.xhtml"" id=""chapter-1"" media-type=""application/xhtml+xml"" />
+		<item href=""chapter-23.xhtml"" id=""chapter-23"" media-type=""application/xhtml+xml"" />
+	</manifest>
+</package>";
+		const string _dontOpenPage1Xhtml = @"<html xmlns=""http://www.w3.org/1999/xhtml"">
+<head>
+    <title>Chapter 1</title>
+    <link href=""epub.css"" rel=""stylesheet"" type=""text/css""/>
+</head>
+<body><img src=""a79fdc2db9718139b8de32870b32aeb2.jpg"" />
+<p>
+</p>
+<p>
+ Author:Lamees Asali
+</p>
+<p>
+ Illustrator:Youmna Ibraheem
+</p>
+<p>
+ Don’t Open this
+</p>
+<p>
+ Book
+</p>
+<img data-resource_size=""150"" width=""150"" src=""c264a8fa3bce4416fdd903cfdcef27cc.png"" />
+<p>
+ 3asafeer.com
+</p></body>
+</html>";
+
+		/// <summary>
+		/// This tests converting the cover page of Global Digital Library version of "We’re Not Alone" published by 3Asafeer.
+		/// It has these distinctive features:
+		/// * 2 images on the front cover page
+		/// * title split into 4 paragraphs on the front cover, with "We’re" split into 2 paragraphs and 3 lines
+		/// * title follows the author and illustrator
+		/// * title differs between epub metadata and cover page in punctuation and capitalization
+		/// </summary>
+		[Test]
+		public void TestConvertingWereNotAloneCover_GDL()
+		{
+			// SUT (UsePortrait or UseLandscape must be true to avoid invalid file access)
+			var convert = InitializeForConversions(new ConvertOptions() { LanguageName = "English", UsePortrait = true }, _notAloneOpfXml, null);
+			var dataDiv0 = CheckInitialBookSetup(convert, "We are not Alone", false);  // title from epub metadata
+
+			// SUT
+			convert.ConvertPage(0, _notAlonePage1Xhtml);
+			var coverImg = CheckCoverPageImport(convert, dataDiv0, "We’re Not Alone",  // title from cover page
+				"a5898af755806d2177dbb129da871d5c.jpg",
+				@"<p>
+ Author
+ :
+ Asma’a
+ Amara
+</p><p>
+ Illustrator
+ :
+ Rasha
+ Sami
+</p>",
+				out XmlElement coverImageData);
+			// This book has one extra image on the front cover page.  We save this information even though it doesn't do any good.
+			CheckExtraCoverImages(convert._bloomDoc, "652930789d77e9df9da69074760707d9.png", null);
+		}
+		const string _notAloneOpfXml = @"<?xml version=""1.0"" encoding=""UTF-8""?>
+<package xmlns=""http://www.idpf.org/2007/opf"" version=""3.0"" unique-identifier=""uid"">
+	<metadata xmlns:dc=""http://purl.org/dc/elements/1.1/"">
+		<dc:identifier id=""uid"">2566a7d5-dc9c-43aa-abdb-7f060f488bad</dc:identifier>
+		<dc:title>We are not Alone</dc:title>
+		<dc:language>en</dc:language>
+		<meta property=""dcterms:modified"">2020-03-02T09:08:37Z</meta>
+		<dc:description>We are not Alone</dc:description>
+		<dc:creator id=""contributor_1"">Asmaa Emara</dc:creator>
+		<meta refines=""#contributor_1"" property=""role"" scheme=""marc:relators"">aut</meta>
+		<dc:contributor id=""contributor_2"">Rasha Sami</dc:contributor>
+		<meta refines=""#contributor_2"" property=""role"" scheme=""marc:relators"">ill</meta>
+	</metadata>
+	<manifest>
+		<item href=""toc.xhtml"" id=""toc"" media-type=""application/xhtml+xml"" properties=""nav"" />
+		<item href=""epub.css"" id=""css"" media-type=""text/css"" />
+		<item href=""acb56dd339abc0ec67ed02f5f47994c8.jpg"" id=""cover"" media-type=""image/jpeg"" properties=""cover-image"" />
+		<item href=""a5898af755806d2177dbb129da871d5c.jpg"" id=""image-20128-0"" media-type=""image/jpeg"" />
+		<item href=""652930789d77e9df9da69074760707d9.png"" id=""image-20129-1"" media-type=""image/png"" />
+		<item href=""6efd71bdd6b642f64392802fc215436f.jpg"" id=""image-20161-33"" media-type=""image/jpeg"" />
+		<item href=""chapter-1.xhtml"" id=""chapter-1"" media-type=""application/xhtml+xml"" />
+		<item href=""chapter-30.xhtml"" id=""chapter-30"" media-type=""application/xhtml+xml"" />
+	</manifest>
+</package>";
+		const string _notAlonePage1Xhtml = @"<html xmlns=""http://www.w3.org/1999/xhtml"">
+<head>
+    <title>Chapter 1</title>
+    <link href=""epub.css"" rel=""stylesheet"" type=""text/css""/>
+</head>
+<body><img src=""a5898af755806d2177dbb129da871d5c.jpg"" />
+<img data-resource_size=""150"" width=""150"" src=""652930789d77e9df9da69074760707d9.png"" />
+<p>
+ 3asafeer.com
+</p>
+<p>
+ Author
+ :
+ Asma’a
+ Amara
+</p>
+<p>
+ Illustrator
+ :
+ Rasha
+ Sami
+</p>
+<p>
+ We
+</p>
+<p>
+ ’
+ re
+</p>
+<p>
+ Not
+</p>
+<p>
+ Alone
+</p>
+</body>
+</html>";
+
+		/// <summary>
+		/// This tests converting the cover page of Global Digital Library version of "Mrs. Witty and the Coconut Tree" published by 3Asafeer.
+		/// It has these distinctive features:
+		/// * 1 image on the front cover page
+		/// * title split into 2 paragraphs on the front cover
+		/// * "Translation:" and "Published by:" instead of "Author:" and "Illustrator:"
+		/// * title differs between epub metadata and cover page in punctuation and capitalization
+		/// </summary>
+		[Test]
+		public void TestConvertingMrsWittyCover_GDL()
+		{
+			// SUT (UsePortrait or UseLandscape must be true to avoid invalid file access)
+			var convert = InitializeForConversions(new ConvertOptions() { LanguageName = "English", UsePortrait = true }, _mrsWittyOpfXml, null);
+			var dataDiv0 = CheckInitialBookSetup(convert, "Ms Witty and the Coconut Tree", false);  // title from epub metadata
+
+			// SUT
+			convert.ConvertPage(0, _mrsWittyPage1Xhtml);
+			var coverImg = CheckCoverPageImport(convert, dataDiv0, "Mrs. Witty and the Coconut Tree",  // title from cover page
+				"edd007783f43083f16236073271c7825.jpg",
+				@"<p>
+ Translation:
+ Weaam
+ Ahmed
+</p><p>
+ Published
+ by:
+ Asafeer
+</p>",
+				out XmlElement coverImageData);
+		}
+		const string _mrsWittyOpfXml = @"<?xml version=""1.0"" encoding=""UTF-8""?>
+<package xmlns=""http://www.idpf.org/2007/opf"" version=""3.0"" unique-identifier=""uid"">
+	<metadata xmlns:dc=""http://purl.org/dc/elements/1.1/"">
+		<dc:identifier id=""uid"">4b059526-421a-426f-b8ca-fc2aaaa6ad1a</dc:identifier>
+		<dc:title>Ms Witty and the Coconut Tree</dc:title>
+		<dc:language>en</dc:language>
+		<meta property=""dcterms:modified"">2020-03-02T09:14:37Z</meta>
+		<dc:description>Ms Witty and the Coconut Tree</dc:description>
+		<dc:creator id=""contributor_1"">Layla Audi</dc:creator>
+		<meta refines=""#contributor_1"" property=""role"" scheme=""marc:relators"">aut</meta>
+		<dc:contributor id=""contributor_2"">Ayah Khamees</dc:contributor>
+		<meta refines=""#contributor_2"" property=""role"" scheme=""marc:relators"">ill</meta>
+	</metadata>
+	<manifest>
+		<item href=""toc.xhtml"" id=""toc"" media-type=""application/xhtml+xml"" properties=""nav"" />
+		<item href=""epub.css"" id=""css"" media-type=""text/css"" />
+		<item href=""a0cbb6ad7f87aa41f51896c24f454d92.jpg"" id=""cover"" media-type=""image/jpeg"" properties=""cover-image"" />
+		<item href=""edd007783f43083f16236073271c7825.jpg"" id=""image-13869-0"" media-type=""image/jpeg"" />
+		<item href=""4a4f7676089264ea017d6864c3fc69a8.png"" id=""image-14211-1"" media-type=""image/png"" />
+		<item href=""deb33ca402db839cbcefc36c298aef31.jpg"" id=""image-13870-24"" media-type=""image/jpeg"" />
+		<item href=""chapter-1.xhtml"" id=""chapter-1"" media-type=""application/xhtml+xml"" />
+		<item href=""chapter-22.xhtml"" id=""chapter-22"" media-type=""application/xhtml+xml"" />
+	</manifest>
+</package>";
+		const string _mrsWittyPage1Xhtml = @"<html xmlns=""http://www.w3.org/1999/xhtml"">
+<head>
+    <title>Chapter 1</title>
+    <link href=""epub.css"" rel=""stylesheet"" type=""text/css""/>
+</head>
+<body><img src=""edd007783f43083f16236073271c7825.jpg"" />
+<p>
+ Mrs.
+ Witty
+</p>
+<p>
+ and
+ the
+ Coconut
+ Tree
+</p>
+<p>
+ Translation:
+ Weaam
+ Ahmed
+</p>
+<p>
+ Published
+ by:
+ Asafeer
+</p>
+</body>
+</html>";
 	}
 }
