@@ -104,6 +104,41 @@ Note that the **convert** command has command line options to explicitly set whe
 book should have a portrait or landscape layout.  If one of these options is set, then the
 algorithm described above is ignored.
 
+## Parsing ePUB cover pages for information
+
+**RoseGarden** attempts to fill in three pieces of information from the first page ("chapter")
+of the ePUB book.  The content of the ePUB first page is scanned to find this information.
+
+1. The cover image, shown on the front cover for most xmatter types, and used for creating
+   thumbnail images.
+2. The title of the book, shown at the top of the front cover for most xmatter types.
+3. The *smallCoverCredits* field shown at the bottom of the front cover for most xmatter types.
+
+The first image found in the body of the first ePUB page file is assumed to be the cover image.
+However, some publishers clutter up this image with the title and credits being embedded in the
+picture.  See the next section for a discussion of this issue.
+
+If there is no text on the first ePUB page, but only one or more images, then the title and
+*smallCoverCredits* information is taken from the ePUB metadata file.  If there is text on the
+first ePUB page, then the normal assumption is that the first paragraph contains the title and
+following paragraphs contain the credits that go into the *smallCoverCredits* field.  This
+simple assumption works for many books.
+
+Some books do not format the text by paragraph, but use <br/> elements to separate raw text
+nodes in the body element.  The code in **RoseGarden** allows for this possibility, treating
+each successive non-whitespace text node as though it were the content of a paragraph element
+and ignoring the <br/> elements otherwise.
+
+Some books (especially those published by 3Asafeer) mark the author and illustrator explicitly
+in the first page text by a leading "Author:" or "Illustrator:" tag.  These books sometimes play
+other tricks like putting the title after the credits or splitting the title into multiple
+paragraphs to format it onto multiple lines.  The code in **RoseGarden** does its best to detect
+and handle all of these variations.  At the end of processing, if the title extracted from the
+first ePUB page does not match the title in the ePUB metadata when both are normalized for
+whitespace, capitalization, and punctuation, then **RoseGarden** uses the title extracted from
+the first ePUB page but writes a warning message to the console that the titles do not match.
+The differences are usually innocuous, but this can be helpful to find cases where the algorithm
+has broken down.
 
 ## Choosing thumbnail / cover images
 
@@ -121,8 +156,8 @@ original cover image for 3Asafeer books despite the embedded text.
 
 There are drawbacks to choosing the image from the first content page.  It's rarely the most
 exciting image in the book and thus rarely the one chosen for the cover by the author.  Trying
-to find the closest matching image in the book is an interesting AI problem that **RoseGarden**
-is unlikely to ever tackle.
+to find the closest matching image in the book is an interesting problem that **RoseGarden**
+may tackle in the future using perceptual hashes.
 
 ## Dealing with books imported before RoseGarden
 
@@ -139,3 +174,27 @@ appears to be valid, the newly imported book is marked in three ways:
 3. A new entry is made in the parse relatedBooks table that contains pointers to all the books
    that match title publisher, and author.
 
+## Parsing ePUB credit pages for information
+
+Various bits of information about the book need to come from the original OPDS catalog entry for
+the book, the ePUB metadata, the content of credit pages in the ePUB book, or possibly from
+assumed information about a specific publisher.  This information includes:
+
+1. book copyright holder
+2. book copyright date
+3. book license
+4. image creator(s)
+5. image copyright holder(s)
+6. image copyright date(s)
+7. image license(s)
+
+Books that have been processed through **StoryWeaver** have nicely formatted credit pages that
+appear to be generated from a database of credit, copyright, and license information.
+**RoseGarden** can parse these pages in either English or French at the moment using text
+searching and regular expressions.  (Many non-English books appear to still have English credit
+pages.)  Books from other publishers sometimes still have regular patterns on a final credits
+page that can be analyzed through a limited set of regular expressions.  For some publishers, we
+have to rely on the publisher being the copyright holder for both the text and images in the
+book, the copyright year being from the earliest date given in the ePUB metadata, and book and
+image license being the same and given in the OPDS catalog entry.  (It still seems incredible
+that neither the ePUB metadata nor the OPDS catalog entry has a field for copyright holder!)
