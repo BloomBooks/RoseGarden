@@ -122,6 +122,8 @@ namespace RoseGarden
 			if (node != null)
 			{
 				var relpath = node.GetAttribute("full-path");
+				if (Path.DirectorySeparatorChar != '/')		// HTML/XML uses '/' exclusively.
+					relpath = relpath.Replace('/', Path.DirectorySeparatorChar);
 				if (!String.IsNullOrEmpty(relpath))
 					return Path.Combine(epubFolder, relpath);
 			}
