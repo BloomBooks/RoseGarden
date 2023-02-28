@@ -41,6 +41,8 @@ namespace RoseGarden
 		string _asafeerCopyright;
 		string _asafeerLicense;
 
+		private bool _coverImageOnlyInEpub;
+
 		private int _endCreditsStart = Int32.MaxValue;  // Assume no end credits pages to begin with.
 		private int _endCreditsPageCount = 0;
 		private string _attributionFile;
@@ -73,7 +75,7 @@ namespace RoseGarden
 		{
 			"browser/bookLayout/basePage.css",
 			"browser/bookLayout/langVisibility.css",
-			"browser/bookPreview/previewMode.css",
+			"browser/collectionsTab/collectionsTabBookPane/previewMode.css",
 			"browser/bookEdit/css/origami.css",
 			"browser/branding/Default/branding.css",
 			"browser/branding/Default/BloomWithTaglineAgainstLight.svg",
@@ -442,7 +444,9 @@ namespace RoseGarden
 			foreach (var imageFile in _epubMetaData.ImageFiles)
 			{
 				var destPath = Path.Combine(_bookFolder, Path.GetFileName(imageFile));
-				File.Copy(imageFile, destPath);
+				if (File.Exists(destPath))
+					Console.WriteLine("WARNING: Overwriting {0}: image may be used more than once, or may be different!", destPath);
+				File.Copy(imageFile, destPath, true);
 			}
 			// Find related files that may have been downloaded or created for this book.
 			var pathPDF = Path.ChangeExtension(_options.EpubFile, "pdf");
@@ -485,6 +489,8 @@ namespace RoseGarden
 			else
 			{
 				Console.WriteLine("WARNING: could not load OPDS file {0}: the import may lack important information.", pathOPDS);
+				_publisher = _epubMetaData.Publisher;
+				Console.WriteLine("INFO: Using publisher from ePUB metadata: \"{0}\"", _publisher);
 			}
 
 			SetHeadMetaAndBookLanguage();
@@ -901,44 +907,10 @@ namespace RoseGarden
 			bool authorEtcSet = false;
 			int imageCount = 0;
 			var titleBldr = new StringBuilder();
-			foreach (var child in body.ChildNodes.Cast<XmlNode>())
-			{
-				if (child.Name == "img")
-				{
-					++imageCount;
-					var imageFile = (child as XmlElement).GetAttribute("src");
-					// cover image always comes first
-					if (imageCount == 1)
-						SetCoverImage(imageFile);
-					else
-						AddExtraCoverImage(imageFile, imageCount);
-				}
-				else if (child.Name == "p" || child.Name == "h1" || child.Name == "h2" || child.Name == "h3" || child is XmlText)
-				{
-					var text = child.InnerText.Trim();
-					if (String.IsNullOrEmpty(text))
-						continue;
-					if (Regex.Replace(text, @"\s", "").ToLowerInvariant() == "3asafeer.com")
-						continue;   // no free advertising on cover...
-					if (IsAuthorOrIllustrator(text) || titleSet)
-					{
-						authorEtcSet |= SetCoverContributor(child);
-					}
-					else
-					{
-						titleSet = SetTitle(child, titleBldr);
-					}
-				}
-				else if (child is XmlComment)
-				{
-					// Ignore comments: we don't expect them but they don't hurt anything either.
-					continue;
-				}
-				else
-				{
-					Console.WriteLine("WARNING: UNEXPECTED ITEM IN THE FIRST (COVER) PAGE: {0} / \"{1}\"", child.NodeType.ToString(), child.OuterXml);
-				}
-			}
+			var children = body.ChildNodes.Cast<XmlNode>();
+			ProcessCoverContent(ref titleSet, ref authorEtcSet, ref imageCount, titleBldr, children);
+			if (imageCount == 1 && !titleSet && titleBldr.Length == 0 && !authorEtcSet)
+				_coverImageOnlyInEpub = true;
 			if (!titleSet && titleBldr.Length > 0)
 			{
 				if (_options.Verbose)
@@ -1006,6 +978,52 @@ namespace RoseGarden
 				}
 			}
 			return true;
+		}
+
+		private void ProcessCoverContent(ref bool titleSet, ref bool authorEtcSet, ref int imageCount, StringBuilder titleBldr, IEnumerable<XmlNode> children)
+		{
+			foreach (var child in children)
+			{
+				if (child.Name == "img")
+				{
+					++imageCount;
+					var imageFile = (child as XmlElement).GetAttribute("src");
+					// cover image always comes first
+					if (imageCount == 1)
+						SetCoverImage(imageFile);
+					else
+						AddExtraCoverImage(imageFile, imageCount);
+				}
+				else if (child.Name == "p" || child.Name == "h1" || child.Name == "h2" || child.Name == "h3" || child is XmlText)
+				{
+					var text = child.InnerText.Trim();
+					if (String.IsNullOrEmpty(text))
+						continue;
+					if (Regex.Replace(text, @"\s", "").ToLowerInvariant() == "3asafeer.com")
+						continue;   // no free advertising on cover...
+					if (IsAuthorOrIllustrator(text) || titleSet)
+					{
+						authorEtcSet |= SetCoverContributor(child);
+					}
+					else
+					{
+						titleSet = SetTitle(child, titleBldr);
+					}
+				}
+				else if (child.Name == "div")
+				{
+					ProcessCoverContent(ref titleSet, ref authorEtcSet, ref imageCount, titleBldr, child.ChildNodes.Cast<XmlNode>());
+				}
+				else if (child is XmlComment)
+				{
+					// Ignore comments: we don't expect them but they don't hurt anything either.
+					continue;
+				}
+				else
+				{
+					Console.WriteLine("WARNING: UNEXPECTED ITEM IN THE FIRST (COVER) PAGE: {0} / \"{1}\"", child.NodeType.ToString(), child.OuterXml);
+				}
+			}
 		}
 
 		private bool IsAuthorOrIllustrator(string text)
@@ -2558,6 +2576,11 @@ namespace RoseGarden
 		/// </summary>
 		internal void ReplaceCoverImageIfNeeded()
 		{
+			if (String.IsNullOrEmpty(_publisher))
+			{
+				Console.WriteLine("WARNING: Unknown publisher");
+				return;
+			}
 			if (_publisher.ToLowerInvariant().StartsWith("african storybook", StringComparison.InvariantCulture))
 			{
 				var firstPageImageDiv = _bloomDoc.SelectSingleNode("/html/body/div[@data-page-number='1']//div[contains(@class,'bloom-imageContainer')]/img") as XmlElement;

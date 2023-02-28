@@ -13,6 +13,9 @@ namespace RoseGarden
 		public string Title;
 		public string LanguageCode;
 		public string Description;
+		public string Source;
+		public string Publisher;
+		public string RightsText;
 		public DateTime Modified;
 		public List<string> Authors = new List<string>();
 		public List<string> Illustrators = new List<string>();
@@ -103,6 +106,15 @@ namespace RoseGarden
 				var href = image.GetAttribute("href");
 				ImageFiles.Add(Path.Combine(epubFolder, contentFolder, href));
 			}
+			var sourceItem = _opfDocument.SelectSingleNode("/o:package/o:metadata/dc:source", _opfNsmgr);
+			if (sourceItem != null)
+				Source = sourceItem.InnerText;
+			var publisherItem = _opfDocument.SelectSingleNode("/o:package/o:metadata/dc:publisher", _opfNsmgr);
+			if (publisherItem != null)
+				Publisher = publisherItem.InnerText;
+			var rightsItem = _opfDocument.SelectSingleNode("/o:package/o:metadata/dc:rights", _opfNsmgr);
+			if (rightsItem != null)
+				RightsText = rightsItem.InnerText;
 		}
 
 		private string GetOpfPath(string epubFolder)
