@@ -448,6 +448,30 @@ namespace RoseGarden
 					Console.WriteLine("WARNING: Overwriting {0}: image may be used more than once, or may be different!", destPath);
 				File.Copy(imageFile, destPath, true);
 			}
+			if (_epubMetaData.AudioFiles.Count > 0)
+			{
+				var destFolder = Path.Combine(_bookFolder, "audio");
+				Directory.CreateDirectory(destFolder);
+				foreach (var audioFile in _epubMetaData.AudioFiles)
+				{
+					var destPath = Path.Combine(destFolder, Path.GetFileName(audioFile));
+					if (File.Exists(destPath))
+						Console.WriteLine("WARNING: Overwriting {0}: audio file may be used more than once, or may be different!", destPath);
+					File.Copy(audioFile, destPath, true);
+				}
+			}
+			if (_epubMetaData.VideoFiles.Count > 0)
+			{
+				var destFolder = Path.Combine(_bookFolder, "video");
+				Directory.CreateDirectory(destFolder);
+				foreach (var videoFile in _epubMetaData.VideoFiles)
+				{
+					var destPath = Path.Combine(destFolder, Path.GetFileName(videoFile));
+					if (File.Exists(destPath))
+						Console.WriteLine("WARNING: Overwriting {0}: video file may be used more than once, or may be different!", destPath);
+					File.Copy(videoFile, destPath, true);
+				}
+			}
 			// Find related files that may have been downloaded or created for this book.
 			var pathPDF = Path.ChangeExtension(_options.EpubFile, "pdf");
 			var pathThumb = Path.ChangeExtension(_options.EpubFile, "thumb.jpg");
@@ -1288,13 +1312,14 @@ namespace RoseGarden
 
 			var imageCount = 0;
 			var textCount = 0;
+			var videoCount = 0;
 			var firstChild = "";
 			var lastChild = "";
 			var prevChild = "";
 			var rawNodes = new List<XmlNode>();
 			// Summarize the page content to find an appropriate template page.
-			ExtractTextAndImageNodes(body, rawNodes, ref imageCount, ref textCount, ref firstChild, ref prevChild);
-			var templatePage = SelectTemplatePage(imageCount, textCount, firstChild, lastChild);
+			ExtractTextAndImageNodes(body, rawNodes, ref imageCount, ref textCount, ref videoCount, ref firstChild, ref prevChild);
+			var templatePage = SelectTemplatePage(imageCount, textCount, videoCount, firstChild, lastChild);
 			if (templatePage == null)
 			{
 				Console.WriteLine("ERROR: cannot retrieve template page for {0} images and {1} text fields", imageCount, textCount);
@@ -1320,10 +1345,12 @@ namespace RoseGarden
 			docBody.InsertAfter(nl, newPageDiv);
 
 			var imageIdx = 0;
+			var videoIdx = 0;
 			var textIdx = 0;
 			prevChild = "";
 			var innerXmlBldr = new StringBuilder();
 			var images = newPageDiv.SelectNodes(".//img").Cast<XmlElement>().ToList();
+			var videos = newPageDiv.SelectNodes(".//video").Cast<XmlElement>().ToList();
 			var textGroupDivs = newPageDiv.SelectNodes(".//div[contains(@class,'bloom-translationGroup')]").Cast<XmlElement>().ToList();
 			if (rawNodes.Count > 0)
 			{
@@ -1341,6 +1368,11 @@ namespace RoseGarden
 						innerXmlBldr.AppendLine("</p>");
 						StoreAccumulatedParagraphs(textIdx, innerXmlBldr, textGroupDivs);
 						++textIdx;
+					}
+					else if (node.Name == "video")
+					{
+						StoreVideo(videoIdx, videos, node as XmlElement);
+						++videoIdx;
 					}
 					else
 					{
@@ -1360,7 +1392,8 @@ namespace RoseGarden
 		/// One epub I've seen has multiple layers of &lt;b&gt; element enclosing a &lt;p&gt; element.  This seems rather
 		/// wierd, but let's try to cope with such situations without propagating *all* of the badness.
 		/// </summary>
-		private static void ExtractTextAndImageNodes(XmlElement body, List<XmlNode> rawNodes, ref int imageCount, ref int textCount, ref string firstChild, ref string prevChild)
+		private static void ExtractTextAndImageNodes(XmlElement body, List<XmlNode> rawNodes, ref int imageCount, ref int textCount,
+			ref int videoCount, ref string firstChild, ref string prevChild)
 		{
 			foreach (var child in body.ChildNodes.Cast<XmlNode>())
 			{
@@ -1369,6 +1402,13 @@ namespace RoseGarden
 				if (child.Name == "img")
 				{
 					++imageCount;
+					if (String.IsNullOrEmpty(firstChild))
+						firstChild = child.Name;
+					prevChild = child.Name;
+				}
+				else if (child.Name == "video")
+				{
+					++videoCount;
 					if (String.IsNullOrEmpty(firstChild))
 						firstChild = child.Name;
 					prevChild = child.Name;
@@ -1383,10 +1423,11 @@ namespace RoseGarden
 						++textCount;
 					prevChild = "p";
 				}
-				else if (child.Name == "b" || child.Name == "i" || child.Name == "strong" || child.Name == "em")
+				else if (child.Name == "b" || child.Name == "i" || child.Name == "strong" || child.Name == "em" || child.Name == "div")
 				{
 					// recurse!
-					ExtractTextAndImageNodes(child as XmlElement, rawNodes, ref imageCount, ref textCount, ref firstChild, ref prevChild);
+					ExtractTextAndImageNodes(child as XmlElement, rawNodes, ref imageCount, ref textCount, ref videoCount,
+						ref firstChild, ref prevChild);
 					continue;
 				}
 				else
@@ -1445,7 +1486,8 @@ namespace RoseGarden
 			var plain10 = Regex.Replace(plain09, @"  +", " ");
 			//Console.WriteLine("DEBUG FixInnerXml: 10=\"{0}\"", plain10);
 			//Console.WriteLine("DEBUG FixInnerXml: Final=\"{0}\"", plain10.Trim());
-			return plain10.Trim();
+			var plain11 = Regex.Replace(plain10, @" class=""[^""]*"" style=""[^""]*"">",">");
+			return plain11.Trim();
 		}
 
 		private static string RegexReplaceAsNeeded(string input, string match, string replace)
@@ -1472,6 +1514,10 @@ namespace RoseGarden
 			var src = img.GetAttribute("src");
 			if (imageIdx < images.Count)
 			{
+				if (src.StartsWith("image/"))
+					src = src.Substring(6);
+				if (src.StartsWith("images/"))
+					src = src.Substring(7);
 				images[imageIdx].SetAttribute("src", src);
 				var alt = img.GetAttribute("alt");
 				if (String.IsNullOrWhiteSpace(alt))
@@ -1483,6 +1529,12 @@ namespace RoseGarden
 			{
 				Console.WriteLine("WARNING: no place on page to show image file {0}", src);
 			}
+		}
+
+		private void StoreVideo(int videoIdx, List<XmlElement> videos, XmlElement video)
+		{
+			// TODO!!
+			Console.WriteLine("INFO: video not yet handled...");
 		}
 
 		private void StoreAccumulatedParagraphs(int textIdx, StringBuilder innerXmlBldr, List<XmlElement> textGroupDivs)
@@ -1516,13 +1568,13 @@ namespace RoseGarden
 			innerXmlBldr.Clear();
 		}
 
-		private XmlElement SelectTemplatePage(int imageCount, int textCount, string firstChild, string lastChild)
+		private XmlElement SelectTemplatePage(int imageCount, int textCount, int videoCount, string firstChild, string lastChild)
 		{
-			if (imageCount == 0)
+			if (imageCount == 0 /*&& videoCount == 0*/)
 			{
 				return SelectTemplatePage("Just Text");
 			}
-			if (imageCount == 1)
+			if (imageCount == 1 /*&& videoCount == 0*/)
 			{
 				switch (textCount)
 				{
@@ -1538,7 +1590,13 @@ namespace RoseGarden
 						return SelectTemplatePage("Picture in Middle");
 				}
 			}
-			else
+			//else if (imageCount == 0 && videoCount == 1)
+			//{
+			//}
+			//else if (imageCount == 1 && videoCount == 1
+			//{
+			//}
+			else if (imageCount > 1 /*&& videoCount == 0*/)
 			{
 				// We can't handle 2 or more images on the page automatically at this point.
 				if (textCount == 0)
