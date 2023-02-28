@@ -23,6 +23,8 @@ namespace RoseGarden
 		public List<string> OtherContributors = new List<string>();
 		public List<string> PageFiles = new List<string>();
 		public List<string> ImageFiles = new List<string>();
+		public List<string> AudioFiles = new List<string>();
+		public List<string> VideoFiles = new List<string>();
 
 		// These are provided in case there's more information to extract... (?)
 		public XmlDocument _opfDocument;
@@ -105,6 +107,20 @@ namespace RoseGarden
 				var image = node as XmlElement;
 				var href = image.GetAttribute("href");
 				ImageFiles.Add(Path.Combine(epubFolder, contentFolder, href));
+			}
+			var audioItems = _opfDocument.SelectNodes("/o:package/o:manifest/o:item[starts-with(@media-type,'audio/')]", _opfNsmgr);
+			foreach (var node in audioItems)
+			{
+				var audio = node as XmlElement;
+				var href = audio.GetAttribute("href");
+				AudioFiles.Add(Path.Combine(epubFolder, contentFolder, href));
+			}
+			var videoItems = _opfDocument.SelectNodes("/o:package/o:manifest/o:item[starts-with(@media-type,'video/')]", _opfNsmgr);
+			foreach (var node in videoItems)
+			{
+				var video = node as XmlElement;
+				var href = video.GetAttribute("href");
+				VideoFiles.Add(Path.Combine(epubFolder, contentFolder, href));
 			}
 			var sourceItem = _opfDocument.SelectSingleNode("/o:package/o:metadata/dc:source", _opfNsmgr);
 			if (sourceItem != null)
