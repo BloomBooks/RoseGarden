@@ -181,4 +181,157 @@
       </div>
     </div>
   </div>
+
+  <div class="bloom-page numberedPage customPage bloom-combinedPage side-right A5Portrait bloom-monolingual" data-page="" id="Picture, Video, Text" data-tool-id="signLanguage" data-pagelineage="08422e7b-9406-4d11-8c71-02005b1b8095" data-page-number="7" lang="">
+	<div class="pageLabel" data-i18n="TemplateBooks.PageLabel.Big Text Diglot" lang="en">Big Text Diglot</div>
+	<div class="pageDescription" lang="en"></div>
+	<div class="marginBox">
+	  <div class="split-pane horizontal-percent" style="min-height: 42px;">
+		<div class="split-pane-component position-top" style="bottom: 25%">
+		  <div class="split-pane-component-inner">
+			<div class="split-pane vertical-percent" style="min-width: 0px;">
+			  <div class="split-pane-component position-left">
+				<div class="split-pane-component-inner" min-height="60px 150px 250px" min-width="60px 150px" style="position: relative;">
+				  <div class="bloom-imageContainer bloom-leadingElement">
+					<img src="placeHolder.png" alt=""></img>
+				  </div>
+				</div>
+			  </div>
+			  <div class="split-pane-divider vertical-divider"></div>
+			  <div class="split-pane-component position-right">
+				<div class="split-pane-component-inner" min-height="60px 150px 250px" min-width="60px 150px" style="position: relative;">
+				  <div class="bloom-videoContainer bloom-leadingElement bloom-selected">
+					<video><source src="" type="video/mp4"></source></video>
+				  </div>
+				</div>
+			  </div>
+			</div>
+		  </div>
+		</div>
+		<div class="split-pane-divider horizontal-divider" style="bottom: 25%"></div>
+		<div class="split-pane-component position-bottom" style="height: 25%">
+		  <div class="split-pane-component-inner">
+			<div class="bloom-translationGroup bloom-trailingElement" data-default-languages="auto">
+			  <div class="bloom-editable normal-style" style="" lang="z" contenteditable="true"><p></p></div>
+			</div>
+		  </div>
+		</div>
+	  </div>
+	</div>
+  </div>
+
+  <div class="bloom-page numberedPage customPage bloom-combinedPage side-left A5Portrait bloom-monolingual" data-page="" id="Picture and Video" data-tool-id="signLanguage" data-pagelineage="24c90e90-2711-465d-8f20-980d9ffae299" data-page-number="8" lang="">
+	<div class="pageLabel" data-i18n="TemplateBooks.PageLabel.Picture &amp; Video" lang="en">
+	  Picture &amp; Video
+	</div>
+	<div class="pageDescription" lang="en"></div>
+	<div class="marginBox">
+	  <div class="split-pane vertical-percent" style="min-width: 0px;">
+		<div class="split-pane-component position-left">
+		  <div class="split-pane-component-inner" min-height="60px 150px 250px" min-width="60px 150px" style="position: relative;">
+			<div class="bloom-imageContainer bloom-leadingElement" title="For the current paper size: • The image container is 201 x 680 dots. • For print publications, you want between 300-600 DPI (Dots Per Inch). • An image with 629 x 2125 dots would fill this container at 300 DPI.">
+			  <img src="placeHolder.png" alt=""></img>
+			</div>
+		  </div>
+		</div>
+		<div class="split-pane-divider vertical-divider"></div>
+		<div class="split-pane-component position-right">
+		  <div class="split-pane-component-inner" min-height="60px 150px 250px" min-width="60px 150px" style="position: relative;">
+			<div class="bloom-videoContainer bloom-leadingElement bloom-selected">
+			  <video><source src="" type="video/mp4"></source></video>
+			</div>
+		  </div>
+		</div>
+	  </div>
+	</div>
+  </div>
+
+  <div class="bloom-page numberedPage customPage side-right A5Portrait bloom-monolingual" data-page="" id="Just Video" data-tool-id="signLanguage" data-pagelineage="8bedcdf8-3ad6-4967-b027-6c186436572f" data-page-number="9" lang="">
+	<div class="pageLabel" data-i18n="TemplateBooks.PageLabel.Just Video" lang="en">
+	  Just Video
+	</div>
+	<div class="pageDescription" lang="en"></div>
+	<div class="marginBox">
+	  <div class="split-pane-component-inner">
+		<div class="bloom-videoContainer bloom-leadingElement bloom-selected">
+		  <video><source src="" type="video/mp4"></source></video>
+		</div>
+	  </div>
+	</div>
+  </div>
+
+  <div class="bloom-page numberedPage customPage bloom-combinedPage side-left A5Portrait bloom-monolingual" data-page="" id="Video Over Text" data-tool-id="signLanguage" data-pagelineage="299644f5-addb-476f-a4a5-e3978139b188" data-page-number="10" lang="">
+	<div class="pageLabel" data-i18n="TemplateBooks.PageLabel.Video Over Text" lang="en">
+	  Video Over Text
+	</div>
+	<div class="pageDescription" lang="en"></div>
+	<div class="marginBox">
+	  <div class="split-pane horizontal-percent" style="min-height: 42px;">
+		<div class="split-pane-component position-top" style="bottom: 25%">
+		  <div class="split-pane-component-inner">
+			<div class="bloom-videoContainer bloom-leadingElement bloom-selected">
+			  <video><source src="" type="video/mp4"></source></video>
+			</div>
+		  </div>
+		</div>
+		<div class="split-pane-divider horizontal-divider" style="bottom: 25%"></div>
+		<div class="split-pane-component position-bottom" style="height: 25%">
+		  <div class="split-pane-component-inner">
+			<div class="bloom-translationGroup bloom-trailingElement" data-default-languages="auto">
+			  <div class="bloom-editable normal-style" style="" lang="z" contenteditable="true"><p></p></div>
+			</div>
+		  </div>
+		</div>
+	  </div>
+	</div>
+  </div>
+  <div class="bloom-page numberedPage customPage A5Portrait side-right bloom-monolingual" data-page="" id="Video, 2 Pictures and Text" data-pagelineage="5dcd48df-e9ab-4a07-afd4-6a24d0398386" data-page-number="11" lang="">
+	<div class="pageLabel" data-i18n="TemplateBooks.PageLabel.Custom" lang="en">
+	  Custom
+	</div>
+	<div class="pageDescription" lang="en"></div>
+	<div class="marginBox">
+	  <div class="split-pane horizontal-percent" style="min-height: 42px;">
+		<div class="split-pane-component position-top" style="bottom: 25.0112%;">
+		  <div class="split-pane-component-inner" min-width="60px 150px 250px" min-height="60px 150px 250px">
+			<div class="bloom-videoContainer bloom-leadingElement bloom-noVideoSelected">
+			  <video><source src="" type="video/mp4"></source></video>
+			</div>
+		  </div>
+		</div>
+		<div class="split-pane-divider horizontal-divider" title="75%" style="bottom: 25.0112%;"></div>
+		<div class="split-pane-component position-bottom" style="height: 25.0112%;">
+		  <div class="split-pane vertical-percent" style="min-width: 0px;">
+			<div class="split-pane-component position-left" style="right: 66.6592%;">
+			  <div class="split-pane-component-inner" min-width="60px" min-height="60px 150px">
+				<div class="bloom-imageContainer bloom-leadingElement">
+				  <img src="placeHolder.png" alt=""></img>
+				</div>
+			  </div>
+			</div>
+			<div class="split-pane-divider vertical-divider" title="33.3%" style="right: 66.6592%;"></div>
+			<div class="split-pane-component position-right" style="width: 66.6592%;">
+			  <div class="split-pane vertical-percent" style="min-width: 0px;">
+				<div class="split-pane-component position-left" style="right: 50%;">
+				  <div class="split-pane-component-inner" min-width="60px" min-height="60px 150px">
+					<div class="bloom-translationGroup bloom-trailingElement">
+					  <div class="bloom-editable normal-style" style="" lang="z" contenteditable="true"><p></p></div>
+					</div>
+				  </div>
+				</div>
+				<div class="split-pane-divider vertical-divider" title="50%" style="right: 50%;"></div>
+				<div class="split-pane-component position-right" style="width: 50%;">
+				  <div class="split-pane-component-inner" min-width="60px" min-height="60px 150px">
+					<div class="bloom-imageContainer bloom-leadingElement" title="For the current paper size: • The image container is 136 x 170 dots. • For print publications, you want between 300-600 DPI (Dots Per Inch). • An image with 425 x 532 dots would fill this container at 300 DPI.">
+					  <img src="placeHolder.png" alt=""></img>
+					</div>
+				  </div>
+				</div>
+			  </div>
+			</div>
+		  </div>
+		</div>
+	  </div>
+	</div>
+  </div>
 </Pages>

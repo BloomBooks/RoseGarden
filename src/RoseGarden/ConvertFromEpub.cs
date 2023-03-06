@@ -14,6 +14,7 @@ using System.Xml;
 using RoseGarden.Parse;
 using RoseGarden.Parse.Model;
 using SIL.Windows.Forms.ClearShare;
+using SIL.Xml;
 
 namespace RoseGarden
 {
@@ -1006,12 +1007,26 @@ namespace RoseGarden
 
 		private void ProcessCoverContent(ref bool titleSet, ref bool authorEtcSet, ref int imageCount, StringBuilder titleBldr, IEnumerable<XmlNode> children)
 		{
+			var skippingCircularFLO = false;
 			foreach (var child in children)
 			{
+				if (child.NodeType == XmlNodeType.Comment && child.OuterXml == "<!--CircularFLO Body-->")
+				{
+					skippingCircularFLO = true;
+					continue;
+				}
+				if (child.NodeType == XmlNodeType.Comment && child.OuterXml == "<!--END CircularFLO Body-->")
+				{
+					skippingCircularFLO = false;
+					continue;
+				}
+				if (skippingCircularFLO)
+					continue;
 				if (child.Name == "img")
 				{
 					++imageCount;
 					var imageFile = (child as XmlElement).GetAttribute("src");
+					imageFile = Path.GetFileName(imageFile);	// don't want leading image/ or images/
 					// cover image always comes first
 					if (imageCount == 1)
 						SetCoverImage(imageFile);
@@ -1371,7 +1386,7 @@ namespace RoseGarden
 					}
 					else if (node.Name == "video")
 					{
-						StoreVideo(videoIdx, videos, node as XmlElement);
+						StoreVideo(videoIdx, videos, node as XmlElement, nsmgr);
 						++videoIdx;
 					}
 					else
@@ -1395,8 +1410,21 @@ namespace RoseGarden
 		private static void ExtractTextAndImageNodes(XmlElement body, List<XmlNode> rawNodes, ref int imageCount, ref int textCount,
 			ref int videoCount, ref string firstChild, ref string prevChild)
 		{
+			var skippingCircularFLO = false;
 			foreach (var child in body.ChildNodes.Cast<XmlNode>())
 			{
+				if (child.NodeType == XmlNodeType.Comment && child.OuterXml == "<!--CircularFLO Body-->")
+				{
+					skippingCircularFLO = true;
+					continue;
+				}
+				if (child.NodeType == XmlNodeType.Comment && child.OuterXml == "<!--END CircularFLO Body-->")
+				{
+					skippingCircularFLO = false;
+					continue;
+				}
+				if (skippingCircularFLO)
+					continue;
 				if (child is XmlWhitespace)
 					continue;
 				if (child.Name == "img")
@@ -1514,16 +1542,30 @@ namespace RoseGarden
 			var src = img.GetAttribute("src");
 			if (imageIdx < images.Count)
 			{
-				if (src.StartsWith("image/"))
-					src = src.Substring(6);
-				if (src.StartsWith("images/"))
-					src = src.Substring(7);
+				src = Path.GetFileName(src);	// don't want leading image/ or images/
 				images[imageIdx].SetAttribute("src", src);
 				var alt = img.GetAttribute("alt");
 				if (String.IsNullOrWhiteSpace(alt))
 					images[imageIdx].SetAttribute("alt", alt);
 				else
 					images[imageIdx].SetAttribute("alt", src);
+				return;
+			}
+			if (images.Count == 1)
+			{
+				var newSrc = Path.GetFileNameWithoutExtension(src);
+				var oldSrc = Path.GetFileNameWithoutExtension(images[0].GetAttribute("src"));
+				if (Int32.TryParse(newSrc, out int newNumber) && !Int32.TryParse(oldSrc, out int oldNumber))
+					return; // keep more complex image filename if one is purely numeric
+				Console.WriteLine("WARNING: replacing image file with [{0}] {1}", imageIdx + 1, src);
+				src = Path.GetFileName(src);    // don't want leading image/ or images/
+				images[0].SetAttribute("src", src);
+				var alt = img.GetAttribute("alt");
+				if (String.IsNullOrWhiteSpace(alt))
+					images[0].SetAttribute("alt", alt);
+				else
+					images[0].SetAttribute("alt", src);
+				return;
 			}
 			else
 			{
@@ -1531,10 +1573,25 @@ namespace RoseGarden
 			}
 		}
 
-		private void StoreVideo(int videoIdx, List<XmlElement> videos, XmlElement video)
+		private void StoreVideo(int videoIdx, List<XmlElement> videos, XmlElement video, XmlNamespaceManager nsmgr)
 		{
-			// TODO!!
-			Console.WriteLine("INFO: video not yet handled...");
+			var epubSource = video.SelectSingleNode("./x:source", nsmgr);
+			var epubSrc = epubSource?.GetOptionalStringAttribute("src", null);
+			var videoType = epubSource?.GetOptionalStringAttribute("type", null);
+			if (epubSrc == null || videoType != "video/mp4")
+			{
+				Console.WriteLine("WARNING: invalid video element in epub: {0}", video.OuterXml);
+				return;
+			}
+			if (videoIdx < videos.Count)
+			{
+				var bloomSource = videos[videoIdx].SelectSingleNode("./source") as XmlElement;
+				bloomSource?.SetAttribute("src", epubSrc);
+			}
+			else
+			{
+				Console.WriteLine("WARNING: no place on page to show video {0}", video.OuterXml);
+			}
 		}
 
 		private void StoreAccumulatedParagraphs(int textIdx, StringBuilder innerXmlBldr, List<XmlElement> textGroupDivs)
@@ -1570,48 +1627,80 @@ namespace RoseGarden
 
 		private XmlElement SelectTemplatePage(int imageCount, int textCount, int videoCount, string firstChild, string lastChild)
 		{
-			if (imageCount == 0 /*&& videoCount == 0*/)
-			{
-				return SelectTemplatePage("Just Text");
-			}
-			if (imageCount == 1 /*&& videoCount == 0*/)
-			{
-				switch (textCount)
-				{
-					case 0:
-						return SelectTemplatePage("Just a Picture");
-					case 1:
-						if (firstChild == "img")
-							return SelectTemplatePage("Basic Text & Picture");
-						else
-							return SelectTemplatePage("Picture on Bottom");
-					case 2:
-						Debug.Assert(firstChild == "p" && lastChild == "p");
-						return SelectTemplatePage("Picture in Middle");
-				}
-			}
-			//else if (imageCount == 0 && videoCount == 1)
-			//{
-			//}
-			//else if (imageCount == 1 && videoCount == 1
-			//{
-			//}
-			else if (imageCount > 1 /*&& videoCount == 0*/)
+			if (imageCount > 1)
 			{
 				// We can't handle 2 or more images on the page automatically at this point.
-				if (textCount == 0)
-					return SelectTemplatePage("Just a Picture");
-				else if (textCount == 1)
-					return SelectTemplatePage("Basic Text & Picture");
-				else
-					return SelectTemplatePage("Picture in Middle");
+				Console.WriteLine("Encountered page with {0} pictures: only one is stored", imageCount);
 			}
+			if (videoCount > 1)
+			{
+				// We can't handle 2 or more videos on the page automatically at this point.
+				Console.WriteLine("Encountered page with {0} videos: only the first is stored", videoCount);
+			}
+			if (videoCount == 0)
+			{
+				if (imageCount == 0 && textCount == 0)
+				{
+					Console.WriteLine("Encountered empty page!?");
+					return null;
+				}
+				if (imageCount == 0)
+				{
+					return SelectTemplatePage("Just Text");
+				}
+				if (imageCount > 0)
+				{
+					switch (textCount)
+					{
+						case 0:
+							return SelectTemplatePage("Just a Picture");
+						case 1:
+							if (firstChild == "img")
+								return SelectTemplatePage("Basic Text & Picture");
+							else
+								return SelectTemplatePage("Picture on Bottom");
+						case 2:
+							//Debug.Assert(firstChild == "p" && lastChild == "p");
+							return SelectTemplatePage("Picture in Middle");
+					}
+				}
+			}
+			else if (videoCount > 0)
+			{
+				if (imageCount == 0)
+				{
+					if (textCount == 0)
+					{
+						return SelectTemplatePage("Just Video");
+					}
+					else
+					{
+						return SelectTemplatePage("Video Over Text");
+					}
+				}
+				else if (imageCount == 1)
+				{
+					if (textCount == 0)
+					{
+						return SelectTemplatePage("Picture and Video");
+					}
+					else
+					{
+						return SelectTemplatePage("Picture, Video, Text");
+					}
+				}
+				else if (imageCount == 2)
+				{
+					return SelectTemplatePage("Video, 2 Pictures and Text");
+				}
+			}
+			Console.WriteLine("Could not determine template page type for {0} text blocks, {1} images, and {2} videos", textCount, imageCount, videoCount);
 			return null;
 		}
 
 		private XmlElement SelectTemplatePage(string id)
 		{
-			if (_options.UseLandscape && id == "Basic Text & Picture")
+			if (_options.UseLandscape && id == "Basic Text & Picture" || id == "Picture on Bottom")
 				id = "Picture on Left";
 			foreach (var page in _templatePages)
 			{
