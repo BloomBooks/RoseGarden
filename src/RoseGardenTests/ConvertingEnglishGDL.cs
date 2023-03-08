@@ -36,19 +36,19 @@ namespace RoseGardenTests
 <p>Illustrator: Marleen Visser</p>", out XmlElement coverImageData);
 
 			// SUT
-			var result = convert.ConvertContentPage(1, _goatPage2Xhtml);
+			var result = convert.ConvertContentPage(1, _goatPage2Xhtml, "2.xhtml");
 			Assert.That(result, Is.True, "converting Goat chapter 2 succeeded");
 			var firstPageImage = CheckTrueContentPageImport(convert._bloomDoc, "1", 2, "27e900b0dc523b77e981b601a779c6a0.jpg",
 				"<p>Once upon a time,  there was a goat called Igodhoobe. Igodhoobe the goat was the king of farm animals and birds. He lived a good life. One day,  Igodhoobe the goat called all the animals and birds to a meeting.</p>");
 
 			// SUT
-			result = convert.ConvertContentPage(18, _goatPage19Xhtml);
+			result = convert.ConvertContentPage(18, _goatPage19Xhtml, "19.xhtml");
 			Assert.That(result, Is.True, "converting Goat chapter 19 succeeded");
 			var secondPageImage = CheckTrueContentPageImport(convert._bloomDoc, "18", 3, "fd3e3272e2bf6aefc67c827f529b3891.jpg",
 				"<p>From that time,  every goat refuses to move when it is pulled. It thinks that you are taking it to the king's court.</p>");
 
 			// SUT
-			result = convert.ConvertContentPage(19, _goatPage20Xhtml);
+			result = convert.ConvertContentPage(19, _goatPage20Xhtml, "20.xhtml");
 			Assert.That(result, Is.True, "converting Goat chapter 20 (end page) succeeded");
 			CheckTwoPageBookAfterEndPages(convert, coverImg, coverImageData, firstPageImage, secondPageImage,
 				"Copyright © African Storybook Initiative 2015", "CC BY 4.0", "Marleen Visser",
@@ -252,30 +252,30 @@ http://ugcla.org
 			CheckExtraCoverImages(convert._bloomDoc, "1088b6d732161819888481bc20863e7c.png", "61fdf7a3fe76891db5a123fe68b73434.png");
 
 			// SUT
-			var result = convert.ConvertContentPage(1, _dogsPage2Xhtml);
+			var result = convert.ConvertContentPage(1, _dogsPage2Xhtml, "2.xhtml");
 			Assert.That(result, Is.True, "converting Dogs chapter 2 succeeded");
 			var firstPageImage = CheckTrueContentPageImport(convert._bloomDoc, "1", 2, "472ec5f74412d1021a8fba06e832364d.jpg", @"<p>A dog and a cat were best friends.</p>
 <p>Everyone knew that if they saw the cat, the dog wouldn't be far behind.</p>");
 
 			// SUT
-			result = convert.ConvertContentPage(10, _dogsPage11Xhtml);
+			result = convert.ConvertContentPage(10, _dogsPage11Xhtml, "10.xhtml");
 			Assert.That(result, Is.True, "converting Dogs chapter 11 succeeded");
 			var secondPageImage = CheckTrueContentPageImport(convert._bloomDoc, "10", 3, "1ef2966e90505f7cebbff05e35856362.jpg", @"<p>Since that day, cats and dogs stopped getting along... most of the time.</p>");
 
 			// SUT
-			result = convert.ConvertContentPage(11, _dogsPage12Xhtml);
+			result = convert.ConvertContentPage(11, _dogsPage12Xhtml, "11.xhtml");
 			Assert.That(result, Is.True, "converting Dogs chapter 12 (end page 1/3) succeeded");
 			var pages = convert._bloomDoc.SelectNodes("/html/body/div[contains(@class,'bloom-page')]").Cast<XmlElement>().ToList();
 			Assert.That(pages.Count, Is.EqualTo(3), "Three pages should exist after converting the cover page, two content pages, and one end page.");
 
 			// SUT
-			result = convert.ConvertContentPage(12, _dogsPage13Xhtml);
+			result = convert.ConvertContentPage(12, _dogsPage13Xhtml, "12.xhtml");
 			Assert.That(result, Is.True, "converting Dogs chapter 13 (end page 2/3) succeeded");
 			pages = convert._bloomDoc.SelectNodes("/html/body/div[contains(@class,'bloom-page')]").Cast<XmlElement>().ToList();
 			Assert.That(pages.Count, Is.EqualTo(3), "Three pages should exist after converting the cover page, two content pages, and two end pages.");
 
 			// SUT
-			result = convert.ConvertContentPage(13, _dogsPage14Xhtml);
+			result = convert.ConvertContentPage(13, _dogsPage14Xhtml, "13.xhtml");
 			Assert.That(result, Is.True, "converting Dogs chapter 14 (end page 3/3) succeeded");
 			CheckTwoPageBookAfterEndPages(convert, coverImg, coverImageData, firstPageImage, secondPageImage,
 				"Copyright © Room to Read, 2013", "CC BY 4.0", "Vusi Malindi",
@@ -529,7 +529,7 @@ Pratham Books goes digital to weave a whole new chapter in the realm of multilin
 			CheckExtraCoverImages(convert._bloomDoc, "61fd7e1fd7a0b699c82eb4f089a455f7.png", "8716a9ccecd3c9b8a45e823d244f7647.png");
 
 			// SUT
-			var result = convert.ConvertContentPage(1, _whatIfPage2Xhtml);
+			var result = convert.ConvertContentPage(1, _whatIfPage2Xhtml, "2.xhtml");
 			Assert.That(result, Is.True, "converting What If? chapter 2 succeeded");
 			var firstPageImage = CheckTrueContentPageImport(convert._bloomDoc, "1", 2, "7afe226493701626fcda5e9d38deb172.jpg", @"<p>My name is Shyam, I am ten years old.</p>
 <p>I am a little skinny, but very bold!</p>
@@ -537,19 +537,19 @@ Pratham Books goes digital to weave a whole new chapter in the realm of multilin
 <p>I am so sleepy as I get up, I think I will fall.</p>");
 
 			// SUT
-			result = convert.ConvertContentPage(10, _whatIfPage11Xhtml);
+			result = convert.ConvertContentPage(10, _whatIfPage11Xhtml, "11.xhtml");
 			Assert.That(result, Is.True, "converting What If? chapter 11 succeeded");
 			var secondPageImage = CheckTrueContentPageImport(convert._bloomDoc, "10", 3, "6acdb659741aed3435e3f9b1c36bc64a.jpg", @"<p>I find myself still standing with my brush in my hand,</p>
 <p>And I smile and think of my secret little land.</p>");
 
 			// SUT
-			result = convert.ConvertContentPage(11, _whatIfPage12Xhtml);
+			result = convert.ConvertContentPage(11, _whatIfPage12Xhtml, "12.xhtml");
 			Assert.That(result, Is.True, "converting What If? chapter 12 (end page 1/2) succeeded");
 			var pages = convert._bloomDoc.SelectNodes("/html/body/div[contains(@class,'bloom-page')]").Cast<XmlElement>().ToList();
 			Assert.That(pages.Count, Is.EqualTo(3), "Three pages should exist after converting the cover page, two content pages, and one end page.");
 
 			// SUT
-			result = convert.ConvertContentPage(12, _whatIfPage13Xhtml);
+			result = convert.ConvertContentPage(12, _whatIfPage13Xhtml, "13.xhtml");
 			Assert.That(result, Is.True, "converting What If? chapter 13 (end page 2/2) succeeded");
 			CheckTwoPageBookAfterEndPages(convert, coverImg, coverImageData, firstPageImage, secondPageImage,
 				"Copyright © Pratham Books, 2015", "CC BY 4.0", "Hari Kumar Nair",
@@ -807,37 +807,37 @@ Pratham Books goes digital to weave a whole new chapter in the realm of multilin
 			CheckExtraCoverImages(convert._bloomDoc, "327960bfcbc83b0500bbb87e89866273.png", "8716a9ccecd3c9b8a45e823d244f7647.png");
 
 			// SUT
-			var result = convert.ConvertContentPage(1, _birthdayPage2Xhtml);
+			var result = convert.ConvertContentPage(1, _birthdayPage2Xhtml, "1.xhtml");
 			Assert.That(result, Is.True, "converting The Birthday Party chapter 2 succeeded");
 			var page1Img = CheckTrueContentPageImport(convert._bloomDoc, "1", 2, "296dc94e65540e945f21665a7c44a801.jpg", null);
 
 			// SUT
-			result = convert.ConvertContentPage(2, _birthdayPage3Xhtml);
+			result = convert.ConvertContentPage(2, _birthdayPage3Xhtml, "2.xhtml");
 			Assert.That(result, Is.True, "converting The Birthday Party chapter 3 succeeded");
 			var page2Img = CheckTrueContentPageImport(convert._bloomDoc, "2", 3, "7935930bd3ead65ff8abbb51c14fd303.jpg", null);
 
 			// SUT
-			result = convert.ConvertContentPage(3, _birthdayPage4Xhtml);
+			result = convert.ConvertContentPage(3, _birthdayPage4Xhtml, "3.xhtml");
 			Assert.That(result, Is.True, "converting The Birthday Party chapter 4 succeeded");
 			var page3Img = CheckTrueContentPageImport(convert._bloomDoc, "3", 4, "2aa8778355a0f25384d96e8421402c6a.jpg", null);
 
 			// SUT
-			result = convert.ConvertContentPage(4, _birthdayPage5Xhtml);
+			result = convert.ConvertContentPage(4, _birthdayPage5Xhtml, "4.xhtml");
 			Assert.That(result, Is.True, "converting The Birthday Party chapter 5 succeeded");
 			var page4Img = CheckTrueContentPageImport(convert._bloomDoc, "4", 5, "df22465a96ac6839a15a9de54dd5d417.jpg", null);
 
 			// SUT
-			result = convert.ConvertContentPage(5, _birthdayPage6Xhtml);
+			result = convert.ConvertContentPage(5, _birthdayPage6Xhtml, "5.xhtml");
 			Assert.That(result, Is.True, "converting The Birthday Party chapter 6 succeeded");
 			var page5Img = CheckTrueContentPageImport(convert._bloomDoc, "5", 6, "c81aac9617591f5591d3bf8e500e8c89.jpg", null);
 
 			// SUT
-			result = convert.ConvertContentPage(6, _birthdayPage7Xhtml);
+			result = convert.ConvertContentPage(6, _birthdayPage7Xhtml, "6.xhtml");
 			Assert.That(result, Is.True, "converting The Birthday Party chapter 7 succeeded");
 			var page6Img = CheckTrueContentPageImport(convert._bloomDoc, "6", 7, "81fc38f93c2b8c8d53bddd7ec9eb8ec6.jpg", null);
 
 			// SUT
-			result = convert.ConvertContentPage(7, _birthdayPage8Xhtml);
+			result = convert.ConvertContentPage(7, _birthdayPage8Xhtml, "7.xhtml");
 			Assert.That(result, Is.True, "converting The Birthday Party chapter 8 succeeded");
 			var page7Img = CheckTrueContentPageImport(convert._bloomDoc, "7", 8, "e723496d42cb09497980634d6ba9d9a7.jpg", @"<p><b>Wondering what to do with wordless stories?</b></p>
 <p>Wordless stories are wonderful because they contain infinite possibilities. Here are a few ideas for engaging with children using visual stories:</p>
@@ -846,13 +846,13 @@ Pratham Books goes digital to weave a whole new chapter in the realm of multilin
 <p>- Encourage children to create 2-3 different stories using the same set of visuals. This will help push their imagination.</p>");
 
 			// SUT
-			result = convert.ConvertContentPage(8, _birthdayPage9Xhtml);
+			result = convert.ConvertContentPage(8, _birthdayPage9Xhtml, "8.xhtml");
 			Assert.That(result, Is.True, "converting The Birthday Party chapter 9 (end page 1/2) succeeded");
 			var pages = convert._bloomDoc.SelectNodes("/html/body/div[contains(@class,'bloom-page')]").Cast<XmlElement>().ToList();
 			Assert.That(pages.Count, Is.EqualTo(8), "Eight pages should exist after converting the cover page, seven content pages, and one end page.");
 
 			// SUT
-			result = convert.ConvertContentPage(9, _birthdayPage10Xhtml);
+			result = convert.ConvertContentPage(9, _birthdayPage10Xhtml, "9.xhtml");
 			Assert.That(result, Is.True, "converting What If? chapter 10 (end page 2/2) succeeded");
 			// We can't use the normal checking method because it assumes only 2 content pages and we have 7.
 			pages = convert._bloomDoc.SelectNodes("/html/body/div[contains(@class,'bloom-page')]").Cast<XmlElement>().ToList();
@@ -1213,29 +1213,29 @@ Pratham Books goes digital to weave a whole new chapter in the realm of multilin
 				@"<p>Durga Lal Shrestha</p><p>Suman Maharjan</p>", out XmlElement coverImageData);
 
 			// SUT
-			var result = convert.ConvertContentPage(1, _hairyKhyaaPage2Xhtml);
+			var result = convert.ConvertContentPage(1, _hairyKhyaaPage2Xhtml, "1.xhtml");
 			Assert.That(result, Is.True, "converting The Great Hairy Khyaa chapter 2 succeeded");
 			var firstPageImage = CheckTrueContentPageImport(convert._bloomDoc, "1", 2, "a99b2b2d4284bde63d16c7b4abffdf41.jpg",
 				@"<p>Srijanalaya produced this book with the support of The Asia Foundation’s Books for Asia program. Srijanalaya is an NGO based in Nepal that creates safe spaces of learning through the arts. For more information, visit: srijanalaya.org. Title: ‘Khyaa’ (2018), originally sung in Chulichiya Chan Chan (1991) Writer: Durga Lal Shrestha Illustrator: Suman Maharjan Editors: Muna Gurung, Sharareh Bajracharya and Niranjan Kunwar</p>");
 
 			// SUT
-			result = convert.ConvertContentPage(2, _hairyKhyaaPage3Xhtml);
+			result = convert.ConvertContentPage(2, _hairyKhyaaPage3Xhtml, "3.xhtml");
 			Assert.That(result, Is.True, "converting The Great Hairy Khyaa chapter 3 succeeded");
 			var secondPageImage = CheckTrueContentPageImport(convert._bloomDoc, "2", 3, "e664fd3ac4e1600bcb4c0743a7552b7c.jpg", @"<p>Who’s down there? The Great Hairy Khyaa !</p>");
 
 			// SUT
-			result = convert.ConvertContentPage(12, _hairyKhyaaPage13Xhtml);
+			result = convert.ConvertContentPage(12, _hairyKhyaaPage13Xhtml, "13.xhtml");
 			Assert.That(result, Is.True, "converting The Great Hairy Khyaa chapter 13 succeeded");
 			var thirdPageImage = CheckTrueContentPageImport(convert._bloomDoc, "12", 4, "50d7c9ca4e58137eb2e37a403666dc8d.jpg", @"<p>Ma is this the khyaa that scares me so?</p>");
 
 			// SUT
-			result = convert.ConvertContentPage(13, _hairyKhyaaPage14Xhtml);
+			result = convert.ConvertContentPage(13, _hairyKhyaaPage14Xhtml, "14.xhtml");
 			Assert.That(result, Is.True, "converting The Great Hairy Khyaa chapter 14 succeeded");
 			var fourthPageImage = CheckTrueContentPageImport(convert._bloomDoc, "13", 5, "1f8866c433bbc82ef57f54cc0233009d.jpg",
 				@"<p>About the Author Durga Lal Shrestha is a famous poet of Nepal Bhasa and Nepali. As a teacher of Nepal Bhasa at Kanya Mandir Higher Secondary School in the 1950s to 70s, he created songs to inspire children to express themselves in their mother tongue. His songs became widely known throughout the Kathmandu Valley and collections of his children’s songs have been through over reprints and are still circulated today. About the Illustrator Suman Maharjan is a passionate visual artist, animator, and freelance illustrator from Nepal. He has loved illustrating and children’s picture books since a young age, with a passion for 2D character animation. He enjoys working in different medium - in addition to DIY solutions, printmaking and sculpture. Acknowledgments First and foremost we would like to thank the openness with which Durga Lal Shrestha has embraced this project. He is an inspiration for the next generation of creative thinkers. A warm thank you to the illustrator Amber Delahaye from Stichting Thang who held illustration workshops. And finally, this book would not have been possible without Suman and Suchita Shrestha, who are Durga Lal Shrestha’s children, and his wife, Purnadevi Shrestha, who is always by his side.</p>");
 
 			// SUT
-			result = convert.ConvertContentPage(14, _hairyKhyaaPage15Xhtml);
+			result = convert.ConvertContentPage(14, _hairyKhyaaPage15Xhtml, "15.xhtml");
 			Assert.That(result, Is.True, "converting The Great Hairy Khyaa chapter 15 (end page) succeeded");
 			// We can't use the normal checking method because it assumes only 2 content pages and we have 4.
 			var pages = convert._bloomDoc.SelectNodes("/html/body/div[contains(@class,'bloom-page')]").Cast<XmlElement>().ToList();
@@ -1445,36 +1445,36 @@ Suman Maharjan
 				, out XmlElement coverImageData);
 
 			// SUT
-			var result = convert.ConvertContentPage(1, _elephantPage2Xhtml);
+			var result = convert.ConvertContentPage(1, _elephantPage2Xhtml, "1.xhtml");
 			Assert.That(result, Is.True, "converting The Elephant in My House chapter 2 succeeded");
 			var firstPageImage = CheckTrueContentPageImport(convert._bloomDoc, "1", 2, "858af36e7f07543929931d2002d7fd2c.jpg",
 				@"<p>One morning, Botom and her mother were tending their fields. Suddenly, they saw a young elephant running towards them!</p>");
 
 			// SUT
-			result = convert.ConvertContentPage(16, _elephantPage17Xhtml);
+			result = convert.ConvertContentPage(16, _elephantPage17Xhtml, "17.xhtml");
 			Assert.That(result, Is.True, "converting The Elephant in My House chapter 17 succeeded");
 			var secondPageImage = CheckTrueContentPageImport(convert._bloomDoc, "16", 3, "bb4e18bba720607c88276b8aff191169.jpg",
 				@"<p>Sakor was sad to leave too, now that Botom treated him kindly. But his mother reminded him he could come back to visit now that Botom understood how to be a friend to elephants.</p>");
 
 			// SUT
-			result = convert.ConvertContentPage(17, _elephantPage18Xhtml);
+			result = convert.ConvertContentPage(17, _elephantPage18Xhtml, "18.xhtml");
 			Assert.That(result, Is.True, "converting The Elephant in My House chapter 18 succeeded");
 			var thirdPageImage = CheckTrueContentPageImport(convert._bloomDoc, "17", 4, "33b5b1c2c03c6bbfcc438c7c0d16de0b.jpg", null);
 
 			// SUT
-			result = convert.ConvertContentPage(18, _elephantPage19Xhtml);
+			result = convert.ConvertContentPage(18, _elephantPage19Xhtml, "19.xhtml");
 			Assert.That(result, Is.True, "converting The Elephant in My House chapter 19 succeeded");
 			var fourthPageImage = CheckTrueContentPageImport(convert._bloomDoc, "18", 5, "7bd541afd7e292faa70d1492a4d45f45.jpg",
 				@"<p>More About the Environment Conservation International (CI) has been working in Cambodia since 2001 to conserve the rich biodiversity of Cambodia. From the Cardamom Mountains in the southwest, home of some of the few remaining Asian elephants in the country, to Tonle Sap Lake, the largest inland fishery in Southeast Asia, to Veun Sai Siem Park National Park, home of the yellow-cheeked gibbons. For more information: https://www.conservation.org/where/Pages/Greater-Mekong-region.aspx https://www.youtube.com/watch?v=XGlTHR8aD-o https://www.youtube.com/watch?v=xgqsniNBhgs Additional environmental information provided by Conservation International in collaboration with The Asia Foundation</p>");
 
 			// SUT
-			result = convert.ConvertContentPage(19, _elephantPage20Xhtml);
+			result = convert.ConvertContentPage(19, _elephantPage20Xhtml, "20.xhtml");
 			Assert.That(result, Is.True, "converting The Elephant in My House chapter 20 succeeded");
 			var fifthPageImage = CheckTrueContentPageImport(convert._bloomDoc, "19", 6, "7b6cd336c62f1c6b2098f9b65811403a.jpg",
 				@"<p>Generously supported by SMART</p>");
 
 			// SUT
-			result = convert.ConvertContentPage(20, _elephantPage21Xhtml);  // page number must match what is in opf file below.
+			result = convert.ConvertContentPage(20, _elephantPage21Xhtml, "21.xhtml");  // page number must match what is in opf file below.
 			Assert.That(result, Is.True, "converting The Elephant in My House chapter 21 (end page) succeeded");
 			// We can't use the normal checking method because it assumes only 2 content pages and we have 4.
 			var pages = convert._bloomDoc.SelectNodes("/html/body/div[contains(@class,'bloom-page')]").Cast<XmlElement>().ToList();
@@ -1685,7 +1685,7 @@ Suman Maharjan
 			var dataDiv0 = CheckInitialBookSetup(convert, "Mini Num");
 
 			// SUT
-			convert.ConvertPage(0, _miniNumPage1Xhtml);
+			convert.ConvertPage(0, _miniNumPage1Xhtml, "1.xhtml");
 			var coverImg = CheckCoverPageImport(convert, dataDiv0, "Mini Num", "069dd655ca62b0c5f476446ce84d8b72.jpg", @"<p>
  Author: Al-Sayed Ibrahim
 </p><p>
@@ -1695,31 +1695,31 @@ Suman Maharjan
 			CheckExtraCoverImages(convert._bloomDoc, "c264a8fa3bce4416fdd903cfdcef27cc.png", null);
 
 			// SUT
-			var result = convert.ConvertPage(1, _miniNumPage2Xhtml);
+			var result = convert.ConvertPage(1, _miniNumPage2Xhtml, "2.xhtml");
 			Assert.That(result, Is.True, "converting Mini Num chapter 2 succeeded");
 			var pages = convert._bloomDoc.SelectNodes("/html/body/div[contains(@class,'bloom-page')]").Cast<XmlElement>().ToList();
 			Assert.That(pages.Count, Is.EqualTo(1), "Only one page (the cover page) exists after converting the cover page and the second (acknowledgements) page.");
 
 			// SUT
-			result = convert.ConvertPage(2, _miniNumPage3Xhtml);
+			result = convert.ConvertPage(2, _miniNumPage3Xhtml, "3.xhtml");
 			Assert.That(result, Is.True, "converting Mini Num chapter 3 succeeded");
 			var firstPageImage = CheckTrueContentPageImport(convert._bloomDoc, "1", 2, "11eee87111091e1fe005745714df306f.jpg",
 				@"<p>Amid the noise in the forest, Mini Num the bear hatched in the depths of the quiet river. He drifted far away in the current and he found himself quite alone.</p>");
 
 			// SUT
-			result = convert.ConvertPage(3, _miniNumPage4Xhtml);
+			result = convert.ConvertPage(3, _miniNumPage4Xhtml, "4.xhtml");
 			Assert.That(result, Is.True, "converting Mini Num chapter 4 succeeded");
 			var secondPageImage = CheckTrueContentPageImport(convert._bloomDoc, "2", 3, "2e9d898f5ae82b2a731206fee76a5354.jpg",
 				@"<p>None of the animals ever knew he was there, so small he was like a particle in the air. How would they ever see him if he’s that small? They probably won’t notice him at all.</p>");
 
 			// SUT
-			result = convert.ConvertPage(17, _miniNumPage18Xhtml);
+			result = convert.ConvertPage(17, _miniNumPage18Xhtml, "18.xhtml");
 			Assert.That(result, Is.True, "converting Mini Num chapter 18 succeeded");
 			var thirdPageImage = CheckTrueContentPageImport(convert._bloomDoc, "16", 4, "1af6d646ab3a0d97ec8ff797825a6f18.jpg",
 				@"<p>Tiny laughed as he swam and said, “We can’t get burned! Did you know I survived an atomic bomb in World War II? Mini Num hadn’t known that but now he was convinced. So he jumped in, shouting, “We ARE amazing, no matter how small we are!”</p>");
 
 			// SUT
-			result = convert.ConvertPage(18, _miniNumPage19Xhtml);
+			result = convert.ConvertPage(18, _miniNumPage19Xhtml, "19.xhtml");
 			Assert.That(result, Is.True, "converting Mini Num chapter 19 succeeded");
 			var fourthPageImage = CheckTrueContentPageImport(convert._bloomDoc, "17", 5, "0599389b1be03ae06bc492ed7af54c8f.jpg",
 				@"<p>The End</p>");
@@ -1917,7 +1917,7 @@ Suman Maharjan
 			var dataDiv0 = CheckInitialBookSetup(convert, "The Garbage Monster");
 
 			// SUT
-			convert.ConvertPage(0, _garbagePage1Xhtml);
+			convert.ConvertPage(0, _garbagePage1Xhtml, "1.xhtml");
 			var coverImg = CheckCoverPageImport(convert, dataDiv0, "The Garbage Monster", "c098c8faab74b36f4f7f47740abce964.jpg",
 				@"<p>
  Author:
@@ -1933,13 +1933,13 @@ Suman Maharjan
 			CheckExtraCoverImages(convert._bloomDoc, "39187b6109946a555d0aa2590ad7dfc3.png", null);
 
 			// SUT
-			var result = convert.ConvertPage(1, _garbagePage2Xhtml);
+			var result = convert.ConvertPage(1, _garbagePage2Xhtml, "2.xhtml");
 			Assert.That(result, Is.True, "converting The Garbage Monster chapter 2 succeeded");
 			var pages = convert._bloomDoc.SelectNodes("/html/body/div[contains(@class,'bloom-page')]").Cast<XmlElement>().ToList();
 			Assert.That(pages.Count, Is.EqualTo(1), "Only one page (the cover page) exists after converting the cover page and the second (acknowledgements) page.");
 
 			// SUT
-			result = convert.ConvertPage(2, _garbagePage3Xhtml);
+			result = convert.ConvertPage(2, _garbagePage3Xhtml, "3.xhtml");
 			Assert.That(result, Is.True, "converting The Garbage Monster chapter 3 succeeded");
 			var firstPageImage = CheckTrueContentPageImport(convert._bloomDoc, "1", 2, "03fed45a79182e03f23ef567d95cb554.jpg",
 				@"<p>Bishu
@@ -1969,7 +1969,7 @@ Suman Maharjan
  why?</p>");
 
 			// SUT
-			result = convert.ConvertPage(21, _garbagePage22Xhtml);
+			result = convert.ConvertPage(21, _garbagePage22Xhtml, "22.xhtml");
 			Assert.That(result, Is.True, "converting The Garbage Monster chapter 22 succeeded");
 			var secondPageImage = CheckTrueContentPageImport(convert._bloomDoc, "20", 3, "a6040707f0f75a1a141b5ebe6e93655a.jpg",
 				@"<p>THE
@@ -2182,7 +2182,7 @@ Suman Maharjan
 			var dataDiv0 = CheckInitialBookSetup(convert, "The Centipede's Problem", false);    // title from epub metadata
 
 			// SUT
-			convert.ConvertPage(0, _centipedePage1Xhtml);
+			convert.ConvertPage(0, _centipedePage1Xhtml, "1.xhtml");
 			var coverImg = CheckCoverPageImport(convert, dataDiv0, "The Centipede’s Problem",   // title from cover page
 				"2e36be50ae9e12d26ff140bb3f44a3c6.jpg",
 				@"<p>
@@ -2261,7 +2261,7 @@ Suman Maharjan
 			var dataDiv0 = CheckInitialBookSetup(convert, "Jack and the magic grape seeds", false); // title from epub metadata
 
 			// SUT
-			convert.ConvertPage(0, _jackPage1Xhtml);
+			convert.ConvertPage(0, _jackPage1Xhtml, "1.xhtml");
 			var coverImg = CheckCoverPageImport(convert, dataDiv0, "Jack and the Magic Grape Seeds",    // title from cover page
 				"d40cf1083253ea28e0d1534d31ca5a5a.jpg",
 				@"<p>
@@ -2353,7 +2353,7 @@ Suman Maharjan
 			var dataDiv0 = CheckInitialBookSetup(convert, "Don't open this book…", false);  // title from epub metadata
 
 			// SUT
-			convert.ConvertPage(0, _dontOpenPage1Xhtml);
+			convert.ConvertPage(0, _dontOpenPage1Xhtml, "1.xhtml");
 			var coverImg = CheckCoverPageImport(convert, dataDiv0, "Don’t Open this Book",  // title from cover page
 				"a79fdc2db9718139b8de32870b32aeb2.jpg",
 				@"<p>
@@ -2430,7 +2430,7 @@ Suman Maharjan
 			var dataDiv0 = CheckInitialBookSetup(convert, "We are not Alone", false);  // title from epub metadata
 
 			// SUT
-			convert.ConvertPage(0, _notAlonePage1Xhtml);
+			convert.ConvertPage(0, _notAlonePage1Xhtml, "1.xhtml");
 			var coverImg = CheckCoverPageImport(convert, dataDiv0, "We’re Not Alone",  // title from cover page
 				"a5898af755806d2177dbb129da871d5c.jpg",
 				@"<p>
@@ -2526,7 +2526,7 @@ Suman Maharjan
 			var dataDiv0 = CheckInitialBookSetup(convert, "Ms Witty and the Coconut Tree", false);  // title from epub metadata
 
 			// SUT
-			convert.ConvertPage(0, _mrsWittyPage1Xhtml);
+			convert.ConvertPage(0, _mrsWittyPage1Xhtml, "1.xhtml");
 			var coverImg = CheckCoverPageImport(convert, dataDiv0, "Mrs. Witty and the Coconut Tree",  // title from cover page
 				"edd007783f43083f16236073271c7825.jpg",
 				@"<p>

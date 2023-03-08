@@ -8,9 +8,11 @@ using System.IO;
 using System.IO.Compression;
 using System.Linq;
 using System.Reflection;
+using System.Security.Cryptography;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Xml;
+using CommandLine;
 using RoseGarden.Parse;
 using RoseGarden.Parse.Model;
 using SIL.Windows.Forms.ClearShare;
@@ -526,7 +528,7 @@ namespace RoseGarden
 				if (_options.VeryVerbose)
 					Console.WriteLine("DEBUG: converting {0}", pageFile);
 				var pageXhtml = File.ReadAllText(pageFile);
-				if (!ConvertPage(pageNumber, pageXhtml))
+				if (!ConvertPage(pageNumber, pageXhtml, Path.GetFileName(pageFile)))
 					Console.WriteLine("WARNING: {0} did not convert successfully.", pageFile);
 			}
 			if (_publisher == "3Asafeer")
@@ -895,7 +897,7 @@ namespace RoseGarden
 			return String.Format("{0}.{1}.{2}", asVersion.Major, asVersion.Minor, asVersion.Revision);
 		}
 
-		internal bool ConvertPage(int pageNumber, string pageXhtml)
+		internal bool ConvertPage(int pageNumber, string pageXhtml, string pageFileName)
 		{
 			// pass in XHTML and internal access to facilitate unit testing
 			if (pageNumber == 0)
@@ -908,7 +910,7 @@ namespace RoseGarden
 			}
 			else
 			{
-				return ConvertContentPage(pageNumber, pageXhtml);
+				return ConvertContentPage(pageNumber, pageXhtml, pageFileName);
 			}
 		}
 
@@ -1198,7 +1200,7 @@ namespace RoseGarden
 			}
 		}
 
-		private void AddNewLanguageDiv(XmlElement zTemplateDiv, string content)
+		private XmlElement AddNewLanguageDiv(XmlElement zTemplateDiv, string content)
 		{
 			var newDiv = _bloomDoc.CreateElement("div");
 			foreach (var attr in zTemplateDiv.Attributes.Cast<XmlAttribute>())
@@ -1232,6 +1234,7 @@ namespace RoseGarden
 				var nl = _bloomDoc.CreateWhitespace(Environment.NewLine);
 				zTemplateDiv.ParentNode.InsertAfter(nl, newDiv);
 			}
+			return newDiv;
 		}
 
 		private void SetCoverImage(string imageFile)
@@ -1308,13 +1311,7 @@ namespace RoseGarden
 			WriteAccumulatedImageAndOtherCredits();
 		}
 
-		private bool ConvertContentPage(string pageFilePath, int pageNumber)
-		{
-			var pageXhtml = File.ReadAllText(pageFilePath);
-			return ConvertContentPage(pageNumber, pageXhtml);
-		}
-
-		internal bool ConvertContentPage(int pageNumber, string pageXhtml)
+		internal bool ConvertContentPage(int pageNumber, string pageXhtml, string pageFileName)
 		{
 			var pageDoc = new XmlDocument();
 			pageDoc.PreserveWhitespace = true;
@@ -1373,7 +1370,7 @@ namespace RoseGarden
 				{
 					if (node.Name == "img")
 					{
-						StoreImage(imageIdx, images, node as XmlElement);
+						StoreImage(imageIdx, images, node as XmlElement, pageFileName);
 						++imageIdx;
 					}
 					else if (node.Name == "p")
@@ -1381,7 +1378,8 @@ namespace RoseGarden
 						innerXmlBldr.Append("<p>");
 						innerXmlBldr.Append(FixInnerXml(node.InnerXml.Trim()));
 						innerXmlBldr.AppendLine("</p>");
-						StoreAccumulatedParagraphs(textIdx, innerXmlBldr, textGroupDivs);
+						var div = StoreAccumulatedParagraphs(textIdx, innerXmlBldr, textGroupDivs);
+						ApplyAnyAudio(div, pageFileName);
 						++textIdx;
 					}
 					else if (node.Name == "video")
@@ -1401,6 +1399,88 @@ namespace RoseGarden
 				}
 			}
 			return true;
+		}
+
+		private void ApplyAnyAudio(XmlElement div, string pageFileName)
+		{
+			if (!_epubMetaData.MediaOverlays.TryGetValue(pageFileName, out string smilId))
+				return;
+			if (!_epubMetaData.SmilFiles.TryGetValue(smilId, out SmilFileData smilFile))
+				return;
+			var spans = div.SafeSelectNodes(".//span[@id]").Cast<XmlElement>();
+			if (spans.Count() > 0)
+			{
+				var parsUsed = new List<SmilPar>();
+				var soundFiles = new HashSet<string>();
+				foreach (var span in spans)
+				{
+					var id = span.GetAttribute("id");
+					var compositeId = $"{pageFileName}#{id}";
+					if (smilFile.SmilPars.TryGetValue(compositeId, out SmilPar smil))
+					{
+						span.SetAttribute("class", "bloom-highlightSegment");
+						parsUsed.Add(smil);
+						soundFiles.Add(smil.AudioFileName);
+					}
+					else
+					{
+						span.SetAttribute("id", null);
+					}
+				}
+				if (parsUsed.Count > 0)
+				{
+					if (soundFiles.Count == 1)
+					{
+						div.SetAttribute("data-audiorecordingmode", "TextBox");
+						div.SetAttribute("data-duration", parsUsed[parsUsed.Count - 1].AudioClipEnd ?? "");
+						var endsBldr = new StringBuilder();
+						foreach (var par in parsUsed)
+						{
+							if (endsBldr.Length > 0)
+								endsBldr.Append(" ");
+							endsBldr.Append(par.AudioClipEnd ?? "");
+						}
+						div.SetAttribute("data-audiorecordingendtimes", endsBldr.ToString().Trim());
+						var divId = NewGuidBasedId();
+						div.SetAttribute("id", divId);
+						var source = Path.Combine(_bookFolder, "audio", parsUsed[0].AudioFileName);
+						var dest = Path.Combine(_bookFolder, "audio", divId + Path.GetExtension(source));
+						File.Copy(source, dest);
+						var md5 = ComputeMd5ForFile(dest);
+						div.SetAttribute("recordingmd5", md5);
+						var classes = div.GetAttribute("class");
+						div.SetAttribute("class", classes + " audio-sentence bloom-postAudioSplit");	
+					}
+				}
+			}
+		}
+
+		private string ComputeMd5ForFile(string dest)
+		{
+			// We don't have access to the javascript function used by Bloom.
+			// I hope this is compatible!
+			using (var md5 = MD5.Create())
+			{
+				var inputBytes = File.ReadAllBytes(dest);
+				var hashBytes = md5.ComputeHash(inputBytes);
+				// Convert the byte array to hexadecimal string
+				var sb = new StringBuilder();
+				for (int i = 0; i < hashBytes.Length; i++)
+				{
+					sb.Append(hashBytes[i].ToString("x2"));
+				}
+				return sb.ToString();
+			}
+		}
+		
+		private string NewGuidBasedId()
+		{
+			var id = Guid.NewGuid().ToString();
+			var firstChar = id[0];
+			if (firstChar >= '0' && firstChar <= '9')
+				return "i" + id;
+			else
+				return id;
 		}
 
 		/// <summary>
@@ -1509,7 +1589,7 @@ namespace RoseGarden
 			//Console.WriteLine("DEBUG FixInnerXml: 08=\"{0}\"", plain08);
 			// remove whitespace around any remaining <br/>
 			var plain09 = Regex.Replace(plain08, @"\s*<br />\s*", "<br />");
-			//Console.WriteLine("DEBUG FixInnerXml: 09=\"{0}\"", plain09);
+			///Console.WriteLine("DEBUG FixInnerXml: 09=\"{0}\"", plain09);
 			// collapse multiple spaces into one space
 			var plain10 = Regex.Replace(plain09, @"  +", " ");
 			//Console.WriteLine("DEBUG FixInnerXml: 10=\"{0}\"", plain10);
@@ -1537,18 +1617,23 @@ namespace RoseGarden
 			return outValue;
 		}
 
-		private void StoreImage(int imageIdx, List<XmlElement> images, XmlElement img)
+		private void StoreImage(int imageIdx, List<XmlElement> images, XmlElement img, string pageFileName)
 		{
+			var parentId = img.ParentNode?.GetOptionalStringAttribute("id", null);
+			var alt = img.GetAttribute("alt");
 			var src = img.GetAttribute("src");
 			if (imageIdx < images.Count)
 			{
 				src = Path.GetFileName(src);	// don't want leading image/ or images/
 				images[imageIdx].SetAttribute("src", src);
-				var alt = img.GetAttribute("alt");
 				if (String.IsNullOrWhiteSpace(alt))
 					images[imageIdx].SetAttribute("alt", alt);
 				else
 					images[imageIdx].SetAttribute("alt", src);
+				if (!String.IsNullOrWhiteSpace(alt) && !String.IsNullOrEmpty(parentId))
+				{
+					AddImageDescriptionAndAudio(images[imageIdx], alt, parentId, pageFileName);
+				}
 				return;
 			}
 			if (images.Count == 1)
@@ -1556,21 +1641,75 @@ namespace RoseGarden
 				var newSrc = Path.GetFileNameWithoutExtension(src);
 				var oldSrc = Path.GetFileNameWithoutExtension(images[0].GetAttribute("src"));
 				if (Int32.TryParse(newSrc, out int newNumber) && !Int32.TryParse(oldSrc, out int oldNumber))
-					return; // keep more complex image filename if one is purely numeric
+					return; // keep more complex image filename if this one is purely numeric
 				Console.WriteLine("WARNING: replacing image file with [{0}] {1}", imageIdx + 1, src);
 				src = Path.GetFileName(src);    // don't want leading image/ or images/
 				images[0].SetAttribute("src", src);
-				var alt = img.GetAttribute("alt");
 				if (String.IsNullOrWhiteSpace(alt))
 					images[0].SetAttribute("alt", alt);
 				else
 					images[0].SetAttribute("alt", src);
+				if (!String.IsNullOrWhiteSpace(alt) && !String.IsNullOrEmpty(parentId))
+				{
+					AddImageDescriptionAndAudio(images[0], alt, parentId, pageFileName);
+				}
 				return;
 			}
 			else
 			{
 				Console.WriteLine("WARNING: no place on page to show image file {0}", src);
 			}
+		}
+
+		private void AddImageDescriptionAndAudio(XmlElement newImg, string alt, string parentId, string pageFileName)
+		{
+			// Convert alt string into an image description.  This may or may not be valid...
+			var groupDiv = newImg.OwnerDocument.CreateElement("div");
+			newImg.ParentNode.AppendChild(groupDiv);
+			groupDiv.SetAttribute("class", "bloom-translationGroup bloom-imageDescription bloom-trailingElement");
+			groupDiv.SetAttribute("data-default-languages", "auto");
+			var editDiv = groupDiv.OwnerDocument.CreateElement("div");
+			groupDiv.AppendChild(editDiv);
+			editDiv.SetAttribute("class", "bloom-editable ImageDescriptionEdit-style bloom-content1 bloom-visibility-code-on");
+			editDiv.SetAttribute("role", "textbox");
+			editDiv.SetAttribute("aria-label", "false");
+			editDiv.SetAttribute("lang", _epubMetaData.LanguageCode);
+			editDiv.SetAttribute("contenteditable", "true");
+			editDiv.SetAttribute("tabindex", "0");
+			editDiv.SetAttribute("spellcheck", "true");
+			var p = groupDiv.OwnerDocument.CreateElement("p");
+			editDiv.AppendChild(p);
+			var span = groupDiv.OwnerDocument.CreateElement("span");
+			p.AppendChild(span);
+			span.SetAttribute("id", NewGuidBasedId());
+			span.InnerText = alt;
+			var zDiv = groupDiv.OwnerDocument.CreateElement("div");
+			groupDiv.AppendChild(zDiv);
+			zDiv.SetAttribute("class", "bloom-editable ImageDescriptionEdit-style");
+			zDiv.SetAttribute("lang", "z");
+			zDiv.SetAttribute("contenteditable", "true");
+			// After establishing the text description, look for any linked audio.
+			var compositeId = $"{pageFileName}#{parentId}";
+			if (!_epubMetaData.MediaOverlays.TryGetValue(pageFileName, out string smilId))
+				return;
+			if (!_epubMetaData.SmilFiles.TryGetValue(smilId, out SmilFileData smilFile))
+				return;
+			if (!smilFile.SmilPars.TryGetValue(compositeId, out SmilPar smil))
+				return;
+			// We seem to have a sound file to link up.
+			editDiv.SetAttribute("data-audiorecordingmode", "TextBox");
+			editDiv.SetAttribute("data-duration", smil.AudioClipEnd);
+			editDiv.SetAttribute("data-audiorecordingendtimes", smil.AudioClipEnd);
+			var divId = NewGuidBasedId();
+			editDiv.SetAttribute("id", divId);
+			var source = Path.Combine(_bookFolder, "audio", smil.AudioFileName);
+			var dest = Path.Combine(_bookFolder, "audio", divId + Path.GetExtension(source));
+			File.Copy(source, dest);
+			var md5 = ComputeMd5ForFile(dest);
+			editDiv.SetAttribute("recordingmd5", md5);
+			var classes = editDiv.GetAttribute("class");
+			editDiv.SetAttribute("class", classes + " audio-sentence bloom-postAudioSplit");
+			span.SetAttribute("class", "bloom-highlightSegment");
 		}
 
 		private void StoreVideo(int videoIdx, List<XmlElement> videos, XmlElement video, XmlNamespaceManager nsmgr)
@@ -1594,21 +1733,22 @@ namespace RoseGarden
 			}
 		}
 
-		private void StoreAccumulatedParagraphs(int textIdx, StringBuilder innerXmlBldr, List<XmlElement> textGroupDivs)
+		private XmlElement StoreAccumulatedParagraphs(int textIdx, StringBuilder innerXmlBldr, List<XmlElement> textGroupDivs)
 		{
 			Debug.Assert(innerXmlBldr != null && innerXmlBldr.Length > 0);
 			Debug.Assert(textGroupDivs != null && textGroupDivs.Count > 0);
+			XmlElement div = null;
 			if (textIdx < textGroupDivs.Count)
 			{
 				var zTemplateDiv = textGroupDivs[textIdx].SelectSingleNode("./div[contains(@class, 'bloom-editable') and @lang='z' and @contenteditable='true']") as XmlElement;
 				// Add new div with accumulated paragraphs
-				AddNewLanguageDiv(zTemplateDiv, innerXmlBldr.ToString().Trim());
+				div = AddNewLanguageDiv(zTemplateDiv, innerXmlBldr.ToString().Trim());
 			}
 			else
 			{
 				// Cram new accumulation into last text group.
 				var groupDiv = textGroupDivs[textGroupDivs.Count - 1];
-				var div = groupDiv.SelectSingleNode($"./div[@lang='{_epubMetaData.LanguageCode}']");
+				div = groupDiv.SelectSingleNode($"./div[@lang='{_epubMetaData.LanguageCode}']") as XmlElement;
 				if (div != null)
 				{
 					var inner = div.InnerXml;
@@ -1623,6 +1763,7 @@ namespace RoseGarden
 				}
 			}
 			innerXmlBldr.Clear();
+			return div;
 		}
 
 		private XmlElement SelectTemplatePage(int imageCount, int textCount, int videoCount, string firstChild, string lastChild)

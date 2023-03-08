@@ -1,5 +1,6 @@
 ﻿// Copyright (c) 2020 SIL International
 // This software is licensed under the MIT License (http://opensource.org/licenses/MIT)
+using SIL.Xml;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -25,6 +26,8 @@ namespace RoseGarden
 		public List<string> ImageFiles = new List<string>();
 		public List<string> AudioFiles = new List<string>();
 		public List<string> VideoFiles = new List<string>();
+		public Dictionary<string,SmilFileData> SmilFiles = new Dictionary<string,SmilFileData>();
+		public Dictionary<string,string> MediaOverlays = new Dictionary<string,string>();
 
 		// These are provided in case there's more information to extract... (?)
 		public XmlDocument _opfDocument;
@@ -100,6 +103,9 @@ namespace RoseGarden
 				var chapter = node as XmlElement;
 				var href = chapter.GetAttribute("href");
 				PageFiles.Add(Path.Combine(epubFolder, contentFolder, href));
+				var overlay = chapter.GetOptionalStringAttribute("media-overlay", null);
+				if (!String.IsNullOrEmpty(overlay))
+					MediaOverlays.Add(href, overlay);
 			}
 			var imageItems = _opfDocument.SelectNodes("/o:package/o:manifest/o:item[starts-with(@media-type,'image/')]", _opfNsmgr);
 			foreach (var node in imageItems)
@@ -121,6 +127,13 @@ namespace RoseGarden
 				var video = node as XmlElement;
 				var href = video.GetAttribute("href");
 				VideoFiles.Add(Path.Combine(epubFolder, contentFolder, href));
+			}
+			var smilItems = _opfDocument.SelectNodes("/o:package/o:manifest/o:item[@media-type='application/smil+xml']", _opfNsmgr);
+			foreach (var node in smilItems)
+			{
+				var smil = node as XmlElement;
+				var href = smil.GetAttribute("href");
+				SmilFiles.Add(smil.GetAttribute("id"), new SmilFileData(Path.Combine(epubFolder, contentFolder, href)));
 			}
 			var sourceItem = _opfDocument.SelectSingleNode("/o:package/o:metadata/dc:source", _opfNsmgr);
 			if (sourceItem != null)

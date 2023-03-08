@@ -33,18 +33,18 @@ namespace RoseGardenTests
 			var coverImg = CheckCoverPageImport(convert, dataDiv0, "Une maison pour la souris", "42fd93119291a1e074074b72938c36f5.jpg", @"<p>Authors: Michele Fry, Amy Uzzell, Jennifer Jacobs</p>", out XmlElement coverImageData, "fr");
 
 			// SUT
-			var result = convert.ConvertContentPage(1, _uneMaisonPage2Xhtml);
+			var result = convert.ConvertContentPage(1, _uneMaisonPage2Xhtml, "2.xhtml");
 			Assert.That(result, Is.True, "converting Une maison pour la souris chapter 2 succeeded");
 			var firstPageImage = CheckTrueContentPageImport(convert._bloomDoc, "1", 2, "6bde3f7a5ee007f9335bc2fcc059d438.jpg", @"<p>Une souris était à la recherche d’une nouvelle maison.</p>", "fr");
 
 			// SUT
-			result = convert.ConvertContentPage(12, _uneMaisonPage13Xhtml);
+			result = convert.ConvertContentPage(12, _uneMaisonPage13Xhtml, "13.xhtml");
 			Assert.That(result, Is.True, "converting Une maison pour la souris chapter 13 succeeded");
 			var secondPageImage = CheckTrueContentPageImport(convert._bloomDoc, "12", 3, "c201f3d8f9796de558ce74428efe35cf.jpg", @"<p>Cette nuit-là, la souris fit des rêves chaleureux et douillets.</p>
 <p>Réponds aux questions après avoir lu le livre.</p>", "fr");
 
 			// SUT
-			result = convert.ConvertContentPage(13, _uneMaisonPage14Xhtml);
+			result = convert.ConvertContentPage(13, _uneMaisonPage14Xhtml, "14.xhtml");
 			Assert.That(result, Is.True, "converting Une maison pour la souris chapter 14 (end page) succeeded");
 			CheckTwoPageBookAfterEndPages(convert, coverImg, coverImageData, firstPageImage, secondPageImage,
 				"Copyright © Book Dash, 2018", "CC BY 4.0", "",
@@ -190,31 +190,31 @@ namespace RoseGardenTests
 			CheckExtraCoverImages(convert._bloomDoc, "61fd7e1fd7a0b699c82eb4f089a455f7.png", "95e805cc9f03ab235937124ab44755fa.png");
 
 			// SUT
-			var result = convert.ConvertContentPage(1, _bananasPage2Xhtml);
+			var result = convert.ConvertContentPage(1, _bananasPage2Xhtml, "2.xhtml");
 			Assert.That(result, Is.True, "converting Trop de bananes chapter 2 succeeded");
 			var page1Img = CheckTrueContentPageImport(convert._bloomDoc, "1", 2, "d1ef3e2832dfc9b6deff6f80fd23dbfc.jpg", @"<p>Sringeri Srinivas passait une très mauvaise journée.</p>
 <p>Personne ne voulait des bananes mûres et sucrées qu’il cultivait dans sa ferme.</p>", "fr");
 
 			// SUT
-			result = convert.ConvertContentPage(2, _bananasPage12Xhtml);
+			result = convert.ConvertContentPage(2, _bananasPage12Xhtml, "12.xhtml");
 			Assert.That(result, Is.True, "converting Trop de bananes chapter 12 succeeded");
 			var page2Img = CheckTrueContentPageImport(convert._bloomDoc, "2", 3, "7e447cd435fc7fbd0e1eba3826e7f8b7.jpg",
 				"<p>Pas avec les commerçants qui pouvaient vendre les bananes sur des marchés lointains. Et même pas avec ses vaches\u00a0!</p>", "fr");
 
 			// SUT
-			result = convert.ConvertContentPage(3, _bananasPage20Xhtml);
+			result = convert.ConvertContentPage(3, _bananasPage20Xhtml, "20.xhtml");
 			Assert.That(result, Is.True, "converting Trop de bananes chapter 20 succeeded");
 			var page3Img = CheckTrueContentPageImport(convert._bloomDoc, "3", 4, "74f123aa6e096acbb941dab70a3dca99.jpg",
 				"<p>Au même moment, Sringeri Srinivas entra en portant un gros sac.</p>", "fr");
 
 			// SUT
-			result = convert.ConvertContentPage(4, _bananasPage24Xhtml);
+			result = convert.ConvertContentPage(4, _bananasPage24Xhtml, "24.xhtml");
 			Assert.That(result, Is.True, "converting Trop de bananes chapter 24 succeeded");
 			var page4Img = CheckTrueContentPageImport(convert._bloomDoc, "4", 5, "9ba4b52e528a51c2d632545904e3a3e9.jpg",
 				"<p>Le prêtre était tellement surpris qu’il en oublia de psalmodier. Dans le silence, un enfant commença à rire.</p>", "fr");
 
 			// SUT
-			result = convert.ConvertContentPage(5, _bananasPage27Xhtml);
+			result = convert.ConvertContentPage(5, _bananasPage27Xhtml, "27.xhtml");
 			Assert.That(result, Is.True, "converting Trop de bananes chapter 27 succeeded");
 			var page5Img = CheckTrueContentPageImport(convert._bloomDoc, "5", 6, "7493b48ae67b8b766a7826728a5c8cd5.jpg",
 				@"<p><b>LE <b>SAVIEZ-VOUS" + "\u00a0" + @"?</b></b></p>
@@ -224,25 +224,25 @@ namespace RoseGardenTests
 				"fr");
 
 			// SUT
-			result = convert.ConvertContentPage(6, _bananasPage28Xhtml);
+			result = convert.ConvertContentPage(6, _bananasPage28Xhtml, "28.xhtml");
 			Assert.That(result, Is.True, "converting Trop de bananes chapter 28 (end page 1/4) succeeded");
 			var pages = convert._bloomDoc.SelectNodes("/html/body/div[contains(@class,'bloom-page')]").Cast<XmlElement>().ToList();
 			Assert.That(pages.Count, Is.EqualTo(6), "Six pages should exist after converting the cover page, five content pages, and one end page.");
 
 			// SUT
-			result = convert.ConvertContentPage(7, _bananasPage29Xhtml);
+			result = convert.ConvertContentPage(7, _bananasPage29Xhtml, "29.xhtml");
 			Assert.That(result, Is.True, "converting Trop de bananes chapter 29 (end page 2/4) succeeded");
 			pages = convert._bloomDoc.SelectNodes("/html/body/div[contains(@class,'bloom-page')]").Cast<XmlElement>().ToList();
 			Assert.That(pages.Count, Is.EqualTo(6), "Six pages should exist after converting the cover page, five content pages, and two end pages.");
 
 			// SUT
-			result = convert.ConvertContentPage(8, _bananasPage30Xhtml);
+			result = convert.ConvertContentPage(8, _bananasPage30Xhtml, "30.xhtml");
 			Assert.That(result, Is.True, "converting Trop de bananes chapter 30 (end page 3/4) succeeded");
 			pages = convert._bloomDoc.SelectNodes("/html/body/div[contains(@class,'bloom-page')]").Cast<XmlElement>().ToList();
 			Assert.That(pages.Count, Is.EqualTo(6), "Six pages should exist after converting the cover page, five content pages, and three end pages.");
 
 			// SUT
-			result = convert.ConvertContentPage(9, _bananasPage31Xhtml);
+			result = convert.ConvertContentPage(9, _bananasPage31Xhtml, "31.xhtml");
 			Assert.That(result, Is.True, "converting Trop de bananes chapter 31 (end page 4/4) succeeded");
 			// We can't use the normal checking method because it assumes only 2 content pages and we have 5.
 			pages = convert._bloomDoc.SelectNodes("/html/body/div[contains(@class,'bloom-page')]").Cast<XmlElement>().ToList();
@@ -600,7 +600,7 @@ Pratham Books goes digital to weave a whole new chapter in the realm of multilin
 			CheckExtraCoverImages(convert._bloomDoc, "61fd7e1fd7a0b699c82eb4f089a455f7.png", "95e805cc9f03ab235937124ab44755fa.png");
 
 			// SUT
-			var result = convert.ConvertContentPage(1, _seBrosserPage2Xhtml);
+			var result = convert.ConvertContentPage(1, _seBrosserPage2Xhtml, "2.xhtml");
 			Assert.That(result, Is.True, "converting Se brosser n’est pas amusant! chapter 2 succeeded");
 			var page1Img = CheckTrueContentPageImport(convert._bloomDoc, "1", 2, "4594ef062d29d28a1a316e4877288d1b.jpg",
 				 @"<p>Quand Rohan se réveilla, il commença à jouer avec Jimmy, son chien.</p>
@@ -608,26 +608,26 @@ Pratham Books goes digital to weave a whole new chapter in the realm of multilin
 <p><b>OUAF"+"\u00a0"+@"!</b></p>", "fr");
 
 			// SUT
-			result = convert.ConvertContentPage(2, _seBrosserPage14Xhtml);
+			result = convert.ConvertContentPage(2, _seBrosserPage14Xhtml, "14.xhtml");
 			Assert.That(result, Is.True, "converting Se brosser n’est pas amusant! chapter 14 succeeded");
 			var page2Img = CheckTrueContentPageImport(convert._bloomDoc, "2", 3, "d15743d01c55f04032656151f1c9b618.jpg",
 				@"<p><i>Les microbes disent"+"\u00a0"+@": dégoûtant, crasseux et sale, c’est AMUSANT"+"\u00a0"+@"!</i><br /><i>Je dis, je brosse et je lave et je sais que j’ai gagné"+"\u00a0"+@"!</i><br /><i>Les germes disent, ne te baigne jamais, c’est une perte de temps"+"\u00a0"+@"!</i><br /><i>Je dis, sentir bon avec du savon est si agréable.</i><br /><i>Un vilain germe dit"+"\u00a0"+@": ne ramasse pas tes affaires,</i><br /><i>La maison a meilleure apparence de cette façon.</i><br /><i>Je dis, je range parce que j’aime mes affaires</i><br /><i>C’est un bon moyen de terminer ma journée"+"\u00a0"+@"!</i><br /><i>Et je me sens mieux à tous points de vue</i><br /><i>Je me sens mieux à tous points de vue"+"\u00a0"+@"!</i><br /><i>JE ME SENS MIEUX À TOUS POINTS DE VUE"+"\u00a0"+@"!</i></p>
 <p>Maintenant, compose ta chanson secrète et fredonne-la<br />lorsque tu fais des choses ennuyeuses"+"\u00a0"+@"!</p>", "fr");
 
 			// SUT
-			result = convert.ConvertContentPage(3, _seBrosserPage15Xhtml);
+			result = convert.ConvertContentPage(3, _seBrosserPage15Xhtml, "15.xhtml");
 			Assert.That(result, Is.True, "converting Se brosser n’est pas amusant! chapter 15 (end page 1/3) succeeded");
 			var pages = convert._bloomDoc.SelectNodes("/html/body/div[contains(@class,'bloom-page')]").Cast<XmlElement>().ToList();
 			Assert.That(pages.Count, Is.EqualTo(3), "Three pages should exist after converting the cover page, two content pages, and one end page.");
 
 			// SUT
-			result = convert.ConvertContentPage(4, _seBrosserPage16Xhtml);
+			result = convert.ConvertContentPage(4, _seBrosserPage16Xhtml, "16.xhtml");
 			Assert.That(result, Is.True, "converting Se brosser n’est pas amusant! chapter 16 (end page 2/3) succeeded");
 			pages = convert._bloomDoc.SelectNodes("/html/body/div[contains(@class,'bloom-page')]").Cast<XmlElement>().ToList();
 			Assert.That(pages.Count, Is.EqualTo(3), "Three pages should exist after converting the cover page, two content pages, and two end pages.");
 
 			// SUT
-			result = convert.ConvertContentPage(5, _seBrosserPage17Xhtml);
+			result = convert.ConvertContentPage(5, _seBrosserPage17Xhtml, "17.xhtml");
 			Assert.That(result, Is.True, "converting Se brosser n’est pas amusant! chapter 17 (end page 3/3) succeeded");
 			CheckTwoPageBookAfterEndPages(convert, coverImg, coverImageData, page1Img, page2Img,
 				// Don't bother adding words for "Copyright" when it's not English.
