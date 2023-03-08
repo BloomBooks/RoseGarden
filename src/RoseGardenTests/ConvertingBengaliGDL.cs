@@ -41,21 +41,21 @@ namespace RoseGardenTests
 				 out XmlElement coverImageData, "bn");
 
 			// SUT
-			var result = convert.ConvertContentPage(1, _bengaliPage2Xhtml);
+			var result = convert.ConvertContentPage(1, _bengaliPage2Xhtml, "1.xhtml");
 			Assert.That(result, Is.True, "converting Bengali book chapter 2 succeeded");
 			var firstPageImage = CheckTrueContentPageImport(convert._bloomDoc, "1", 2, "33746d4a84ed4d9d40154ccced7db932.jpg",
 				@"<p>“বাবা, বাবা! আমার খিদে পেয়েছে। নাস্তা কী আছে?"" সমীর জিজ্ঞেস করে।</p>",
 				"bn");
 
 			// SUT
-			result = convert.ConvertContentPage(11, _bengaliPage12Xhtml);
+			result = convert.ConvertContentPage(11, _bengaliPage12Xhtml, "11.xhtml");
 			Assert.That(result, Is.True, "converting Bengali book chapter 12 succeeded");
 			var secondPageImage = CheckTrueContentPageImport(convert._bloomDoc, "11", 3, "8011dc950bc3cbe5abbb21de3a389f15.jpg",
 				@"<p>“ওহ দারুণ! আমি সব ধরনের খাবার খাবো — শুধু গোল খাবার নয়!” সমীর বলে। “তিনকোণা সমোসা, চারকোনা মিষ্টি, লম্বাটে গাজর এবং রঙিন আইসক্রিম খাওয়ার জন্য মন অস্থির হয়ে আছে।”</p>",
 				"bn");
 
 			// SUT
-			result = convert.ConvertContentPage(12, _bengaliPage13Xhtml);
+			result = convert.ConvertContentPage(12, _bengaliPage13Xhtml, "12.xhtml");
 			Assert.That(result, Is.True, "converting Bengali book chapter 13 (end page) succeeded");
 			CheckTwoPageBookAfterEndPages(convert, coverImg, coverImageData, firstPageImage, secondPageImage,
 				"Copyright © The Asia Foundation, 2018", "CC BY-NC 4.0", "Mrigaja Bajracharya",

@@ -37,7 +37,7 @@ namespace RoseGardenTests
 			var coverImg = CheckCoverPageImport(convert, dataDiv0, "Bagaimana Jika?", "cfe98a0f73b77370b3807c22493dd508.jpg", @"<p>Hari Kumar Nair</p>", out XmlElement coverImageData, "id");
 
 			// SUT
-			var result = convert.ConvertContentPage(1, _bagaimanaPage2Xhtml);
+			var result = convert.ConvertContentPage(1, _bagaimanaPage2Xhtml, "2.xhtml");
 			Assert.That(result, Is.True, "converting Bagaimana Jika chapter 2 succeeded");
 			var firstPageImage = CheckTrueContentPageImport(convert._bloomDoc, "1", 2, "d0b65a163a77bbe4caf7a8c5664e0e7d.jpg", @"<p>Namaku Shyam. Usiaku 10 tahun.
  Badanku kurus, tapi aku pemberani!
@@ -45,13 +45,13 @@ namespace RoseGardenTests
  Aku ngantuk sekali, sampai rasanya mau jatuh.</p>", "id");
 
 			// SUT
-			result = convert.ConvertContentPage(10, _bagaimanaPage11Xhtml);
+			result = convert.ConvertContentPage(10, _bagaimanaPage11Xhtml, "11.xhtml");
 			Assert.That(result, Is.True, "converting Bagaimana Jika chapter 11 succeeded");
 			var secondPageImage = CheckTrueContentPageImport(convert._bloomDoc, "10", 3, "218e51bccf02100958873a40e1e19e23.jpg", @"<p>Ternyata aku masih berdiri dengan sikat gigi di tanganku.
  Aku tersenyum memikirkan dunia rahasiaku.</p>", "id");
 
 			// SUT
-			result = convert.ConvertContentPage(11, _bagaimanaPage12Xhtml);
+			result = convert.ConvertContentPage(11, _bagaimanaPage12Xhtml, "12.xhtml");
 			Assert.That(result, Is.True, "converting Bagaimana Jika chapter 12 (end page) succeeded");
 			CheckTwoPageBookAfterEndPages(convert, coverImg, coverImageData, firstPageImage, secondPageImage,
 				"Copyright © The Asia Foundation, 2018", "CC BY 4.0", "Hari Kumar Nair",
