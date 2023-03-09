@@ -24,7 +24,7 @@ namespace RoseGarden
 		public List<string> OtherContributors = new List<string>();
 		public List<string> PageFiles = new List<string>();
 		public List<string> ImageFiles = new List<string>();
-		public List<string> AudioFiles = new List<string>();
+		//public List<string> AudioFiles = new List<string>();
 		public List<string> VideoFiles = new List<string>();
 		public Dictionary<string,SmilFileData> SmilFiles = new Dictionary<string,SmilFileData>();
 		public Dictionary<string,string> MediaOverlays = new Dictionary<string,string>();
@@ -55,9 +55,11 @@ namespace RoseGarden
 			InitializeMetadata(epubFolder, opfPath, opfXml);
 		}
 
+		public string EpubContentFolder;
+
 		internal void InitializeMetadata(string epubFolder, string opfPath, string opfXml)
 		{
-			var contentFolder = Path.GetFileName(Path.GetDirectoryName(opfPath));
+			EpubContentFolder = Path.GetDirectoryName(opfPath);
 			_opfDocument = new XmlDocument();
 			_opfDocument.PreserveWhitespace = true;
 			_opfDocument.LoadXml(opfXml);
@@ -102,7 +104,7 @@ namespace RoseGarden
 			{
 				var chapter = node as XmlElement;
 				var href = chapter.GetAttribute("href");
-				PageFiles.Add(Path.Combine(epubFolder, contentFolder, href));
+				PageFiles.Add(Path.Combine(EpubContentFolder, href));
 				var overlay = chapter.GetOptionalStringAttribute("media-overlay", null);
 				if (!String.IsNullOrEmpty(overlay))
 					MediaOverlays.Add(href, overlay);
@@ -112,28 +114,28 @@ namespace RoseGarden
 			{
 				var image = node as XmlElement;
 				var href = image.GetAttribute("href");
-				ImageFiles.Add(Path.Combine(epubFolder, contentFolder, href));
+				ImageFiles.Add(Path.Combine(EpubContentFolder, href));
 			}
-			var audioItems = _opfDocument.SelectNodes("/o:package/o:manifest/o:item[starts-with(@media-type,'audio/')]", _opfNsmgr);
-			foreach (var node in audioItems)
-			{
-				var audio = node as XmlElement;
-				var href = audio.GetAttribute("href");
-				AudioFiles.Add(Path.Combine(epubFolder, contentFolder, href));
-			}
+			//var audioItems = _opfDocument.SelectNodes("/o:package/o:manifest/o:item[starts-with(@media-type,'audio/')]", _opfNsmgr);
+			//foreach (var node in audioItems)
+			//{
+			//	var audio = node as XmlElement;
+			//	var href = audio.GetAttribute("href");
+			//	AudioFiles.Add(Path.Combine(EpubContentFolder, href));
+			//}
 			var videoItems = _opfDocument.SelectNodes("/o:package/o:manifest/o:item[starts-with(@media-type,'video/')]", _opfNsmgr);
 			foreach (var node in videoItems)
 			{
 				var video = node as XmlElement;
 				var href = video.GetAttribute("href");
-				VideoFiles.Add(Path.Combine(epubFolder, contentFolder, href));
+				VideoFiles.Add(Path.Combine(EpubContentFolder, href));
 			}
 			var smilItems = _opfDocument.SelectNodes("/o:package/o:manifest/o:item[@media-type='application/smil+xml']", _opfNsmgr);
 			foreach (var node in smilItems)
 			{
 				var smil = node as XmlElement;
 				var href = smil.GetAttribute("href");
-				SmilFiles.Add(smil.GetAttribute("id"), new SmilFileData(Path.Combine(epubFolder, contentFolder, href)));
+				SmilFiles.Add(smil.GetAttribute("id"), new SmilFileData(Path.Combine(EpubContentFolder, href)));
 			}
 			var sourceItem = _opfDocument.SelectSingleNode("/o:package/o:metadata/dc:source", _opfNsmgr);
 			if (sourceItem != null)
@@ -146,7 +148,7 @@ namespace RoseGarden
 				RightsText = rightsItem.InnerText;
 		}
 
-		private string GetOpfPath(string epubFolder)
+		static internal string GetOpfPath(string epubFolder)
 		{
 			var metaPath = Path.Combine(epubFolder, "META-INF", "container.xml");
 			var metaXml = File.ReadAllText(metaPath);
