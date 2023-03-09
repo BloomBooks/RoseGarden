@@ -19,6 +19,7 @@ namespace RoseGarden
 		XmlDocument _smilDocument;
 		XmlNamespaceManager _opsNsmgr;
 		public Dictionary<string, SmilPar> SmilPars = new Dictionary<string,SmilPar>();
+		public Dictionary<string, ClipBounds> FileClipBounds = new Dictionary<string, ClipBounds>();
 
 		public SmilFileData(string smilFilePath)
 		{
@@ -41,12 +42,44 @@ namespace RoseGarden
 					par.AudioClipStart = audioNode.GetOptionalStringAttribute("clipBegin", null);
 					par.AudioClipEnd = audioNode.GetOptionalStringAttribute("clipEnd", null);
 					SmilPars.Add(par.TextLink, par);
+					if (!String.IsNullOrEmpty(par.AudioFileName) &&
+						!String.IsNullOrEmpty(par.AudioClipStart) && Double.TryParse(par.AudioClipStart, out double start) &&
+						!String.IsNullOrEmpty(par.AudioClipEnd) && Double.TryParse(par.AudioClipStart, out double end))
+					{
+						if (FileClipBounds.TryGetValue(par.AudioFileName, out var bounds))
+						{
+							if (start < bounds.Start)
+							{
+								bounds.Start = start;
+								bounds.InitialClipStart = par.AudioClipStart;
+							}
+							if (end > bounds.End)
+							{
+								bounds.End = end;
+								bounds.FinalClipEnd = par.AudioClipEnd;
+							}
+						}
+						else
+						{
+							FileClipBounds.Add(par.AudioFileName,
+								new ClipBounds {InitialClipStart=par.AudioClipStart, FinalClipEnd=par.AudioClipEnd, Start=start, End=end});
+						}
+
+					}
 				}
 			}
 		}
 	}
 
-	public struct SmilPar
+	public class ClipBounds
+	{
+		public string InitialClipStart;
+		public string FinalClipEnd;
+		public double Start;
+		public double End;
+	}
+
+	public class SmilPar
 	{
 		public string TextLink;
 		public string AudioFileName;
