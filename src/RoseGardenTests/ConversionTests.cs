@@ -50,6 +50,9 @@ namespace RoseGardenTests
 		public void TestEpubMetadataGetOpfPath()
 		{
 			var epubPath1 = "/home/steve/test/epubs/This is a test";
+			if (Environment.OSVersion.Platform == PlatformID.Win32NT)
+				epubPath1 = epubPath1.Replace("/", "\\");
+
 			var metaXml1 = @"<?xml version=""1.0"" encoding=""UTF-8""?>
 <container xmlns=""urn:oasis:names:tc:opendocument:xmlns:container"" version=""1.0"">
    <rootfiles>
@@ -79,6 +82,11 @@ namespace RoseGardenTests
 		{
 			var epubPath1 = "/home/steve/test/epubs/Test";
 			var opfPath1 = "/home/steve/test/epubs/Test/content/book.opf";
+			if (Environment.OSVersion.Platform == PlatformID.Win32NT)
+			{
+				epubPath1 = epubPath1.Replace("/", "\\");
+				opfPath1 = opfPath1.Replace("/", "\\");
+			}
 
 			// SUT
 			var epubMeta = new EpubMetadata(epubPath1, opfPath1, _opfXml);

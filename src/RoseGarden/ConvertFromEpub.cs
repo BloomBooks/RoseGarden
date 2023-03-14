@@ -4,10 +4,12 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Drawing;
+using System.Drawing.Printing;
 using System.IO;
 using System.IO.Compression;
 using System.Linq;
 using System.Reflection;
+using System.Runtime.InteropServices;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.RegularExpressions;
@@ -17,6 +19,7 @@ using RoseGarden.Parse;
 using RoseGarden.Parse.Model;
 using SIL.Windows.Forms.ClearShare;
 using SIL.Xml;
+using static RoseGarden.OpdsClient;
 
 namespace RoseGarden
 {
@@ -129,14 +132,19 @@ namespace RoseGarden
 			return 0;
 		}
 
-		internal void ChangePagesToLandscape()
+		string _currentLayout = "A5Portrait";	// default loaded with .htm template
+		internal void UpdatePageLayout()
 		{
+			var newLayout = _options.GetPageLayout();
+			if (newLayout == _currentLayout)
+				return;
 			foreach (var page in _templatePages)
 			{
 				var classes = page.GetAttribute("class");
-				var newClasses = classes.Replace("A5Portrait", "A5Landscape");
+				var newClasses = classes.Replace(_currentLayout, newLayout);
 				page.SetAttribute("class", newClasses);
 			}
+			_currentLayout = newLayout;
 		}
 
 		/// <summary>
@@ -159,7 +167,7 @@ namespace RoseGarden
 			var allValid = true;
 			if (_options.UseLandscape && _options.UsePortrait)
 			{
-				Console.WriteLine("--portrait and --landscape cannot be used together.  --landscape is the default for books with pictures on most pages and limited text.  --portrait is the default otherwise.");
+				Console.WriteLine("ERROR: --portrait and --landscape cannot be used together.  --landscape is the default for books with pictures on most pages and limited text.  --portrait is the default otherwise.");
 				allValid = false;
 			}
 			if (String.IsNullOrWhiteSpace(_options.UploadUser) || String.IsNullOrWhiteSpace(_options.UploadPassword))
@@ -174,6 +182,57 @@ namespace RoseGarden
 					Console.WriteLine("WARNING: without a user name (-U/--user) and password (-P/--password), RoseGarden cannot guarantee maintaining the same book instance id for books that have already been uploaded.  These values may be supplied by the RoseGardenUserName and RoseGardenUserPassword environment variables.");
 				}
 			}
+			// normalize Capitalization or complain if invalid
+			if (String.IsNullOrEmpty(_options.PageSize))
+			{
+				_options.PageSize = "A5";
+				return allValid;
+			}
+			switch (_options.PageSize.ToLowerInvariant())
+			{
+				case "a3":
+					_options.PageSize = "A3";
+					break;
+				case "a4":
+					_options.PageSize = "A4";
+					break;
+				case "a5":
+					_options.PageSize = "A5";
+					break;
+				case "a6":
+					_options.PageSize = "A6";
+					break;
+				case "b5":
+					_options.PageSize = "B5Portrait";
+					break;
+				case "letter":
+					_options.PageSize = "Letter";
+					break;
+				case "halfletter":
+					_options.PageSize = "HalfLetter";
+					break;
+				case "quarterletter":
+					_options.PageSize = "QuarterLetter";
+					break;
+				case "legal":
+					_options.PageSize = "Legal";
+					break;
+				case "device16x9":
+					_options.PageSize = "Device16x9";
+					break;
+				case "uscomic":
+					_options.PageSize = "USComicPortrait";
+					break;
+				case "13cm":
+				case "cm13":
+					_options.PageSize = "Cm13Landscape";
+					break;
+				default:
+					Console.WriteLine("ERROR: Invalid --size value: \"{0}\"", _options.PageSize);
+					allValid = false;
+					break;
+			}
+
 			return allValid;
 		}
 
@@ -328,8 +387,7 @@ namespace RoseGarden
 			var pagesFile = Path.Combine(Path.GetDirectoryName(location), "Resources", "Pages.xml");
 			_templateBook.Load(pagesFile);
 			_templatePages = _templateBook.SelectNodes("//div[contains(@class,'bloom-page')]").Cast<XmlElement>().ToList();
-			if (_options.UseLandscape)
-				ChangePagesToLandscape();
+			UpdatePageLayout();
 		}
 
 		internal string ForceGoodLanguageCode()
@@ -451,18 +509,6 @@ namespace RoseGarden
 					Console.WriteLine("WARNING: Overwriting {0}: image may be used more than once, or may be different!", destPath);
 				File.Copy(imageFile, destPath, true);
 			}
-			//if (_epubMetaData.AudioFiles.Count > 0)
-			//{
-			//	var destFolder = Path.Combine(_bookFolder, "audio");
-			//	Directory.CreateDirectory(destFolder);
-			//	foreach (var audioFile in _epubMetaData.AudioFiles)
-			//	{
-			//		var destPath = Path.Combine(destFolder, Path.GetFileName(audioFile));
-			//		if (File.Exists(destPath))
-			//			Console.WriteLine("WARNING: Overwriting {0}: audio file may be used more than once, or may be different!", destPath);
-			//		File.Copy(audioFile, destPath, true);
-			//	}
-			//}
 			if (_epubMetaData.VideoFiles.Count > 0)
 			{
 				var destFolder = Path.Combine(_bookFolder, "video");
@@ -605,7 +651,7 @@ namespace RoseGarden
 
 		private void AdjustLayoutIfNeeded()
 		{
-			if (_options.UsePortrait || _options.UseLandscape)
+			if (_options.UsePortrait || _options.UseLandscape || _options.PageSize != "A5")
 				return;     // user specifically demanded a particular layout
 			for (int pageNumber = 1; pageNumber < _epubMetaData.PageFiles.Count; ++pageNumber)
 				ScanPageForMetrics(pageNumber);
@@ -639,7 +685,7 @@ namespace RoseGarden
 				if (_options.Verbose)
 					Console.WriteLine("INFO: setting book layout to landscape for {0}", _epubMetaData.Title);
 				_options.UseLandscape = true;
-				ChangePagesToLandscape();
+				UpdatePageLayout();
 			}
 			if (_options.VeryVerbose)
 			{
@@ -1024,11 +1070,19 @@ namespace RoseGarden
 				}
 				if (skippingCircularFLO)
 					continue;
+				if (child is XmlElement)
+				{
+					var elem = child as XmlElement;
+					var classes = elem.GetOptionalStringAttribute("class", "").Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
+					if (classes.Length > 0 && classes.Contains("Page-number"))
+						continue;
+				}
 				if (child.Name == "img")
 				{
 					++imageCount;
-					var imageFile = (child as XmlElement).GetAttribute("src");
-					imageFile = Path.GetFileName(imageFile);	// don't want leading image/ or images/
+					var src = (child as XmlElement).GetAttribute("src");
+					var imageFile = Path.GetFileName(src);  // don't want leading image/ or images/
+					TrimImageIfNeeded(src, imageFile);
 					// cover image always comes first
 					if (imageCount == 1)
 						SetCoverImage(imageFile);
@@ -1051,7 +1105,7 @@ namespace RoseGarden
 						titleSet = SetTitle(child, titleBldr);
 					}
 				}
-				else if (child.Name == "div")
+				else if (child.Name == "div" || child.Name == "section")
 				{
 					ProcessCoverContent(ref titleSet, ref authorEtcSet, ref imageCount, titleBldr, child.ChildNodes.Cast<XmlNode>());
 				}
@@ -1062,7 +1116,7 @@ namespace RoseGarden
 				}
 				else
 				{
-					Console.WriteLine("WARNING: UNEXPECTED ITEM IN THE FIRST (COVER) PAGE: {0} / \"{1}\"", child.NodeType.ToString(), child.OuterXml);
+					Console.WriteLine("WARNING: UNEXPECTED ITEM IN THE FIRST (COVER) PAGE: {0} / \"{1}\"", child.Name, child.OuterXml);
 				}
 			}
 		}
@@ -1489,6 +1543,57 @@ namespace RoseGarden
 			}
 		}
 
+		private bool TrimImageIfNeeded(string src, string imageName)
+		{
+			// We do this only for images actually stored in the book since it's expensive.
+			if (!_options.TrimImages || Path.GetExtension(imageName).ToLowerInvariant() != ".png")
+				return false;
+
+			if (src.StartsWith("../"))
+				src = src.Substring(3);
+			var source = Path.Combine(_epubMetaData.EpubContentFolder, src);
+			var dest = Path.Combine(_bookFolder, imageName);
+
+			var gm = "gm";
+			if (File.Exists(Path.Combine(_options.BloomFolder, "gm", "gm.exe")))
+				gm = Path.Combine(_options.BloomFolder, "gm", "gm.exe");
+			else if (File.Exists(Path.Combine(_options.BloomFolder, "Debug", "gm", "gm.exe")))
+				gm = Path.Combine(_options.BloomFolder, "Debug", "gm", "gm.exe");
+			else if (File.Exists(Path.Combine(_options.BloomFolder, "Release", "gm", "gm.exe")))
+				gm = Path.Combine(_options.BloomFolder, "Release", "gm", "gm.exe");
+			string arguments = $"convert -trim \"{source}\" \"{dest}\"";
+			var proc = new Process
+			{
+				StartInfo =
+					{
+						FileName = gm,
+						Arguments = arguments,
+						UseShellExecute = false, // enables CreateNoWindow
+						CreateNoWindow = true, // don't need a DOS box
+						RedirectStandardOutput = true,
+						RedirectStandardError = true,
+					}
+			};
+			proc.Start();
+			proc.WaitForExit();
+			if (proc.ExitCode != 0)
+			{
+				Console.WriteLine("WARNING: {0} {1} failed", gm, arguments);
+				Console.WriteLine("##########################################################");
+				Console.WriteLine("STDOUT={0}", proc.StandardOutput.ReadToEnd());
+				Console.WriteLine("##########################################################");
+				Console.WriteLine("STDERR={0}", proc.StandardError.ReadToEnd());
+				Console.WriteLine("##########################################################");
+				// Failed conversion may have damaged the file, so copy it again.
+				File.Copy(source, dest, true);
+				return false;
+			}
+			if (_options.Verbose)
+				Console.WriteLine("INFO: {0} {1} succeeded", gm, arguments);
+			return true;
+
+		}
+
 		private bool ExtractAudioCopy(string source, string dest, string clipBegin, string clipEnd)
 		{
 			var ffmpeg = "ffmpeg";
@@ -1557,11 +1662,13 @@ namespace RoseGarden
 				return id;
 		}
 
+		bool _mayHaveSpuriousImages = false;
+
 		/// <summary>
 		/// One epub I've seen has multiple layers of &lt;b&gt; element enclosing a &lt;p&gt; element.  This seems rather
 		/// wierd, but let's try to cope with such situations without propagating *all* of the badness.
 		/// </summary>
-		private static void ExtractTextAndImageNodes(XmlElement body, List<XmlNode> rawNodes, ref int imageCount, ref int textCount,
+		private void ExtractTextAndImageNodes(XmlElement body, List<XmlNode> rawNodes, ref int imageCount, ref int textCount,
 			ref int videoCount, ref string firstChild, ref string prevChild)
 		{
 			var skippingCircularFLO = false;
@@ -1570,6 +1677,7 @@ namespace RoseGarden
 				if (child.NodeType == XmlNodeType.Comment && child.OuterXml == "<!--CircularFLO Body-->")
 				{
 					skippingCircularFLO = true;
+					_mayHaveSpuriousImages = true;
 					continue;
 				}
 				if (child.NodeType == XmlNodeType.Comment && child.OuterXml == "<!--END CircularFLO Body-->")
@@ -1581,8 +1689,17 @@ namespace RoseGarden
 					continue;
 				if (child is XmlWhitespace)
 					continue;
+				if (child is XmlElement)
+				{
+					var elem = child as XmlElement;
+					var classes = elem.GetOptionalStringAttribute("class", "").Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
+					if (classes.Contains("Page-number"))
+						continue;
+				}
 				if (child.Name == "img")
 				{
+					if (IsSpuriousImage(child))
+						continue;
 					++imageCount;
 					if (String.IsNullOrEmpty(firstChild))
 						firstChild = child.Name;
@@ -1605,7 +1722,8 @@ namespace RoseGarden
 						++textCount;
 					prevChild = "p";
 				}
-				else if (child.Name == "b" || child.Name == "i" || child.Name == "strong" || child.Name == "em" || child.Name == "div")
+				else if (child.Name == "b" || child.Name == "i" || child.Name == "strong" || child.Name == "em" ||
+						child.Name == "div" || child.Name == "section" || child.Name == "h1")
 				{
 					// recurse!
 					ExtractTextAndImageNodes(child as XmlElement, rawNodes, ref imageCount, ref textCount, ref videoCount,
@@ -1617,11 +1735,29 @@ namespace RoseGarden
 					// Should we pay attention to <br> to create paragraphs instead of every text node becoming a paragraph?
 					// I think the <br> element breaks up the text nodes anyway so its effect is implicit.
 					if (child.Name != "br")
-						Console.WriteLine("WARNING: UNEXPECTED ELEMENT IN EPUB PAGE: {0} / \"{1}\"", child.NodeType.ToString(), child.OuterXml);
+						Console.WriteLine("WARNING: UNEXPECTED ELEMENT IN EPUB PAGE: {0} / \"{1}\"", child.Name, child.OuterXml);
 					continue;
 				}
 				rawNodes.Add(child);
 			}
+		}
+
+		bool IsSpuriousImage(XmlNode img)
+		{
+			if (_mayHaveSpuriousImages && String.IsNullOrEmpty(img.GetStringAttribute("alt")))
+			{
+				var src = img.GetStringAttribute("src");
+				var bareName = Path.GetFileNameWithoutExtension(src);
+				if (String.IsNullOrEmpty(bareName))
+					return true;   // If there's no src attribute value, this is really bogus.
+				if (bareName.Length < 4 && Int32.TryParse(bareName, out int number))
+				{
+					if (_options.VeryVerbose)
+						Console.WriteLine("INFO: Ignoring image file {0}", src);
+					return true;   // If there's no alt value and the filename is a small number, it's spurious for Bloom import.
+				}
+			}
+			return false;
 		}
 
 		/// <summary>
@@ -1698,12 +1834,13 @@ namespace RoseGarden
 			var src = img.GetAttribute("src");
 			if (imageIdx < images.Count)
 			{
-				src = Path.GetFileName(src);	// don't want leading image/ or images/
-				images[imageIdx].SetAttribute("src", src);
+				var imageName = Path.GetFileName(src);  // don't want leading image/ or images/
+				TrimImageIfNeeded(src, imageName);
+				images[imageIdx].SetAttribute("src", imageName);
 				if (String.IsNullOrWhiteSpace(alt))
 					images[imageIdx].SetAttribute("alt", alt);
 				else
-					images[imageIdx].SetAttribute("alt", src);
+					images[imageIdx].SetAttribute("alt", imageName);
 				if (!String.IsNullOrWhiteSpace(alt) && !String.IsNullOrEmpty(parentId))
 				{
 					AddImageDescriptionAndAudio(images[imageIdx], alt, parentId, pageFileName);
@@ -1712,26 +1849,27 @@ namespace RoseGarden
 			}
 			if (images.Count == 1)
 			{
-				src = Path.GetFileName(src);    // don't want leading image/ or images/
-				var newSrcName = Path.GetFileNameWithoutExtension(src);
+				var imageName = Path.GetFileName(src);    // don't want leading image/ or images/
+				var newSrcName = Path.GetFileNameWithoutExtension(imageName);
 				var oldSrc = images[0].GetAttribute("src");
 				var oldAlt = images[0].GetAttribute("alt");
 				var oldSrcName = Path.GetFileNameWithoutExtension(oldSrc);
 				if ((Int32.TryParse(newSrcName, out int newNumber) && !Int32.TryParse(oldSrcName, out int oldNumber)) ||
-					(oldAlt??"").Length > (alt??"").Length)
+					(oldAlt ?? "").Length > (alt ?? "").Length)
 				{
 					// keep image with an alt value in preference to one without (or longest alt value anyway)
 					// keep more complex image filename if this one is purely numeric
 					if (_options.VeryVerbose)
-						Console.WriteLine("INFO: retaining image file {0} in preference to {1}", oldSrc, src);
+						Console.WriteLine("INFO: retaining image file {0} in preference to {1}", oldSrc, imageName);
 					return;
 				}
-				Console.WriteLine("INFO: replacing image file ({0}) with {1}", oldSrc, src);
-				images[0].SetAttribute("src", src);
+				Console.WriteLine("INFO: replacing image file ({0}) with {1}", oldSrc, imageName);
+				TrimImageIfNeeded(src, imageName);
+				images[0].SetAttribute("src", imageName);
 				if (String.IsNullOrWhiteSpace(alt))
 					images[0].SetAttribute("alt", alt);
 				else
-					images[0].SetAttribute("alt", src);
+					images[0].SetAttribute("alt", imageName);
 				if (!String.IsNullOrWhiteSpace(alt) && !String.IsNullOrEmpty(parentId))
 				{
 					AddImageDescriptionAndAudio(images[0], alt, parentId, pageFileName);
@@ -1829,7 +1967,9 @@ namespace RoseGarden
 			var epubSource = video.SelectSingleNode("./x:source", nsmgr);
 			var epubSrc = epubSource?.GetOptionalStringAttribute("src", null);
 			var videoType = epubSource?.GetOptionalStringAttribute("type", null);
-			if (epubSrc == null || videoType != "video/mp4")
+			// I've seen <video src="../Video/foo.mp4" ...>
+			var videoSrc = video.GetOptionalStringAttribute("src", null);
+			if ((videoSrc == null || Path.GetExtension(videoSrc).ToLowerInvariant() != ".mp4") && (epubSrc == null || videoType != "video/mp4"))
 			{
 				Console.WriteLine("WARNING: invalid video element in epub: {0}", video.OuterXml);
 				return;
@@ -1837,7 +1977,38 @@ namespace RoseGarden
 			if (videoIdx < videos.Count)
 			{
 				var bloomSource = videos[videoIdx].SelectSingleNode("./source") as XmlElement;
-				bloomSource?.SetAttribute("src", epubSrc);
+				var videoFileName = "";
+				if (epubSrc != null)
+				{
+					bloomSource?.SetAttribute("src", epubSrc);
+					videoFileName = Path.GetFileName(epubSrc);
+				}
+				else
+				{
+					if (videoSrc.StartsWith("../"))
+						videoSrc = videoSrc.Substring(3);
+					bloomSource?.SetAttribute("src", videoSrc.ToLowerInvariant());
+					videoFileName = Path.GetFileName(videoSrc);
+				}
+				// Preserve a poster file if one exists.
+				// This doesn't seem to work inside Bloom, and the file may not be copied
+				// by current ePUB and BloomPub publishing code.  It doesn't even work
+				// with the original books in the eKitabu reader as far as I can tell.
+				//var poster = video.GetOptionalStringAttribute("poster", "");
+				//if (!String.IsNullOrEmpty(poster))
+				//{
+				//	var posterFile = Path.GetFileName(poster);
+				//	var srcPath = Path.Combine(_bookFolder, posterFile);
+				//	if (File.Exists(srcPath))
+				//	{
+				//		var ext = Path.GetExtension(posterFile);
+				//		posterFile = Path.ChangeExtension(videoFileName, ext);
+				//		var destPath = Path.Combine(_bookFolder, "video", posterFile);
+				//		File.Move(srcPath, destPath);
+				//		videos[videoIdx].SetAttribute("poster", $"video/{posterFile}");
+				//		videos[videoIdx].SetAttribute("preload", "metadata");
+				//	}
+				//}
 			}
 			else
 			{
@@ -1867,7 +2038,17 @@ namespace RoseGarden
 					var xml = RemoveXmlnsAttribsFromXmlString(inner);
 					innerXmlBldr.Insert(0, Environment.NewLine);
 					innerXmlBldr.Insert(0, xml);
-					div.InnerXml = innerXmlBldr.ToString().Trim();
+					try
+					{
+						div.InnerXml = innerXmlBldr.ToString().Trim();
+					}
+					catch (Exception ex)
+					{
+						Console.WriteLine("Caught exception: ", ex);
+						Console.WriteLine("Tried to set \"{0}\" as inner XML", innerXmlBldr);
+						Console.WriteLine("Original inner = \"{0}\"", inner);
+						Console.WriteLine("Parent div = {0}", div.OuterXml);
+					}
 				}
 				else
 				{
@@ -1988,7 +2169,8 @@ namespace RoseGarden
 
 		static public string RemoveXmlnsAttribsFromXmlString(string xml)
 		{
-			return Regex.Replace(xml, " xmlns[:a-z]*=[\"'][^\"']*[\"']", "", RegexOptions.CultureInvariant, Regex.InfiniteMatchTimeout);
+			var newXml = Regex.Replace(xml, " xmlns[:a-z]*=[\"'][^\"']*[\"']", "", RegexOptions.CultureInvariant, Regex.InfiniteMatchTimeout);
+			return newXml.Replace("epub:", "");
 		}
 
 		private bool ConvertEndCreditsPage(XmlElement body, XmlNamespaceManager nsmgr, int pageNumber)
@@ -2892,7 +3074,7 @@ namespace RoseGarden
 		{
 			metadata.CollectionName = $"{_publisher} / {_epubMetaData.Title}";
 			// An alternative for the CollectionUri would be the link to the epub from the opds catalog entry.
-			switch (_publisher.ToLowerInvariant())
+			switch (_publisher?.ToLowerInvariant())
 			{
 				case "3asafeer":	// not in StoryWeaver
 					metadata.CollectionUri = "https://3asafeer.com/";

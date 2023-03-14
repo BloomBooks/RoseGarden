@@ -54,7 +54,7 @@ namespace RoseGardenTests
 			convert._templateBook.LoadXml(_pagesFileXhtml);
 			convert._templatePages = convert._templateBook.SelectNodes("//div[contains(@class,'bloom-page')]").Cast<XmlElement>().ToList();
 			if (opts.UseLandscape)
-				convert.ChangePagesToLandscape();
+				convert.UpdatePageLayout();
 
 			if (!String.IsNullOrWhiteSpace(opdsXml))
 				convert.LoadOpdsDataAndSetPublisher(opdsXml);

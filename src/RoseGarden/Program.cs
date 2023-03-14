@@ -1,13 +1,16 @@
 ﻿// Copyright (c) 2020 SIL International
 // This software is licensed under the MIT License (http://opensource.org/licenses/MIT)
 using System;
+using System.Linq;
 using System.Reflection;
 using System.Text.RegularExpressions;
 using CommandLine;
+using SIL.Extensions;
 
 namespace RoseGarden
 {
-#region Command line option classes
+	#region Command line option classes
+	// Note that CommandLine requires options to be properties (get/set), not fields.
 	public class OpdsOptions
 	{
 		[Option('c', "catalog", Required = false, HelpText = "Catalog file: output if either -u or -s is provided, input if neither is given.")]
@@ -90,17 +93,39 @@ namespace RoseGarden
 		[Option( "portrait", Required = false, HelpText = "Lay out the book in portrait format.  (This is the default behavior.)")]
 		public bool UsePortrait { get; set; }
 
+		[Option("trim", Required = false, HelpText = "Trim (transparent or solid color) borders from images")]
+		public bool TrimImages { get; set; }
+
 		[Option('U', "user", Required = false, HelpText = "Bloomlibrary user for the upload")]
 		public string UploadUser { get; set; }
 
 		[Option('P', "password", Required = false, HelpText = "Password for the given Bloomlibrary user")]
 		public string UploadPassword { get; set; }
 
+		[Option('s', "size", Required = false, HelpText = "Page size name such as A4, Letter, or Device16x9.  (default is A5)", Default = "A5")]
+		public string PageSize { get; set; }
+
 		[Option('v', "verbose", Required = false, HelpText = "Write verbose progress messages to the console.")]
 		public bool Verbose { get; set; }
 
 		[Option('V', "veryverbose", Required = false, HelpText = "Write very verbose progress messages to the console.")]
 		public bool VeryVerbose { get; set; }
+
+		public string GetPageLayout()
+		{
+			switch (PageSize)
+			{
+				case "B5Portrait":
+				case "USComicPortrait":
+				case "Cm13Landscape":
+					return PageSize;
+				default:
+					if (UseLandscape)
+						return $"{PageSize}Landscape";
+					else
+						return $"{PageSize}Portrait";
+			}
+		}
 	}
 
 	[Verb("upload", HelpText = "Upload one or more converted books to bloomlibrary.org")]
@@ -181,7 +206,10 @@ namespace RoseGarden
 #region Main program methods
 		static int Main(string[] args)
 		{
-			return Parser.Default.ParseArguments<BatchOptions, ConvertOptions, FetchOptions, FixTableOptions, UploadOptions>(args)
+			var start = DateTime.Now;
+			if (args.Contains("-v") || args.Contains("--verbose") || args.Contains("-V") || args.Contains("--veryverbose"))
+				Console.WriteLine("RoseGarden {0} ", String.Join(" ", args));
+			var retval = Parser.Default.ParseArguments<BatchOptions, ConvertOptions, FetchOptions, FixTableOptions, UploadOptions>(args)
 				.MapResult(
 					(BatchOptions opts) => BatchAndReturnExitCode(opts),
 					(ConvertOptions opts) => ConvertAndReturnExitCode(opts),
@@ -189,6 +217,9 @@ namespace RoseGarden
 					(FixTableOptions opts) => FixTableAndReturnExitCode(opts),
 					(UploadOptions opts) => UploadAndReturnExitCode(opts),
 					errs => 1);
+			var end = DateTime.Now;
+			Console.WriteLine("RoseGarden finished {0} in {1}", retval==0?"successfully":"with an error", end - start);
+			return retval;
 		}
 
 		private static int FetchAndReturnExitCode(FetchOptions opts)
