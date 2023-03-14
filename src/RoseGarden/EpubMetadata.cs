@@ -138,7 +138,7 @@ namespace RoseGarden
 			{
 				Publisher = publisherItem.InnerText;
 			}
-			else if (Source.StartsWith(Title))
+			else if (Source != null && Source.StartsWith(Title))
 			{
 				var pub = Source.Substring(Title.Length);
 				if (pub.StartsWith(",") || pub.StartsWith(":") || pub.StartsWith(";"))

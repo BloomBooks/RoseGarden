@@ -183,6 +183,11 @@ namespace RoseGarden
 				}
 			}
 			// normalize Capitalization or complain if invalid
+			if (String.IsNullOrEmpty(_options.PageSize))
+			{
+				_options.PageSize = "A5";
+				return allValid;
+			}
 			switch (_options.PageSize.ToLowerInvariant())
 			{
 				case "a3":
