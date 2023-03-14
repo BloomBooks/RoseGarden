@@ -114,21 +114,14 @@ namespace RoseGarden
 			{
 				var image = node as XmlElement;
 				var href = image.GetAttribute("href");
-				ImageFiles.Add(Path.Combine(EpubContentFolder, href));
+				ImageFiles.Add(GetSanitizedFilePath(href));
 			}
-			//var audioItems = _opfDocument.SelectNodes("/o:package/o:manifest/o:item[starts-with(@media-type,'audio/')]", _opfNsmgr);
-			//foreach (var node in audioItems)
-			//{
-			//	var audio = node as XmlElement;
-			//	var href = audio.GetAttribute("href");
-			//	AudioFiles.Add(Path.Combine(EpubContentFolder, href));
-			//}
 			var videoItems = _opfDocument.SelectNodes("/o:package/o:manifest/o:item[starts-with(@media-type,'video/')]", _opfNsmgr);
 			foreach (var node in videoItems)
 			{
 				var video = node as XmlElement;
 				var href = video.GetAttribute("href");
-				VideoFiles.Add(Path.Combine(EpubContentFolder, href));
+				VideoFiles.Add(GetSanitizedFilePath(href));
 			}
 			var smilItems = _opfDocument.SelectNodes("/o:package/o:manifest/o:item[@media-type='application/smil+xml']", _opfNsmgr);
 			foreach (var node in smilItems)
@@ -142,10 +135,32 @@ namespace RoseGarden
 				Source = sourceItem.InnerText;
 			var publisherItem = _opfDocument.SelectSingleNode("/o:package/o:metadata/dc:publisher", _opfNsmgr);
 			if (publisherItem != null)
+			{
 				Publisher = publisherItem.InnerText;
+			}
+			else if (Source.StartsWith(Title))
+			{
+				var pub = Source.Substring(Title.Length);
+				if (pub.StartsWith(",") || pub.StartsWith(":") || pub.StartsWith(";"))
+					pub = pub.Substring(1);
+				Publisher = pub.Trim();		// possibly better than nothing...
+			}
 			var rightsItem = _opfDocument.SelectSingleNode("/o:package/o:metadata/dc:rights", _opfNsmgr);
 			if (rightsItem != null)
 				RightsText = rightsItem.InnerText;
+		}
+
+		private string GetSanitizedFilePath(string href)
+		{
+			var path = Path.Combine(EpubContentFolder, href);
+			if (!File.Exists(path))
+			{
+				
+				var path1 = System.Net.WebUtility.UrlDecode(path);
+				if (File.Exists(path1))
+					return path1;
+			}
+			return path;
 		}
 
 		static internal string GetOpfPath(string epubFolder)
