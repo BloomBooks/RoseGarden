@@ -27,17 +27,17 @@ namespace RoseGarden.Parse
 		{
 		}
 
-		public ParseException(IRestResponse response, string message)
+		public ParseException(RestResponse response, string message)
 			: base(message + GetPrettyPrintResponse(response))
 		{
 		}
 
-		public ParseException(IRestResponse response, string messageFormat, params object[] args)
+		public ParseException(RestResponse response, string messageFormat, params object[] args)
 			: base(String.Format(messageFormat, args) + GetPrettyPrintResponse(response))
 		{
 		}
 
-		private static string GetPrettyPrintResponse(IRestResponse response)
+		private static string GetPrettyPrintResponse(RestResponse response)
 		{
 			if (response == null)
 			{

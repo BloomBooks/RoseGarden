@@ -144,7 +144,7 @@ namespace RoseGarden.Parse
 			// Which means that having the password in plaintext in the URL (which is at the HTTP layer) isn't immediately terrible.
 			// Other than the fact that the server could very well want to log every URL it processes into a log... or print it out in an exception...
 			// Or that you don't need https for localhost..
-			var request = MakeRequest("login", Method.GET);
+			var request = MakeRequest("login", Method.Get);
 			request.AddParameter("username", _user);
 			request.AddParameter("password", _password);
 
@@ -189,10 +189,10 @@ namespace RoseGarden.Parse
 		/// <param name="updateJson">The JSON of the object to update. It doesn't need to be the full object, just of the fields to update</param>
 		/// <exception>Throws an application exception if the request fails</exception>
 		/// <returns>The response after executing the request</returns>
-		internal IRestResponse UpdateObject(string className, string objectId, string updateJson)
+		internal RestResponse UpdateObject(string className, string objectId, string updateJson)
 		{
 			EnsureLogIn();
-			var request = MakeRequest($"classes/{className}/{objectId}", Method.PUT);
+			var request = MakeRequest($"classes/{className}/{objectId}", Method.Put);
 			AddJsonToRequest(request, updateJson);
 
 			var response = this.Client.Execute(request);
@@ -207,17 +207,17 @@ namespace RoseGarden.Parse
 		/// <param name="className">The name of the class (table). Do not prefix it with "classes/".</param>
 		/// <param name="updateJson">Full json of the object to create.</param>
 		/// <returns>The response after executing the request</returns>
-		internal IRestResponse CreateObject(string className, string updateJson)
+		internal RestResponse CreateObject(string className, string updateJson)
 		{
 			EnsureLogIn();
-			var request = MakeRequest($"classes/{className}", Method.POST);
+			var request = MakeRequest($"classes/{className}", Method.Post);
 			AddJsonToRequest(request, updateJson);
 			var response = this.Client.Execute(request);
 			CheckForResponseError(response, "Update failed.\nRequest.Json: {0}", updateJson);
 			return response;
 		}
 
-		private void CheckForResponseError(IRestResponse response, string exceptionInfoFormat, params object[] args)
+		private void CheckForResponseError(RestResponse response, string exceptionInfoFormat, params object[] args)
 		{
 			if (!IsResponseCodeSuccess(response.StatusCode))
 			{
@@ -235,7 +235,7 @@ namespace RoseGarden.Parse
 		/// </summary>
 		internal IEnumerable<Book> GetBooks(string whereCondition = "", IEnumerable<string> fieldsToDereference = null)
 		{
-			var request = new RestRequest("classes/books", Method.GET);
+			var request = new RestRequest("classes/books", Method.Get);
 			SetCommonHeaders(request);
 			request.AddParameter("keys", "object_id,importerName,importerMajorVersion,importerMinorVersion,importedBookSourceUrl,title,authors,bookInstanceId,uploader,lastUploaded,updateSource,tags,inCirculation,publisher");
 
@@ -259,7 +259,7 @@ namespace RoseGarden.Parse
 
 		internal IEnumerable<RelatedBooks> GetRelatedBooks(string id)
 		{
-			var request = new RestRequest("classes/relatedBooks", Method.GET);
+			var request = new RestRequest("classes/relatedBooks", Method.Get);
 			SetCommonHeaders(request);
 			request.AddParameter("keys", "books");
 			request.AddParameter("where", $"{{\"books\": {{\"__type\": \"Pointer\", \"className\": \"books\", \"objectId\": \"{id}\"}} }}");
@@ -274,7 +274,7 @@ namespace RoseGarden.Parse
 		/// <typeparam name="T"></typeparam>
 		/// <param name="request">The request should not include count, limit, skip, or order fields. This method will populate those in order to provide the functionality</param>
 		/// <returns>Yields the results through an IEnumerable as needed</returns>
-		private IEnumerable<T> GetAllResults<T>(IRestRequest request)
+		private IEnumerable<T> GetAllResults<T>(RestRequest request)
 		{
 			//Console.WriteLine("DEBUG GetAllResults(): request={0}", RequestToString(request));
 			int numProcessed = 0;
@@ -323,7 +323,7 @@ namespace RoseGarden.Parse
 			while (numProcessed < totalCount);
 		}
 
-		private string RequestToString(IRestRequest request)
+		private string RequestToString(RestRequest request)
 		{
 			var bldr = new System.Text.StringBuilder();
 			if (!String.IsNullOrEmpty(request.Resource))
@@ -349,7 +349,7 @@ namespace RoseGarden.Parse
 		/// <param name="request">The object whose Parameters field will be modified</param>
 		/// <param name="parameterName">The name of the parameter</param>
 		/// <param name="parameterValue">The new value of the parameter</param>
-		public void AddOrReplaceParameter(IRestRequest request, string parameterName, string parameterValue)
+		public void AddOrReplaceParameter(RestRequest request, string parameterName, string parameterValue)
 		{
 			if (request.Parameters != null)
 			{
@@ -357,13 +357,12 @@ namespace RoseGarden.Parse
 				{
 					if (param.Name == parameterName)
 					{
-						param.Value = parameterValue;
-						return;
+						request.RemoveParameter(param);
+						break;
 					}
 				}
 			}
-
-			// At this point, indicates that no replacements were made while iterating over the params. We'll have to add it in.
+			// At this point, add it in.
 			request.AddParameter(parameterName, parameterValue);
 		}
 
