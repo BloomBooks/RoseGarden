@@ -93,6 +93,9 @@ namespace RoseGarden
 		[Option( "portrait", Required = false, HelpText = "Lay out the book in portrait format.  (This is the default behavior.)")]
 		public bool UsePortrait { get; set; }
 
+		[Option( "rmpgno", Required = false, HelpText = "Ignore a leading paragraph on each page with only a number as content.")]
+		public bool RemovePossiblePageNumbers { get; set; }
+
 		[Option("trim", Required = false, HelpText = "Trim (transparent or solid color) borders from images")]
 		public bool TrimImages { get; set; }
 
