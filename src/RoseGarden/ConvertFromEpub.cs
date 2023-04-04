@@ -241,7 +241,7 @@ namespace RoseGarden
 			string oldBookId = null;
 			if (_bloomlibraryBooks != null)
 			{
-				var link = _opdsEntry.SelectSingleNode("/a:feed/a:entry/a:link[@type='application/epub+zip' and starts-with(@rel,'http://opds-spec.org/acquisition')]", _opdsNsmgr) as XmlElement;
+				var link = _opdsEntry?.SelectSingleNode("/a:feed/a:entry/a:link[@type='application/epub+zip' and starts-with(@rel,'http://opds-spec.org/acquisition')]", _opdsNsmgr) as XmlElement;
 				if (link != null)
 				{
 					var href = link.GetAttribute("href");
@@ -1000,16 +1000,15 @@ namespace RoseGarden
 			{
 				if (_options.Verbose)
 					Console.WriteLine("INFO: Using contributor information from ePUB metadata for the front cover.");
-				// TODO: make & < and > safe for XML.
 				// TODO: Localize "Author(s):", "Illustrator(s):", etc.
 				var bldr = new StringBuilder();
 				if (_epubMetaData.Authors.Count > 0)
 				{
 					bldr.Append("<p>");
 					if (_epubMetaData.Authors.Count == 1)
-						bldr.AppendFormat("Author: {0}", _epubMetaData.Authors[0]);
+						bldr.Append(FormatAndEncode("Author: {0}", _epubMetaData.Authors[0]));
 					else
-						bldr.AppendFormat("Authors: {0}", String.Join(", ", _epubMetaData.Authors));
+						bldr.Append(FormatAndEncode("Authors: {0}", String.Join(", ", _epubMetaData.Authors)));
 					bldr.Append("</p>");
 				}
 				if (_epubMetaData.Illustrators.Count > 0)
@@ -1018,9 +1017,9 @@ namespace RoseGarden
 						bldr.AppendLine();
 					bldr.Append("<p>");
 					if (_epubMetaData.Illustrators.Count == 1)
-						bldr.AppendFormat("Illustrator: {0}", _epubMetaData.Illustrators[0]);
+						bldr.Append(FormatAndEncode("Illustrator: {0}", _epubMetaData.Illustrators[0]));
 					else
-						bldr.AppendFormat("Illustrators: {0}", String.Join(", ", _epubMetaData.Illustrators));
+						bldr.Append(FormatAndEncode("Illustrators: {0}", String.Join(", ", _epubMetaData.Illustrators)));
 					bldr.Append("</p>");
 				}
 				if (_epubMetaData.OtherCreators.Count > 0)
@@ -1029,9 +1028,9 @@ namespace RoseGarden
 						bldr.AppendLine();
 					bldr.Append("<p>");
 					if (_epubMetaData.OtherCreators.Count == 1)
-						bldr.AppendFormat("Creator: {0}", _epubMetaData.OtherCreators[0]);
+						bldr.Append(FormatAndEncode("Creator: {0}", _epubMetaData.OtherCreators[0]));
 					else
-						bldr.AppendFormat("Creators: {0}", String.Join(", ", _epubMetaData.OtherCreators));
+						bldr.Append(FormatAndEncode("Creators: {0}", String.Join(", ", _epubMetaData.OtherCreators)));
 					bldr.Append("</p>");
 				}
 				if (_epubMetaData.OtherContributors.Count > 0)
@@ -1040,9 +1039,9 @@ namespace RoseGarden
 						bldr.AppendLine();
 					bldr.Append("<p>");
 					if (_epubMetaData.OtherContributors.Count == 1)
-						bldr.AppendFormat("Contributor: {0}", _epubMetaData.OtherContributors[0]);
+						bldr.Append(FormatAndEncode("Contributor: {0}", _epubMetaData.OtherContributors[0]));
 					else
-						bldr.AppendFormat("Contributors: {0}", String.Join(", ", _epubMetaData.OtherContributors));
+						bldr.Append(FormatAndEncode("Contributors: {0}", String.Join(", ", _epubMetaData.OtherContributors)));
 					bldr.Append("</p>");
 				}
 				if (bldr.Length > 0)
@@ -1051,6 +1050,12 @@ namespace RoseGarden
 				}
 			}
 			return true;
+		}
+
+		private string FormatAndEncode(string format, string text)
+		{
+			var retval = String.Format(format, text);
+			return MakeSafeForXhtml(retval);
 		}
 
 		private void ProcessCoverContent(ref bool titleSet, ref bool authorEtcSet, ref int imageCount, StringBuilder titleBldr, IEnumerable<XmlNode> children)
@@ -1385,6 +1390,8 @@ namespace RoseGarden
 			var rawNodes = new List<XmlNode>();
 			// Summarize the page content to find an appropriate template page.
 			ExtractTextAndImageNodes(body, rawNodes, ref imageCount, ref textCount, ref videoCount, ref firstChild, ref prevChild);
+			if (_options.RemovePossiblePageNumbers)
+				RemovePossiblePageNumberParagraph(rawNodes, ref textCount, ref firstChild);
 			var templatePage = SelectTemplatePage(imageCount, textCount, videoCount, firstChild, lastChild);
 			if (templatePage == null)
 			{
@@ -1420,6 +1427,7 @@ namespace RoseGarden
 			var textGroupDivs = newPageDiv.SelectNodes(".//div[contains(@class,'bloom-translationGroup')]").Cast<XmlElement>().ToList();
 			if (rawNodes.Count > 0)
 			{
+				XmlElement divInGroup = null;
 				foreach (var node in rawNodes)
 				{
 					if (node.Name == "img")
@@ -1433,7 +1441,12 @@ namespace RoseGarden
 						innerXmlBldr.Append(FixInnerXml(node.InnerXml.Trim()));
 						innerXmlBldr.AppendLine("</p>");
 						var div = StoreAccumulatedParagraphs(textIdx, innerXmlBldr, textGroupDivs);
-						ApplyAnyAudio(div, pageFileName);
+						if (divInGroup != null && divInGroup != div)
+						{
+							Console.WriteLine("DEBUG: divInGroup != div -- we have 2 groups of paras on one page?");
+							ApplyAnyAudio(divInGroup, pageFileName);
+						}
+						divInGroup = div;
 						++textIdx;
 					}
 					else if (node.Name == "video")
@@ -1444,15 +1457,38 @@ namespace RoseGarden
 					else
 					{
 						Debug.Assert(node is XmlText, "The XmlNode has to be text if it's neither <img> nor <p>!");
-						innerXmlBldr.Append("<p>");
-						innerXmlBldr.Append(node.InnerText.Trim());
-						innerXmlBldr.AppendLine("</p>");
-						StoreAccumulatedParagraphs(textIdx, innerXmlBldr, textGroupDivs);
-						++textIdx;
+						var text = node.InnerText.Trim();
+						if (text.Length > 0)
+						{
+							innerXmlBldr.Append("<p>");
+							innerXmlBldr.Append(text);
+							innerXmlBldr.AppendLine("</p>");
+							StoreAccumulatedParagraphs(textIdx, innerXmlBldr, textGroupDivs);
+							++textIdx;
+						}
 					}
 				}
+				if (divInGroup != null)
+					ApplyAnyAudio(divInGroup, pageFileName);
 			}
 			return true;
+		}
+
+		private void RemovePossiblePageNumberParagraph(List<XmlNode> rawNodes, ref int textCount, ref string firstChild)
+		{
+			if (firstChild == "p" && rawNodes[0].Name == "p" && Int32.TryParse(rawNodes[0].InnerText, out int pageNumber))
+			{
+				rawNodes.RemoveAt(0);
+				if (_options.VeryVerbose)
+					Console.WriteLine("INFO: ignoring possible page number {0}", pageNumber);
+				// If the next node is a paragraph/text node, then textCount and firstChild stay the same.
+				if (rawNodes[0].Name == "p" || rawNodes[0] is XmlText)
+					return;
+				--textCount;
+				firstChild = rawNodes[0].Name;
+				return;
+			}
+			// Page numbers seem to come as the first element.  Let's not trying anything more aggressive for now.
 		}
 
 		private void ApplyAnyAudio(XmlElement div, string pageFileName)
@@ -1546,7 +1582,7 @@ namespace RoseGarden
 		private bool TrimImageIfNeeded(string src, string imageName)
 		{
 			// We do this only for images actually stored in the book since it's expensive.
-			if (!_options.TrimImages || Path.GetExtension(imageName).ToLowerInvariant() != ".png")
+			if (!_options.TrimImages)
 				return false;
 
 			if (src.StartsWith("../"))
@@ -2020,7 +2056,7 @@ namespace RoseGarden
 		{
 			Debug.Assert(innerXmlBldr != null && innerXmlBldr.Length > 0);
 			Debug.Assert(textGroupDivs != null && textGroupDivs.Count > 0);
-			XmlElement div = null;
+			XmlElement div;
 			if (textIdx < textGroupDivs.Count)
 			{
 				var zTemplateDiv = textGroupDivs[textIdx].SelectSingleNode("./div[contains(@class, 'bloom-editable') and @lang='z' and @contenteditable='true']") as XmlElement;
@@ -2229,7 +2265,7 @@ namespace RoseGarden
 						writtenByFmt = "<p>Written by {0}.</p>{1}";
 						break;
 				}
-				var writtenBy = String.Format(writtenByFmt, author, Environment.NewLine);
+				var writtenBy = String.Format(writtenByFmt, MakeSafeForXhtml(author), Environment.NewLine);
 				_contributionsXmlBldr.Insert(0, writtenBy);
 			}
 		}
@@ -2446,7 +2482,7 @@ namespace RoseGarden
 					// Book Dash books are shy about admitting it, but they're effectively copyright by Book Dash
 					// since they're all released under the CC BY 4.0 license.
 					string year = null;
-					var dateDiv = _opdsEntry.SelectSingleNode("/a:feed/a:entry/a:published", _opdsNsmgr) as XmlElement;
+					var dateDiv = _opdsEntry?.SelectSingleNode("/a:feed/a:entry/a:published", _opdsNsmgr) as XmlElement;
 					if (dateDiv != null)
 					{
 						var year0 = dateDiv.InnerText.Trim().Substring(0, 4);
@@ -2455,7 +2491,7 @@ namespace RoseGarden
 					}
 					if (year == null)
 					{
-						var updateDiv = _opdsEntry.SelectSingleNode("/a:feed/a:entry/a:updated", _opdsNsmgr) as XmlElement;
+						var updateDiv = _opdsEntry?.SelectSingleNode("/a:feed/a:entry/a:updated", _opdsNsmgr) as XmlElement;
 						if (updateDiv != null)
 						{
 							var year0 = updateDiv.InnerText.Trim().Substring(0, 4);

@@ -41,7 +41,32 @@ namespace RoseGarden
 					par.AudioFileName = Path.GetFileName(audioNode.GetAttribute("src"));
 					par.AudioClipStart = audioNode.GetOptionalStringAttribute("clipBegin", null);
 					par.AudioClipEnd = audioNode.GetOptionalStringAttribute("clipEnd", null);
-					SmilPars.Add(par.TextLink, par);
+					if (SmilPars.TryGetValue(par.TextLink, out SmilPar prevPar))
+					{
+						// Smil data can sometimes split a segment into two contiguous pieces.
+						// Whether or not this is according to spec, it's been known to happen.
+						// Fuse those two contiguous pieces into one piece.
+						if (prevPar.Equals(par))
+							continue;
+						if (prevPar.AudioClipEnd == par.AudioClipStart)
+						{
+							prevPar.AudioClipEnd = par.AudioClipEnd;
+							par.AudioClipStart = prevPar.AudioClipStart;
+						}
+						else if (prevPar.AudioClipStart == par.AudioClipEnd)
+						{
+							prevPar.AudioClipStart = par.AudioClipStart;
+							par.AudioClipEnd = prevPar.AudioClipEnd;
+						}
+						else
+						{
+							throw new Exception($"Unexpected smil {parNode.OuterXml} in {smilFilePath}");
+						}
+					}
+					else
+					{
+						SmilPars.Add(par.TextLink, par);
+					}
 					if (!String.IsNullOrEmpty(par.AudioFileName) &&
 						!String.IsNullOrEmpty(par.AudioClipStart) && Double.TryParse(par.AudioClipStart, out double start) &&
 						!String.IsNullOrEmpty(par.AudioClipEnd) && Double.TryParse(par.AudioClipStart, out double end))
@@ -61,8 +86,8 @@ namespace RoseGarden
 						}
 						else
 						{
-							FileClipBounds.Add(par.AudioFileName,
-								new ClipBounds {InitialClipStart=par.AudioClipStart, FinalClipEnd=par.AudioClipEnd, Start=start, End=end});
+							FileClipBounds[par.AudioFileName] =
+								new ClipBounds {InitialClipStart=par.AudioClipStart, FinalClipEnd=par.AudioClipEnd, Start=start, End=end};
 						}
 
 					}
@@ -85,5 +110,25 @@ namespace RoseGarden
 		public string AudioFileName;
 		public string AudioClipStart;
 		public string AudioClipEnd;
+
+		public override bool Equals(object obj)
+		{
+			var that = obj as SmilPar;
+			if (obj == null)
+				return false;
+			return this.TextLink == that.TextLink &&
+				this.AudioFileName == that.AudioFileName &&
+				this.AudioClipStart == that.AudioClipStart &&
+				this.AudioClipEnd == that.AudioClipEnd;
+		}
+
+		public override int GetHashCode()
+		{
+			var hash1 = this.TextLink != null ? this.TextLink.GetHashCode() : 1;
+			var hash2 = this.AudioFileName != null ? this.AudioFileName.GetHashCode() : 2;
+			var hash3 = this.AudioClipStart != null ? this.AudioClipStart.GetHashCode() : -1;
+			var hash4 = this.AudioClipEnd != null ? this.AudioClipEnd.GetHashCode() : -2;
+			return (hash1 + hash2) ^ (hash3 + hash4);
+		}
 	}
 }
