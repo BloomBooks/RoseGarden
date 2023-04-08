@@ -211,7 +211,17 @@ namespace RoseGarden
 		{
 			var start = DateTime.Now;
 			if (args.Contains("-v") || args.Contains("--verbose") || args.Contains("-V") || args.Contains("--veryverbose"))
-				Console.WriteLine("RoseGarden {0} ", String.Join(" ", args));
+			{
+				Console.Write("RoseGarden");
+				for (int i = 0; i < args.Length; i++)
+				{
+					if (args[i].IndexOfAny(new char[] {' ', '\t', '\r', '\n'}) >= 0)
+						Console.Write(" \"{0}\"", args[i]);
+					else
+						Console.Write(" {0}", args[i]);
+				}
+				Console.WriteLine();
+			}
 			var retval = Parser.Default.ParseArguments<BatchOptions, ConvertOptions, FetchOptions, FixTableOptions, UploadOptions>(args)
 				.MapResult(
 					(BatchOptions opts) => BatchAndReturnExitCode(opts),
