@@ -1491,6 +1491,14 @@ namespace RoseGarden
 			// Page numbers seem to come as the first element.  Let's not trying anything more aggressive for now.
 		}
 
+		class SoundFileChunk
+		{
+			public string filename;
+			public string start;
+			public string finish;
+			public List<SmilPar> parList = new List<SmilPar>();
+		}
+
 		private void ApplyAnyAudio(XmlElement div, string pageFileName)
 		{
 			if (!_epubMetaData.MediaOverlays.TryGetValue(pageFileName, out string smilId))
@@ -1517,66 +1525,117 @@ namespace RoseGarden
 				}
 				if (parsUsed.Count > 0)
 				{
-					if (soundFiles.Count == 1)
+					var chunks = GetSoundFileChunks(parsUsed);
+					var duration = GetDuration(chunks);
+					var haveClipBounds = smilFile.FileClipBounds.TryGetValue(parsUsed[0].AudioFileName, out ClipBounds clipBounds);
+					div.SetAttribute("data-audiorecordingmode", "TextBox");
+					div.SetAttribute("data-duration", duration);
+					//var clipBegin = parsUsed[0].AudioClipStart;
+					//var clipEnd = parsUsed[parsUsed.Count - 1].AudioClipEnd;
+					//string duration = clipEnd ?? "";
+					double begin = 0.0;
+					//if (!String.IsNullOrEmpty(clipBegin) && !String.IsNullOrEmpty(clipEnd) &&
+					//	Double.TryParse(clipBegin, out begin) && Double.TryParse(clipEnd, out double end) &&
+					//	end > begin && begin > 0.0)
+					//{
+					//	var delta = end - begin;
+					//	duration = String.Format("{0:0.000}", delta);
+					//}
+					var divId = NewGuidBasedId();
+					div.SetAttribute("id", divId);
+					var source = Path.Combine(_epubMetaData.EpubContentFolder, "audio", parsUsed[0].AudioFileName);
+					var dest = Path.Combine(_bookFolder, "audio", divId + Path.GetExtension(source));
+
+					var destDirectory = Path.GetDirectoryName(dest);
+					Directory.CreateDirectory(destDirectory);   // only needed first time, but doesn't hurt.
+
+					var shortenedFile = false;
+					if (chunks.Count == 1 && duration == chunks[0].finish && (!haveClipBounds || duration == clipBounds.FinalClipEnd))
+						File.Copy(source, dest);
+					else
+						shortenedFile = ExtractAudioCopy(chunks, dest);
+					var endsBldr = new StringBuilder();
+					if (shortenedFile)
 					{
-						var haveClipBounds = smilFile.FileClipBounds.TryGetValue(parsUsed[0].AudioFileName, out ClipBounds clipBounds);
-						div.SetAttribute("data-audiorecordingmode", "TextBox");
-						var clipBegin = parsUsed[0].AudioClipStart;
-						var clipEnd = parsUsed[parsUsed.Count - 1].AudioClipEnd;
-						string duration = clipEnd ?? "";
-						double begin = 0.0;
-						if (!String.IsNullOrEmpty(clipBegin) && !String.IsNullOrEmpty(clipEnd) &&
-							Double.TryParse(clipBegin, out begin) && Double.TryParse(clipEnd, out double end) &&
-							end > begin && begin > 0.0)
+						var priorChunkEnd = 0.0;
+						foreach (var chunk in chunks)
 						{
-							var delta = end - begin;
-							duration = String.Format("{0:0.000}", delta);
-						}
-						var divId = NewGuidBasedId();
-						div.SetAttribute("id", divId);
-						var source = Path.Combine(_epubMetaData.EpubContentFolder, "audio", parsUsed[0].AudioFileName);
-						var dest = Path.Combine(_bookFolder, "audio", divId + Path.GetExtension(source));
-
-						var destDirectory = Path.GetDirectoryName(dest);
-						Directory.CreateDirectory(destDirectory);   // only needed first time, but doesn't hurt.
-
-						var shortenedFile = false;
-						if (duration == clipEnd && (!haveClipBounds || duration == clipBounds.FinalClipEnd))
-							File.Copy(source, dest);
-						else
-							shortenedFile = ExtractAudioCopy(source, dest, clipBegin, clipEnd);
-						var endsBldr = new StringBuilder();
-						if (shortenedFile)
-						{
-							div.SetAttribute("data-duration", duration);
-							foreach (var par in parsUsed)
+							var thisClipEnd = 0.0;
+							var ok = Double.TryParse(chunk.start, out double chunkStart);
+							if (!ok)
+								Console.WriteLine("DEBUG: chunk.start={0}, chunkStart={1}", chunk.start, chunkStart);
+							foreach (var par in chunk.parList)
 							{
+								var audioClipEnd = par.AudioClipEnd ?? "";
+								if (Double.TryParse(par.AudioClipEnd, out double clipEnd))
+								{
+									thisClipEnd = priorChunkEnd + clipEnd - chunkStart;
+									audioClipEnd = String.Format("{0:0.000}", thisClipEnd);
+								}
 								if (endsBldr.Length > 0)
 									endsBldr.Append(" ");
-								var audioClipEnd = par.AudioClipEnd ?? "";
-								if (Double.TryParse(audioClipEnd, out double endClip))
-									audioClipEnd = String.Format("{0:0.000}", endClip - begin);
 								endsBldr.Append(audioClipEnd);
 							}
+							priorChunkEnd = thisClipEnd;
 						}
-						else
-						{
-							div.SetAttribute("data-duration", clipEnd);
-							foreach (var par in parsUsed)
-							{
-								if (endsBldr.Length > 0)
-									endsBldr.Append(" ");
-								endsBldr.Append(par.AudioClipEnd ?? "");
-							}
-						}
-						div.SetAttribute("data-audiorecordingendtimes", endsBldr.ToString().Trim());
-						var md5 = ComputeMd5ForFile(dest);
-						div.SetAttribute("recordingmd5", md5);
-						var classes = div.GetAttribute("class");
-						div.SetAttribute("class", classes + " audio-sentence bloom-postAudioSplit");
 					}
+					else
+					{
+						foreach (var par in parsUsed)
+						{
+							if (endsBldr.Length > 0)
+								endsBldr.Append(" ");
+							endsBldr.Append(par.AudioClipEnd ?? "");
+						}
+					}
+					div.SetAttribute("data-audiorecordingendtimes", endsBldr.ToString().Trim());
+					var md5 = ComputeMd5ForFile(dest);
+					div.SetAttribute("recordingmd5", md5);
+					var classes = div.GetAttribute("class");
+					div.SetAttribute("class", classes + " audio-sentence bloom-postAudioSplit");
 				}
 			}
+		}
+
+		private string GetDuration(List<SoundFileChunk> chunks)
+		{
+			double duration = 0.000;
+			for (int i = 0; i < chunks.Count; ++i)
+			{
+				var clipBegin = chunks[i].start;
+				var clipEnd = chunks[i].finish;
+				if (!String.IsNullOrEmpty(clipBegin) && !String.IsNullOrEmpty(clipEnd) &&
+					Double.TryParse(clipBegin, out double begin) && Double.TryParse(clipEnd, out double end) &&
+					end > begin && begin > 0.0)
+				{
+					var delta = end - begin;
+					duration += delta;
+				}
+			}
+			return String.Format("{0:0.000}", duration);
+		}
+
+		private List<SoundFileChunk> GetSoundFileChunks(List<SmilPar> parsUsed)
+		{
+			var chunks = new List<SoundFileChunk>();
+			var chunk = new SoundFileChunk { filename = parsUsed[0].AudioFileName, start = parsUsed[0].AudioClipStart, finish = parsUsed[0].AudioClipEnd };
+			chunk.parList.Add(parsUsed[0]);
+			chunks.Add(chunk);
+			for (int i = 1; i < parsUsed.Count; ++i)
+			{
+				if (parsUsed[i].AudioFileName != chunk.filename || parsUsed[i].AudioClipStart != chunk.finish)
+				{
+					chunk = new SoundFileChunk { filename = parsUsed[i].AudioFileName, start = parsUsed[i].AudioClipStart, finish = parsUsed[i].AudioClipEnd };
+					chunk.parList.Add(parsUsed[i]);
+					chunks.Add(chunk);
+				}
+				else
+				{
+					chunk.finish = parsUsed[i].AudioClipEnd;
+					chunk.parList.Add(parsUsed[i]);
+				}
+			}
+			return chunks;
 		}
 
 		private bool TrimImageIfNeeded(string src, string imageName)
@@ -1630,7 +1689,64 @@ namespace RoseGarden
 
 		}
 
-		private bool ExtractAudioCopy(string source, string dest, string clipBegin, string clipEnd)
+		private bool ExtractAudioCopy(List<SoundFileChunk> chunks, string dest)
+		{
+			if (chunks.Count == 1)
+			{
+				var source = Path.Combine(_epubMetaData.EpubContentFolder, "audio", chunks[0].filename);
+				var arguments = $"-i \"{source}\" -map 0 -map -v -acodec copy -ss {chunks[0].start} -to {chunks[0].finish} \"{dest}\"";
+				if (!RunFFmpeg(arguments))
+				{
+					File.Copy(source, dest, true);
+					return false;
+				}
+				return true;
+			}
+			List<string> filePieces = new List<string>();
+			var listFile = Path.GetTempFileName();
+			File.Delete(listFile);
+			listFile = listFile + ".txt";
+			try
+			{
+				for (int i = 0; i < chunks.Count; ++i)
+				{
+					var source = Path.Combine(_epubMetaData.EpubContentFolder, "audio", chunks[i].filename);
+					var filePiece = Path.GetTempFileName();
+					File.Delete(filePiece);
+					filePiece = filePiece + Path.GetExtension(chunks[i].filename);
+					var arguments = $"-i \"{source}\" -map 0 -map -v -acodec copy -ss {chunks[i].start} -to {chunks[i].finish} \"{filePiece}\"";
+					filePieces.Add(filePiece);
+					if (!RunFFmpeg(arguments))
+					{
+						File.Copy(source, dest, true);
+						return false;
+					}
+				}
+				var lines = new List<string>();
+				for (int i = 0; i < filePieces.Count; ++i)
+				{
+					// format needed for ffmpeg input file listing mp3 files
+					lines.Add($"file {filePieces[i].Replace("\\", "/")}");
+				}
+				File.WriteAllLines(listFile, lines.ToArray());
+				var args = $"-f concat -safe 0 -i {listFile} -c copy {dest}";
+				if (!RunFFmpeg(args))
+				{
+					var source = Path.Combine(_epubMetaData.EpubContentFolder, "audio", chunks[0].filename);
+					File.Copy(source, dest, true);
+					return false;
+				}
+				return true;
+			}
+			finally
+			{
+				for (int i = 0; i < filePieces.Count; ++i)
+					File.Delete(filePieces[i]);
+				File.Delete(listFile);
+			}
+		}
+
+		private bool RunFFmpeg(string arguments)
 		{
 			var ffmpeg = "ffmpeg";
 			if (File.Exists(Path.Combine(_options.BloomFolder, "ffmpeg.exe")))
@@ -1639,7 +1755,6 @@ namespace RoseGarden
 				ffmpeg = Path.Combine(_options.BloomFolder, "Debug", "ffmpeg.exe");
 			else if (File.Exists(Path.Combine(_options.BloomFolder, "Release", "ffmpeg.exe")))
 				ffmpeg = Path.Combine(_options.BloomFolder, "Release", "ffmpeg.exe");
-			string arguments = $"-i \"{source}\" -acodec copy -ss {clipBegin} -to {clipEnd} \"{dest}\"";
 			var proc = new Process
 			{
 				StartInfo =
@@ -1662,7 +1777,6 @@ namespace RoseGarden
 				Console.WriteLine("##########################################################");
 				Console.WriteLine("STDERR={0}", proc.StandardError.ReadToEnd());
 				Console.WriteLine("##########################################################");
-				File.Copy(source, dest, true);
 				return false;
 			}
 			if (_options.Verbose)
@@ -1973,17 +2087,26 @@ namespace RoseGarden
 			}
 			var divId = NewGuidBasedId();
 			editDiv.SetAttribute("id", divId);
-			var source = Path.Combine(_epubMetaData.EpubContentFolder, "audio", smilPar.AudioFileName);
-			var dest = Path.Combine(_bookFolder, "audio", divId + Path.GetExtension(source));
+			var dest = Path.Combine(_bookFolder, "audio", divId + Path.GetExtension(smilPar.AudioFileName));
 
 			var destDirectory = Path.GetDirectoryName(dest);
 			Directory.CreateDirectory(destDirectory);   // only needed first time, but doesn't hurt.
 
 			var shortenedFile = false;
 			if (duration == (smilPar.AudioClipEnd ?? "") && (!haveClipBounds || duration == clipBounds.FinalClipEnd))
+			{
+				var source = Path.Combine(_epubMetaData.EpubContentFolder, "audio", smilPar.AudioFileName);
 				File.Copy(source, dest);
+			}
 			else
-				shortenedFile = ExtractAudioCopy(source, dest, smilPar.AudioClipStart, smilPar.AudioClipEnd);
+			{
+				var chunks = new List<SoundFileChunk>
+				{
+					new SoundFileChunk { filename = smilPar.AudioFileName, start = smilPar.AudioClipStart, finish = smilPar.AudioClipEnd }
+				};
+				chunks[0].parList.Add(smilPar);
+				shortenedFile = ExtractAudioCopy(chunks, dest);
+			}
 			if (shortenedFile)
 			{
 				editDiv.SetAttribute("data-duration", duration);
