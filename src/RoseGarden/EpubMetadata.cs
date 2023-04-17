@@ -3,6 +3,7 @@
 using SIL.Xml;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Xml;
 
@@ -109,6 +110,17 @@ namespace RoseGarden
 				if (!String.IsNullOrEmpty(overlay))
 					MediaOverlays.Add(href, overlay);
 			}
+			var preArray = PageFiles.ToArray();
+			PageFiles.Sort(new PageFilenameCompare());
+			Debug.Assert(preArray.Length == PageFiles.Count);
+			for (int i = 0; i < preArray.Length; ++i)
+			{
+				if (preArray[i] != PageFiles[i])
+				{
+					Console.WriteLine("INFO: the ordering of page files had to be fixed.");
+					break;
+				}
+			}
 			var imageItems = _opfDocument.SelectNodes("/o:package/o:manifest/o:item[starts-with(@media-type,'image/')]", _opfNsmgr);
 			foreach (var node in imageItems)
 			{
@@ -148,6 +160,50 @@ namespace RoseGarden
 			var rightsItem = _opfDocument.SelectSingleNode("/o:package/o:metadata/dc:rights", _opfNsmgr);
 			if (rightsItem != null)
 				RightsText = rightsItem.InnerText;
+		}
+		class PageFilenameCompare : IComparer<string>
+		{
+			public int Compare(string x, string y)
+			{
+				var base1 = Path.GetFileNameWithoutExtension(x);
+				var base2 = Path.GetFileNameWithoutExtension(y);
+				var ok1 = Int32.TryParse(base1, out int num1);
+				var ok2 = Int32.TryParse(base2, out int num2);
+				if (ok1 && ok2)
+					return num1 - num2;
+				if (base1.StartsWith("front"))
+					num1 = 0;
+				else if (base1.StartsWith("back"))
+					num1 = 999999;
+				else if (base1.StartsWith("questions"))
+					num1 = 990000 + NumberFrom(base1.Substring(9));
+				else if (base1.StartsWith("glossary"))
+					num1 = 999000 + NumberFrom(base1.Substring(8));
+				else if (base1.Trim(new char[] {'i','v'}) == "")
+					num1 = 0;	// Roman numbers 1-8 sort alphabetically
+				if (base2.StartsWith("front"))
+					num2 = 0;
+				else if (base2.StartsWith("back"))
+					num2 = 999999;
+				else if (base2.StartsWith("questions"))
+					num2 = 990000 + NumberFrom(base2.Substring(9));
+				else if (base2.StartsWith("glossary"))
+					num2 = 999000 + NumberFrom(base2.Substring(8));
+				else if (base2.Trim(new char[] { 'i', 'v' }) == "")
+					num2 = 0;   // Roman numbers 1-8 sort alphabetically
+				if (num1 == num2)
+					return String.Compare(base1, base2, true, System.Globalization.CultureInfo.InvariantCulture);
+				return num1 - num2;
+			}
+
+			private int NumberFrom(string tail)
+			{
+				if (String.IsNullOrEmpty(tail))
+					return 0;
+				if (Int32.TryParse(tail, out int num))
+					return num;
+				return 0;
+			}
 		}
 
 		private string GetSanitizedFilePath(string href)
