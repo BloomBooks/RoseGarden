@@ -1245,6 +1245,8 @@ namespace RoseGarden
 			// This may be called multiple times.
 			var dataDiv = GetOrCreateDataDivElement("smallCoverCredits", _epubMetaData.LanguageCode);
 			var newXml = RemoveXmlnsAttribsFromXmlString(paraXml);
+			if (newXml.Contains(" xml:lang="))
+				newXml = RemoveXmlLangAttributeFromXmlString(newXml);
 			var credits = dataDiv.InnerXml + newXml;
 			dataDiv.InnerXml = credits;
 			var newContrib = _bloomDoc.SelectSingleNode($"//div[contains(@class, 'bloom-editable') and @data-book='smallCoverCredits' and @lang='{_epubMetaData.LanguageCode}']");
@@ -1953,9 +1955,11 @@ namespace RoseGarden
 			// collapse multiple spaces into one space
 			var plain10 = Regex.Replace(plain09, @"  +", " ");
 			//Console.WriteLine("DEBUG FixInnerXml: 10=\"{0}\"", plain10);
-			//Console.WriteLine("DEBUG FixInnerXml: Final=\"{0}\"", plain10.Trim());
+			//Console.WriteLine("DEBUG FixInnerXml: 11=\"{0}\"", plain10.Trim());
 			var plain11 = Regex.Replace(plain10, @" class=""[^""]*"" style=""[^""]*"">",">");
-			return plain11.Trim();
+			// remove/replace any xml:lang attributes -- they cause trouble in Bloom due to libtidy
+			var plain12 = (plain11.Contains(" xml:lang=")) ? RemoveXmlLangAttributeFromXmlString(plain11) : plain11;
+			return plain12.Trim();
 		}
 
 		private static string RegexReplaceAsNeeded(string input, string match, string replace)
@@ -2195,6 +2199,8 @@ namespace RoseGarden
 				{
 					var inner = div.InnerXml;
 					var xml = RemoveXmlnsAttribsFromXmlString(inner);
+					if (xml.Contains(" xml:lang="))
+						xml = RemoveXmlLangAttributeFromXmlString(xml);
 					innerXmlBldr.Insert(0, Environment.NewLine);
 					innerXmlBldr.Insert(0, xml);
 					try
@@ -2332,6 +2338,16 @@ namespace RoseGarden
 			return newXml.Replace("epub:", "");
 		}
 
+		public static string RemoveXmlLangAttributeFromXmlString(string xml)
+		{
+			// xml:lang is always paired with lang from what I've seen, but try to handle cases where it isn't.
+			if (xml.Contains(" lang="))
+				return Regex.Replace(xml, " xml:lang=[\"'][^\"']*[\"']", "", RegexOptions.CultureInvariant, Regex.InfiniteMatchTimeout);
+			else
+				return xml.Replace(" xml:lang=", " lang=");
+		}
+
+
 		private bool ConvertEndCreditsPage(XmlElement body, XmlNamespaceManager nsmgr, int pageNumber)
 		{
 			if (_endCreditsPageCount == 0)
@@ -2425,6 +2441,8 @@ namespace RoseGarden
 			{
 				newData.Insert(0, Environment.NewLine);
 				var oldXml = RemoveXmlnsAttribsFromXmlString(dataDiv.InnerXml);
+				if (oldXml.Contains(" xml:lang="))
+					oldXml = RemoveXmlLangAttributeFromXmlString(oldXml);
 				newData.Insert(0, oldXml);
 			}
 			dataDiv.InnerXml = newData.ToString().Trim();
@@ -2693,6 +2711,8 @@ namespace RoseGarden
 			//{
 			//	_contributionsXmlBldr.Insert(0, Environment.NewLine);
 			//	var oldXml = RemoveXmlnsAttribsFromXmlString(contributions.InnerXml);
+			//	if (oldXml.Contains(" xml:lang="))
+			//		oldXml = RemoveXmlLangAttributeFromXmlString(oldXml);
 			//	_contributionsXmlBldr.Insert(0, oldXml);
 			//}
 			//contributions.InnerXml = _contributionsXmlBldr.ToString().Trim();
