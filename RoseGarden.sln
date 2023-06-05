@@ -1,11 +1,13 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
-# Visual Studio 15
-VisualStudioVersion = 15.0.28307.960
+# Visual Studio Version 17
+VisualStudioVersion = 17.6.33723.286
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "RoseGarden", "src\RoseGarden\RoseGarden.csproj", "{F4BFB175-973B-405D-A973-3E640D8C06F1}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "RoseGardenTests", "src\RoseGardenTests\RoseGardenTests.csproj", "{2BE22639-4B8E-4430-8981-5990071D6D6A}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ExtractAudioFilenames", "src\ExtractAudioFilenames\ExtractAudioFilenames.csproj", "{BD6888B2-294D-43F8-A933-F55CC14AF5FA}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -21,6 +23,10 @@ Global
 		{2BE22639-4B8E-4430-8981-5990071D6D6A}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{2BE22639-4B8E-4430-8981-5990071D6D6A}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{2BE22639-4B8E-4430-8981-5990071D6D6A}.Release|Any CPU.Build.0 = Release|Any CPU
+		{BD6888B2-294D-43F8-A933-F55CC14AF5FA}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{BD6888B2-294D-43F8-A933-F55CC14AF5FA}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{BD6888B2-294D-43F8-A933-F55CC14AF5FA}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{BD6888B2-294D-43F8-A933-F55CC14AF5FA}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
