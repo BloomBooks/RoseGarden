@@ -1376,7 +1376,7 @@ namespace RoseGarden
 		{
 			var pageDoc = new XmlDocument();
 			pageDoc.PreserveWhitespace = true;
-			pageDoc.LoadXml(pageXhtml);
+			pageDoc.LoadXml(pageXhtml.Replace("<br>", "<br/>"));
 			var nsmgr = new XmlNamespaceManager(pageDoc.NameTable);
 			nsmgr.AddNamespace("x", "http://www.w3.org/1999/xhtml");
 			var body = pageDoc.SelectSingleNode("/x:html/x:body", nsmgr) as XmlElement;
