@@ -74,7 +74,8 @@ namespace RoseGarden
 			var langItem = _opfDocument.SelectSingleNode("/o:package/o:metadata/dc:language", _opfNsmgr);
 			LanguageCode = langItem.InnerText;
 			var modifiedItem = _opfDocument.SelectSingleNode("/o:package/o:metadata/o:meta[@property='dcterms:modified']", _opfNsmgr);
-			Modified = DateTime.Parse(modifiedItem.InnerText);
+			if (modifiedItem != null)
+				Modified = DateTime.Parse(modifiedItem.InnerText);
 			var descriptionItem = _opfDocument.SelectSingleNode("/o:package/o:metadata/dc:description", _opfNsmgr);
 			if (descriptionItem != null)
 				Description = descriptionItem.InnerText;

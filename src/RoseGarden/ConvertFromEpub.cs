@@ -84,7 +84,7 @@ namespace RoseGarden
 			"browser/collectionsTab/collectionsTabBookPane/previewMode.css",
 			"browser/bookEdit/css/origami.css",
 			"browser/branding/Default/branding.css",
-			"browser/branding/Default/BloomWithTaglineAgainstLight.svg",
+			"browser/branding/Default/made-with-bloom-badge.svg",	// replaced BloomWithTaglineAgainstLight.svg
 			"browser/templates/template books/Basic Book/Basic Book.css",
 			"browser/templates/template books/Basic Book/license.png",
 			"browser/templates/template books/Basic Book/meta.json",
@@ -1376,7 +1376,7 @@ namespace RoseGarden
 		{
 			var pageDoc = new XmlDocument();
 			pageDoc.PreserveWhitespace = true;
-			pageDoc.LoadXml(pageXhtml);
+			pageDoc.LoadXml(pageXhtml.Replace("<br>", "<br/>"));
 			var nsmgr = new XmlNamespaceManager(pageDoc.NameTable);
 			nsmgr.AddNamespace("x", "http://www.w3.org/1999/xhtml");
 			var body = pageDoc.SelectSingleNode("/x:html/x:body", nsmgr) as XmlElement;
@@ -3097,6 +3097,11 @@ namespace RoseGarden
 						// are case-insensitive.
 						if (destinationPath.StartsWith(extractPath, StringComparison.Ordinal))
 						{
+							if (destinationPath.EndsWith(Path.DirectorySeparatorChar.ToString(), StringComparison.InvariantCulture))
+							{
+								Directory.CreateDirectory(destinationPath);
+								continue;
+							}
 							Directory.CreateDirectory(Path.GetDirectoryName(destinationPath));
 							var length = (int)entry.Length; // entry.Open() apparently clears this value, at least for Mono
 							using (var reader = new BinaryReader(entry.Open()))
