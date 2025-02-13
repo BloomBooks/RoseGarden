@@ -5,6 +5,7 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
+using System.Text.RegularExpressions;
 using System.Xml;
 
 namespace RoseGarden
@@ -199,6 +200,7 @@ namespace RoseGarden
 		}
 		class PageFilenameCompare : IComparer<string>
 		{
+			static Regex _numberedNameRegex = new Regex(@"([A-Za-z-]+)(\d+)$", RegexOptions.Compiled);
 			public int Compare(string x, string y)
 			{
 				var base1 = Path.GetFileNameWithoutExtension(x);
@@ -228,7 +230,20 @@ namespace RoseGarden
 				else if (base2.Trim(new char[] { 'i', 'v' }) == "")
 					num2 = 0;   // Roman numbers 1-8 sort alphabetically
 				if (num1 == num2)
-					return String.Compare(base1, base2, true, System.Globalization.CultureInfo.InvariantCulture);
+				{
+					// try filenames like "chapter-1" or "chapter1"
+					var match1 = _numberedNameRegex.Match(base1);
+					var match2 = _numberedNameRegex.Match(base2);
+					if (match1.Success && match2.Success && match1.Groups[1].Value == match2.Groups[1].Value)
+					{
+						var num1Str = match1.Groups[2].Value;
+						var num2Str = match2.Groups[2].Value;
+						if (Int32.TryParse(num1Str, out num1) && Int32.TryParse(num2Str, out num2))
+							return num1 - num2;
+					}
+					else
+						return String.Compare(base1, base2, true, System.Globalization.CultureInfo.InvariantCulture);
+				}
 				return num1 - num2;
 			}
 
