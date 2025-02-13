@@ -42,6 +42,7 @@ namespace RoseGarden
 		internal readonly LanguageData _languageData = new LanguageData();
 		internal BookMetaData _bookMetaData;
 		internal string _publisher;
+		internal string _producer;
 		internal string _creditsLang = "en";    // default assumption until proven otherwise (and true more often than for any other value)
 		// Special case for publisher 3Asafeer since it doesn't do end credit pages.
 		string _asafeerCopyright;
@@ -565,6 +566,9 @@ namespace RoseGarden
 				_publisher = _epubMetaData.Publisher;
 				Console.WriteLine("INFO: Using publisher from ePUB metadata: \"{0}\"", _publisher);
 			}
+			_producer = _epubMetaData.BookProducer;
+			if (_options.Verbose && !String.IsNullOrEmpty(_producer))
+				Console.WriteLine("INFO: book producer is {0}", _producer);
 
 			SetHeadMetaAndBookLanguage();
 
@@ -1382,6 +1386,8 @@ namespace RoseGarden
 			var body = pageDoc.SelectSingleNode("/x:html/x:body", nsmgr) as XmlElement;
 			if (IsEndCreditsPage(body, pageNumber))
 				return ConvertEndCreditsPage(body, nsmgr, pageNumber);
+			if (IsUnmarkedCreditsPage(body, _producer))
+				return ConvertUnmarkedCreditsPage(body, nsmgr, pageNumber);
 
 			var imageCount = 0;
 			var textCount = 0;
@@ -1432,7 +1438,7 @@ namespace RoseGarden
 				XmlElement divInGroup = null;
 				foreach (var node in rawNodes)
 				{
-					if (node.Name == "img")
+					if (node.Name == "img" || node.Name == "svg")
 					{
 						StoreImage(imageIdx, images, node as XmlElement, pageFileName);
 						++imageIdx;
@@ -1472,6 +1478,41 @@ namespace RoseGarden
 				}
 				if (divInGroup != null)
 					ApplyAnyAudio(divInGroup, pageFileName);
+			}
+			return true;
+		}
+
+		private bool IsUnmarkedCreditsPage(XmlElement body, string producer)
+		{
+			var innerText = body.InnerText.Trim();
+			return innerText.Contains("This work is licensed") &&
+				innerText.Contains("Copyright ") &&
+				innerText.Contains("License");
+		}
+
+		private bool ConvertUnmarkedCreditsPage(XmlElement body, XmlNamespaceManager nsmgr, int pageNumber)
+		{
+			if (NeedCopyrightInformation())
+				ProcessRawCreditsPageForCopyrights(body, pageNumber);
+			if (_options.AllowEmbeddedImages)
+			{
+				var innerPage = GetOrCreateDataDivElement("insideFontCover", _creditsLang); // misspelling is intentional
+				innerPage.SetAttribute("class", "bloom-editable");
+				innerPage.SetAttribute("contenteditable", "true");
+				innerPage.SetAttribute("data-hint", "If you need somewhere to put more information about the book, you can use this page, which is the inside of the front cover.");
+				var innerXml = body.InnerXml;
+				innerXml = RemoveXmlnsAttribsFromXmlString(innerXml);
+				innerXml = innerXml.Replace("src=\"images/image", "src=\"image");
+				innerXml = Regex.Replace(innerXml, " class=\"block_[0-9]+\"", "");
+				innerXml = Regex.Replace(innerXml, " id=\"calibre_pb_[0-9]+\"", "");
+				innerXml = innerXml.Replace("<p> </p>", "");  // remove empty paragraphs
+				innerPage.InnerXml = innerXml;
+				var imgs = innerPage.SelectNodes(".//img").Cast<XmlElement>().ToList();
+				foreach (var img in imgs)
+				{
+					img.RemoveAttribute("class");
+					img.SetAttribute("style", "max-height: 60px;"); // limit image sizes on page
+				}
 			}
 			return true;
 		}
@@ -1882,6 +1923,24 @@ namespace RoseGarden
 						ref firstChild, ref prevChild);
 					continue;
 				}
+				else if (child.Name == "svg")
+				{
+					var imgSrc = "";
+					foreach (var node in child.ChildNodes.Cast<XmlNode>())
+					{
+						if (node.Name == "image" && !String.IsNullOrEmpty(node.GetStringAttribute("xlink:href")))
+						{
+							++imageCount;   // we can convert this to an img element
+							imgSrc = node.GetStringAttribute("xlink:href");
+						}
+						
+					}
+					if (String.IsNullOrEmpty(imgSrc))
+					{
+						Console.WriteLine("WARNING: UNEXPECTED ELEMENT IN EPUB PAGE: {0} / \"{1}\"", child.Name, child.OuterXml);
+						continue;
+					}
+				}
 				else
 				{
 					// Should we pay attention to <br> to create paragraphs instead of every text node becoming a paragraph?
@@ -1891,6 +1950,30 @@ namespace RoseGarden
 					continue;
 				}
 				rawNodes.Add(child);
+			}
+			if (textCount == 1 && imageCount == 0 && videoCount == 0)
+			{
+				var imgs = body.SafeSelectNodes("//img").Cast<XmlElement>().ToList();
+				if (imgs.Count > 0)
+				{
+					foreach (var img in imgs)
+					{
+						var src = img.GetStringAttribute("src");
+						if (_options.AllowEmbeddedImages)
+						{
+							if (src.StartsWith("images/"))
+								img.SetAttribute("src", src.Substring(7));
+							img.SetAttribute("style", "max-width: 50%;");   // limit the image display size
+						}
+						else
+						{
+							img.ParentNode.RemoveChild(img);
+							Console.WriteLine("WARNING: REMOVED IMAGE EMBEDDED INSIDE PARAGRAPH: {0}", src);
+						}
+					}
+					if (imgs.Count > 1 && _options.AllowEmbeddedImages)
+						Console.WriteLine("WARNING: {0} IMAGES EMBEDDED INSIDE PARAGRAPHS.  THESE WILL NOT WORK NORMALLY IN BLOOM.", imgs.Count);
+				}
 			}
 		}
 
@@ -1986,6 +2069,18 @@ namespace RoseGarden
 			var parentId = img.ParentNode?.GetOptionalStringAttribute("id", null);
 			var alt = img.GetAttribute("alt");
 			var src = img.GetAttribute("src");
+			if (img.Name == "svg")
+			{
+				foreach (var node in img.ChildNodes.Cast<XmlNode>())
+				{
+					if (node.Name == "image" && !String.IsNullOrEmpty(node.GetStringAttribute("xlink:href")))
+					{
+						src = node.GetStringAttribute("xlink:href");
+						break;
+					}
+				}
+				alt = "";
+			}
 			if (imageIdx < images.Count)
 			{
 				var imageName = Path.GetFileName(src);  // don't want leading image/ or images/
@@ -2592,6 +2687,12 @@ namespace RoseGarden
 				ProcessRawPrathamCreditsPage(bodyText, pageNumber, "fr");
 				return;
 			}
+			if (bodyText.Contains("MissionAssist") && bodyText.Contains("©") &&
+				bodyText.Contains("This work is licensed"))
+			{
+				ProcessRawMissionAssistCreditsPage(bodyText, pageNumber);
+				return;
+			}
 			var artCopyright = "";
 			var bookCopyright = "";
 			var copyright = GetOrCreateDataDivElement("copyright", "*");
@@ -2691,6 +2792,31 @@ namespace RoseGarden
 					artCreator = String.Join(", ", _epubMetaData.Illustrators).Trim(' ', ',');
 				SetAllImageMetadata(artCreator, artCopyright, licenseAbbrev);
 				AddIllustratorContributionCredit(artCreator, artCopyright, licenseAbbrev);
+			}
+		}
+
+		private void ProcessRawMissionAssistCreditsPage(string bodyText, int pageNumber)
+		{
+			var licenseUrl = GetOrCreateDataDivElement("licenseUrl", "*");
+			var licenseAbbrev = "";
+			if (String.IsNullOrWhiteSpace(licenseUrl.InnerText))
+			{
+				licenseAbbrev = FindAndProcessCreativeCommonsForBook(bodyText);
+				if (String.IsNullOrWhiteSpace(licenseAbbrev))
+					Console.WriteLine("WARNING: No license found for book {0}", _bookMetaData.Title);
+			}
+			var copyright = GetOrCreateDataDivElement("copyright", "*");
+			var matches = Regex.Matches(bodyText, "(©[^0-9©]* ([12][09][0-9][0-9]))", RegexOptions.CultureInvariant | RegexOptions.Singleline);
+			if (matches.Count > 1)
+				Console.WriteLine("WARNING: MULTIPLE COPYRIGHTS FOUND ON CREDIT PAGE!  THIS NEEDS TO BE CHECKED OUT!");
+			if (String.IsNullOrWhiteSpace(copyright.InnerText))
+			{
+				matches = Regex.Matches(bodyText, "\n\\s*(([A-Za-z]*)?\\s*©[^0-9]* ([12][09][0-9][0-9])\\s*([^\n]*))\n", RegexOptions.CultureInvariant);
+				if (matches.Count == 1)
+				{
+					copyright.InnerText = matches[0].Groups[1].Value;
+					_bookMetaData.Copyright = matches[0].Groups[2].Value;	
+				}
 			}
 		}
 

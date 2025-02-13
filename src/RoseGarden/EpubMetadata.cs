@@ -17,6 +17,7 @@ namespace RoseGarden
 		public string Description;
 		public string Source;
 		public string Publisher;
+		public string BookProducer;
 		public string RightsText;
 		public DateTime Modified;
 		public List<string> Authors = new List<string>();
@@ -76,6 +77,16 @@ namespace RoseGarden
 			var modifiedItem = _opfDocument.SelectSingleNode("/o:package/o:metadata/o:meta[@property='dcterms:modified']", _opfNsmgr);
 			if (modifiedItem != null)
 				Modified = DateTime.Parse(modifiedItem.InnerText);
+			else
+			{
+				var timestamp = _opfDocument.SelectSingleNode("/o:package/o:metadata/o:meta[@name='calibre:timestamp']", _opfNsmgr);
+				if (timestamp != null)
+				{
+					var dateTime = timestamp.GetOptionalStringAttribute("content", "");
+					if (!String.IsNullOrEmpty(dateTime))
+						Modified = DateTime.Parse(dateTime);
+				}
+			}
 			var descriptionItem = _opfDocument.SelectSingleNode("/o:package/o:metadata/dc:description", _opfNsmgr);
 			if (descriptionItem != null)
 				Description = descriptionItem.InnerText;
@@ -83,23 +94,47 @@ namespace RoseGarden
 			foreach (var node in creatorItems)
 			{
 				var creator = node as XmlElement;
-				var id = creator.GetAttribute("id");
-				var refinementNode = _opfDocument.SelectSingleNode("/o:package/o:metadata/o:meta[@refines='#" + id + "' and @property='role' and @scheme='marc:relators']", _opfNsmgr);
-				if (refinementNode == null || refinementNode.InnerText == "aut")
+				var role = creator.GetOptionalStringAttribute("opf:role", null);
+				if (role == "aut")
 					Authors.Add(creator.InnerText);
-				else
+				else if (role == "ill")
+					Illustrators.Add(creator.InnerText);
+				else if (!String.IsNullOrEmpty(role))
 					OtherCreators.Add(creator.InnerText);
+				else
+				{
+					var id = creator.GetAttribute("id");
+					var refinementNode = _opfDocument.SelectSingleNode("/o:package/o:metadata/o:meta[@refines='#" + id + "' and @property='role' and @scheme='marc:relators']", _opfNsmgr);
+					if (refinementNode == null || refinementNode.InnerText == "aut")
+						Authors.Add(creator.InnerText);
+					else if (refinementNode.InnerText == "ill")
+						Illustrators.Add(creator.InnerText);
+					else
+						OtherCreators.Add(creator.InnerText);
+				}
 			}
 			var contributorItems = _opfDocument.SelectNodes("/o:package/o:metadata/dc:contributor", _opfNsmgr);
 			foreach (var node in contributorItems)
 			{
 				var contributor = node as XmlElement;
-				var id = contributor.GetAttribute("id");
-				var refinementNode = _opfDocument.SelectSingleNode("/o:package/o:metadata/o:meta[@refines='#" + id + "' and @property='role' and @scheme='marc:relators']", _opfNsmgr);
-				if (refinementNode == null || refinementNode.InnerText == "ill")
+				var role = contributor.GetOptionalStringAttribute("opf:role", null);
+				if (role == "aut")
+					Authors.Add(contributor.InnerText);
+				else if (role == "ill")
 					Illustrators.Add(contributor.InnerText);
-				else
+				else if (role == "bkp")
+					BookProducer = contributor.InnerText;
+				else if (!String.IsNullOrEmpty(role))
 					OtherContributors.Add(contributor.InnerText);
+				else
+				{
+					var id = contributor.GetAttribute("id");
+					var refinementNode = _opfDocument.SelectSingleNode("/o:package/o:metadata/o:meta[@refines='#" + id + "' and @property='role' and @scheme='marc:relators']", _opfNsmgr);
+					if (refinementNode == null || refinementNode.InnerText == "ill")
+						Illustrators.Add(contributor.InnerText);
+					else
+						OtherContributors.Add(contributor.InnerText);
+				}
 			}
 			var chapterItems = _opfDocument.SelectNodes("/o:package/o:manifest/o:item[@media-type='application/xhtml+xml' and @id!='toc' and @id!='nav']", _opfNsmgr);
 			foreach (var node in chapterItems)
