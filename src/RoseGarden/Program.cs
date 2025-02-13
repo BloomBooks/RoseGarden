@@ -114,6 +114,9 @@ namespace RoseGarden
 		[Option('V', "veryverbose", Required = false, HelpText = "Write very verbose progress messages to the console.")]
 		public bool VeryVerbose { get; set; }
 
+		[Option("allow-embedded-images", Required = false, HelpText = "Allow embedded images in the epub file to be used in the Bloom book.  These images will NOT be accessible as normal Bloom images.")]
+		public bool AllowEmbeddedImages { get; set; }
+
 		public string GetPageLayout()
 		{
 			switch (PageSize)
