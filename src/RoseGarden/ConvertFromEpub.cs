@@ -360,12 +360,19 @@ namespace RoseGarden
 
 			_bookFolder = Path.Combine(workBase, "BLOOM");
 			Directory.CreateDirectory(_bookFolder);
-			foreach (var file in _copiedFiles)
-			{
-				var inputPath = Path.Combine(_options.BloomFolder, file);
-				var outputPath = Path.Combine(_bookFolder, Path.GetFileName(file));
-				File.Copy(inputPath, outputPath);
-			}
+            foreach (var file in _copiedFiles)
+            {
+                var inputPath = Path.Combine(_options.BloomFolder, file);
+                var outputPath = Path.Combine(_bookFolder, Path.GetFileName(file));
+                if (File.Exists(inputPath))
+                    File.Copy(inputPath, outputPath);
+                else if (inputPath.EndsWith(".png") && File.Exists(inputPath.Replace(".png", ".jpg")))
+                    File.Copy(inputPath.Replace(".png", ".jpg"), outputPath);
+                else if (inputPath.EndsWith(".png") && File.Exists(inputPath.Replace(".png", ".svg")))
+                    File.Copy(inputPath.Replace(".png", ".svg"), outputPath);
+                else
+                    Console.WriteLine("WARNING: could not find {0} in {_options.BloomFolder}", file);
+            }
 			File.WriteAllText(Path.Combine(_bookFolder, "book.userPrefs"), "{\"mostRecentPage\":0,\"reducePdfMemory\":false}");
 			var location = Assembly.GetExecutingAssembly().Location;
 			var blankHtmPath = Path.Combine(Path.GetDirectoryName(location), "Resources", "Book.htm");
@@ -988,6 +995,26 @@ namespace RoseGarden
 			ProcessCoverContent(ref titleSet, ref authorEtcSet, ref imageCount, titleBldr, children);
 			if (imageCount == 1 && !titleSet && titleBldr.Length == 0 && !authorEtcSet)
 				_coverImageOnlyInEpub = true;
+            if (!titleSet && titleBldr.Length > 0 && _epubMetaData.Title.Length > 0)
+            {
+                if (titleBldr.Length > 200 && _epubMetaData.Title.Length < 100)
+                {
+                    // Computing the title from the cover produced something very long,
+                    // while the ePub metadata title is reasonable.
+                    if (_options.Verbose)
+                        Console.WriteLine("INFO: computed title from cover is very long; using title from epub metadata: \"{0}\"", _epubMetaData.Title);
+                    SetTitle(_epubMetaData.Title);
+                    titleSet = true;
+                }
+                else if (String.Equals(titleBldr.ToString(), _epubMetaData.Title, StringComparison.InvariantCultureIgnoreCase))
+                {
+                    // Titles match except for case
+                    if (_options.Verbose)
+                        Console.WriteLine("INFO: title from cover matches epub metadata (except for case): \"{0}\"", _epubMetaData.Title);
+                    SetTitle(_epubMetaData.Title);   // use the capitalization from the metadata
+                    titleSet = true;
+                }
+            }
 			if (!titleSet && titleBldr.Length > 0)
 			{
 				if (_options.Verbose)
